@@ -1,0 +1,41 @@
+location = "var/deb/cedar-1.0.deb"
+
+[control]
+package      = "cedar"
+version      = "1.0"
+license      = "MIT"
+section      = "utils"
+priority     = "optional"
+arch         = "amd64"
+vendor       = "midbel"
+depends      = ["libc6"]
+size         = 4181
+summary      = "create deb or rpm package made easy."
+#description  = "it should be a multiline description"
+maintainer   = {
+  name  = "midbel",
+  email = "midbel@github.com",
+}
+compiler = "go-1.10"
+
+[[resource]]
+source      = "bin/cedar"
+destination = "usr/bin/"
+mode = 0755
+
+[[resource]]
+source = "src/github.com/midbel/cedar/LICENSE"
+destination = "usr/share/doc/cedar/"
+filename = "copyright"
+
+# [[resource]]
+# source      = "src/github.com/midbel/cedar/docs/CHANGELOG"
+# destination = "usr/share/doc/cedar/"
+# filename    = "changelog.Debian.gz"
+# compress    = true
+
+# [[resource]]
+# source      = "src/github.com/midbel/cedar/docs/transmit.1"
+# destination = "usr/share/man/man1"
+# compress    = true
+# filename    = "transmit.1.gz"
