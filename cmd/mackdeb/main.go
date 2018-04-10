@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/midbel/cedar"
-	"github.com/midbel/cedar/deb"
+	"github.com/midbel/mack"
+	"github.com/midbel/mack/deb"
 	"github.com/midbel/toml"
 )
 
@@ -20,11 +20,11 @@ func main() {
 	c := struct {
 		Location string        `toml:"location"`
 		Control  deb.Control   `toml:"control"`
-		Files    []*cedar.File `toml:"resource"`
+		Files    []*mack.File `toml:"resource"`
 	}{}
-	c.Control.Maintainer = cedar.Maintainer {
-		Name: os.Getenv("CEDAR_MAINTAINER"),
-		Email: os.Getenv("CEDAR_EMAIL"),
+	c.Control.Maintainer = mack.Maintainer {
+		Name: os.Getenv("MACK_MAINTAINER"),
+		Email: os.Getenv("MACK_EMAIL"),
 	}
 	if err := toml.NewDecoder(f).Decode(&c); err != nil {
 		log.Fatalln(err)

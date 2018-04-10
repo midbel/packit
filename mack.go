@@ -1,4 +1,4 @@
-package cedar
+package mack
 
 import (
 	"path/filepath"

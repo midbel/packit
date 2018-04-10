@@ -14,8 +14,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/midbel/cedar"
-	"github.com/midbel/cedar/ar"
+	"github.com/midbel/mack"
+	"github.com/midbel/mack/ar"
 )
 
 const (
@@ -57,7 +57,7 @@ type Control struct {
 	Depends    []string `toml:"depends"`
 	Compiler   string   `toml:"compiler"`
 	Size       int      `toml:"size"`
-	cedar.Maintainer `toml:"maintainer"`
+	mack.Maintainer `toml:"maintainer"`
 }
 
 type Writer struct {
@@ -94,13 +94,13 @@ func (w *Writer) WriteControl(c Control) error {
 	return w.control.WriteString(DebControlFile, body.String(), w.modtime)
 }
 
-func (w *Writer) WriteFile(f *cedar.File) error {
+func (w *Writer) WriteFile(f *mack.File) error {
 	r, err := os.Open(f.Src)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	if f.Conf || cedar.IsConfFile(f.Dst) {
+	if f.Conf || mack.IsConfFile(f.Dst) {
 		p := f.String()
 		if s := string(os.PathSeparator); !strings.HasPrefix(p, s) {
 			p = s + p
@@ -234,7 +234,7 @@ func (t *tarball) WriteString(f, c string, n time.Time) error {
 	return err
 }
 
-func (t *tarball) WriteFile(f *cedar.File, n time.Time) ([]byte, error) {
+func (t *tarball) WriteFile(f *mack.File, n time.Time) ([]byte, error) {
 	ds, _ := filepath.Split(f.Dst)
 	if err := t.WriteDirectoryTree(ds, n); err != nil {
 		return nil, err
