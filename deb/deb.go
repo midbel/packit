@@ -91,7 +91,11 @@ func NewWriter(w io.Writer) (*Writer, error) {
 }
 
 func (w *Writer) WriteControl(c Control) error {
-	return nil
+	body, err := prepareControl(c)
+	if err != nil {
+		return err
+	}
+	return w.control.WriteString(DebControlFile, body.String(), w.modtime)
 }
 
 func (w *Writer) WriteFile(f *cedar.File) error {
@@ -115,10 +119,22 @@ func (w *Writer) WriteFile(f *cedar.File) error {
 
 func (w *Writer) Close() error {
 	if len(w.md5sums) > 0 {
-
+		body := new(bytes.Buffer)
+		for _, s := range w.md5sums {
+			io.WriteString(body, s+"\n")
+		}
+		if err := w.control.WriteString(DebMD5sumsFile, body.String(), w.modtime); err != nil {
+			return err
+		}
 	}
 	if len(w.conffiles) > 0 {
-
+		body := new(bytes.Buffer)
+		for _, s := range w.conffiles {
+			io.WriteString(body, s+"\n")
+		}
+		if err := w.control.WriteString(DebConffilesFile, body.String(), w.modtime); err != nil {
+			return err
+		}
 	}
 	for _, t := range []*tarball{w.control, w.data} {
 		if err := writeTarball(w.inner, t, w.modtime); err != nil {
@@ -199,6 +215,23 @@ func newTarball(n string) *tarball {
 		zip:  zipper,
 		ark:  tar.NewWriter(zipper),
 	}
+}
+
+func (t *tarball) WriteString(f, c string, n time.Time) error {
+	h := tar.Header{
+		Name:     f,
+		ModTime:  n,
+		Uid:      0,
+		Gid:      0,
+		Mode:     0644,
+		Size:     int64(len(c)),
+		Typeflag: tar.TypeReg,
+	}
+	if err := t.ark.WriteHeader(&h); err != nil {
+		return err
+	}
+	_, err := io.WriteString(t.ark, c)
+	return err
 }
 
 func (t *tarball) WriteFile(f *cedar.File, n time.Time) ([]byte, error) {
