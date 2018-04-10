@@ -2,15 +2,19 @@ package deb
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"text/template"
+	"time"
+
+	"github.com/midbel/cedar/ar"
 )
 
 const (
 	DebVersion       = "2.0\n"
 	DebDataFile      = "data.tar.gz"
 	DebControlTar    = "control.tar.gz"
-	DebBinaryTar     = "debian-binary"
+	DebBinaryFile    = "debian-binary"
 	DebControlFile   = "./control"
 	DebMD5sumsFile   = "./md5sums"
 	DebConffilesFile = "./conffiles"
@@ -50,6 +54,38 @@ type Control struct {
 	Compiler   string   `toml:"compiler"`
 	Size       int      `toml:"size"`
 	Maintainer `toml:"maintainer"`
+}
+
+type Writer struct {
+	inner   *ar.Writer
+	modtime time.Time
+}
+
+func NewWriter(w io.Writer) (*Writer, error) {
+	n := time.Now()
+	aw := ar.NewWriter(w)
+	if err := writeDebianBinaryFile(aw, n); err != nil {
+		return nil, err
+	}
+	return &Writer{aw, n}, nil
+}
+
+func writeDebianBinaryFile(a *ar.Writer, n time.Time) error {
+	h := ar.Header{
+		Name:    DebBinaryFile,
+		Uid:     0,
+		Gid:     0,
+		ModTime: n,
+		Mode:    0644,
+		Length:  len(DebVersion),
+	}
+	if err := a.WriteHeader(&h); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(a, DebVersion); err != nil {
+		return err
+	}
+	return nil
 }
 
 func prepareControl(c Control) (*bytes.Buffer, error) {
