@@ -14,7 +14,7 @@ summary      = "create deb or rpm package made easy."
 #description  = "it should be a multiline description"
 maintainer   = {
   name  = "midbel",
-  email = "midbel@github.com",
+  email = "midbel@foobar.com",
 }
 compiler = "go-1.10"
 
@@ -35,7 +35,7 @@ filename = "copyright"
 # compress    = true
 
 # [[resource]]
-# source      = "src/github.com/midbel/cedar/docs/transmit.1"
+# source      = "src/github.com/midbel/cedar/docs/midbel.1"
 # destination = "usr/share/man/man1"
 # compress    = true
-# filename    = "transmit.1.gz"
+# filename    = "midbel.1.gz"
