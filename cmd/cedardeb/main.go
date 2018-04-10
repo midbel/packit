@@ -32,4 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	if err := pkg.Close(); err != nil {
+		os.Remove(c.Location)
+	}
 }

@@ -1,18 +1,26 @@
 package deb
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
+	"crypto/md5"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
 
+	"github.com/midbel/cedar"
 	"github.com/midbel/cedar/ar"
 )
 
 const (
 	DebVersion       = "2.0\n"
-	DebDataFile      = "data.tar.gz"
+	DebDataTar       = "data.tar.gz"
 	DebControlTar    = "control.tar.gz"
 	DebBinaryFile    = "debian-binary"
 	DebControlFile   = "./control"
@@ -59,6 +67,12 @@ type Control struct {
 type Writer struct {
 	inner   *ar.Writer
 	modtime time.Time
+
+	conffiles []string
+	md5sums   []string
+
+	control *tarball
+	data    *tarball
 }
 
 func NewWriter(w io.Writer) (*Writer, error) {
@@ -67,7 +81,68 @@ func NewWriter(w io.Writer) (*Writer, error) {
 	if err := writeDebianBinaryFile(aw, n); err != nil {
 		return nil, err
 	}
-	return &Writer{aw, n}, nil
+	wd := &Writer{
+		inner:   aw,
+		modtime: n,
+		control: newTarball(DebControlTar),
+		data:    newTarball(DebDataTar),
+	}
+	return wd, nil
+}
+
+func (w *Writer) WriteFile(f *cedar.File) error {
+	r, err := os.Open(f.Src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	if f.Conf || cedar.IsConfFile(f.Dst) {
+		w.conffiles = append(w.conffiles, f.String())
+	}
+	sum, err := w.data.WriteFile(f, w.modtime)
+	if err != nil {
+		return err
+	}
+	if len(sum) == md5.Size {
+		w.md5sums = append(w.md5sums, fmt.Sprintf("%x %s", sum, f.String()))
+	}
+	return nil
+}
+
+func (w *Writer) Close() error {
+	if len(w.md5sums) > 0 {
+
+	}
+	if len(w.conffiles) > 0 {
+
+	}
+	for _, t := range []*tarball{w.control, w.data} {
+		if err := writeTarball(w.inner, t, w.modtime); err != nil {
+			return err
+		}
+	}
+	return w.inner.Close()
+}
+
+func writeTarball(a *ar.Writer, t *tarball, n time.Time) error {
+	if err := t.Close(); err != nil {
+		return err
+	}
+	h := ar.Header{
+		Name:    t.Name,
+		Uid:     0,
+		Gid:     0,
+		ModTime: n,
+		Mode:    0644,
+		Length:  t.body.Len(),
+	}
+	if err := a.WriteHeader(&h); err != nil {
+		return err
+	}
+	if _, err := io.Copy(a, t.body); err != nil {
+		return err
+	}
+	return nil
 }
 
 func writeDebianBinaryFile(a *ar.Writer, n time.Time) error {
@@ -101,4 +176,98 @@ func prepareControl(c Control) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	return &buf, nil
+}
+
+type tarball struct {
+	Name string
+
+	body *bytes.Buffer
+	zip  *gzip.Writer
+	ark  *tar.Writer
+}
+
+func newTarball(n string) *tarball {
+	body := new(bytes.Buffer)
+	zipper := gzip.NewWriter(body)
+	return &tarball{
+		Name: n,
+		body: body,
+		zip:  zipper,
+		ark:  tar.NewWriter(zipper),
+	}
+}
+
+func (t *tarball) WriteFile(f *cedar.File, n time.Time) ([]byte, error) {
+	ds, _ := filepath.Split(f.Dst)
+	if err := t.WriteDirectoryTree(ds, n); err != nil {
+		return nil, err
+	}
+	bs, err := readFile(f.Src, f.Compress)
+	if err != nil {
+		return nil, err
+	}
+	h := tar.Header{
+		Name:     f.String(),
+		ModTime:  n,
+		Mode:     f.Mode(),
+		Gid:      0,
+		Uid:      0,
+		Typeflag: tar.TypeReg,
+	}
+	if err := t.ark.WriteHeader(&h); err != nil {
+		return nil, err
+	}
+	if _, err := t.ark.Write(bs); err != nil {
+		return nil, err
+	}
+	sum := md5.Sum(bs)
+	return sum[:], nil
+}
+
+func readFile(p string, z bool) ([]byte, error) {
+	bs, err := ioutil.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	if z {
+		b := new(bytes.Buffer)
+		g := gzip.NewWriter(b)
+		if _, err := g.Write(bs); err != nil {
+			return nil, err
+		}
+		if err := g.Close(); err != nil {
+			return nil, err
+		}
+		bs = b.Bytes()
+	}
+	return bs, nil
+}
+
+func (t *tarball) WriteDirectoryTree(ds string, n time.Time) error {
+	var b string
+	for _, p := range strings.Split(ds, string(os.PathSeparator)) {
+		if p == "" {
+			continue
+		}
+		hd := tar.Header{
+			Name:     "./" + filepath.Join(b, p) + "/",
+			ModTime:  n,
+			Mode:     0755,
+			Gid:      0,
+			Uid:      0,
+			Typeflag: tar.TypeDir,
+		}
+		if err := t.ark.WriteHeader(&hd); err != nil {
+			return err
+		}
+		b = filepath.Join(b, p)
+	}
+	return nil
+}
+
+func (t *tarball) Close() error {
+	if err := t.ark.Close(); err != nil {
+		return err
+	}
+	return t.zip.Close()
 }
