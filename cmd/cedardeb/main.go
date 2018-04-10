@@ -20,7 +20,7 @@ func main() {
 	c := struct {
 		Location string        `toml:"location"`
 		Control  deb.Control   `toml:"control"`
-		Files    []*cedar.File `toml:"resources"`
+		Files    []*cedar.File `toml:"resource"`
 	}{}
 	if err := toml.NewDecoder(f).Decode(&c); err != nil {
 		log.Fatalln(err)
@@ -35,11 +35,11 @@ func main() {
 		log.Fatalln(err)
 	}
 	if err := pkg.WriteControl(c.Control); err != nil {
-		log.Fatalln(err)
+		log.Fatalln("failed to write control:", err)
 	}
-	for i := range c.Files {
-		if err := pkg.WriteFile(c.Files[i]); err != nil {
-			log.Fatalln(err)
+	for _, f := range c.Files {
+		if err := pkg.WriteFile(f); err != nil {
+			log.Fatalln("failed to write file:", f.Dst, err)
 		}
 	}
 	if err := pkg.Close(); err != nil {

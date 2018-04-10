@@ -105,7 +105,11 @@ func (w *Writer) WriteFile(f *cedar.File) error {
 	}
 	defer r.Close()
 	if f.Conf || cedar.IsConfFile(f.Dst) {
-		w.conffiles = append(w.conffiles, f.String())
+		p := f.String()
+		if s := string(os.PathSeparator); !strings.HasPrefix(p, s) {
+			p = s + p
+		}
+		w.conffiles = append(w.conffiles, p)
 	}
 	sum, err := w.data.WriteFile(f, w.modtime)
 	if err != nil {
@@ -245,6 +249,7 @@ func (t *tarball) WriteFile(f *cedar.File, n time.Time) ([]byte, error) {
 	}
 	h := tar.Header{
 		Name:     f.String(),
+		Size:     int64(len(bs)),
 		ModTime:  n,
 		Mode:     f.Mode(),
 		Gid:      0,
