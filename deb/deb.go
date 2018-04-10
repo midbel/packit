@@ -90,6 +90,10 @@ func NewWriter(w io.Writer) (*Writer, error) {
 	return wd, nil
 }
 
+func (w *Writer) WriteControl(c Control) error {
+	return nil
+}
+
 func (w *Writer) WriteFile(f *cedar.File) error {
 	r, err := os.Open(f.Src)
 	if err != nil {
