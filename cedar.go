@@ -7,6 +7,11 @@ import (
 
 const etcDir = "etc/"
 
+type Maintainer struct {
+	Name  string `toml:"name"`
+	Email string `toml:"email"`
+}
+
 type File struct {
 	Src      string `toml:"source"`
 	Dst      string `toml:"destination"`

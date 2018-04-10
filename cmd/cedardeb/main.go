@@ -22,6 +22,10 @@ func main() {
 		Control  deb.Control   `toml:"control"`
 		Files    []*cedar.File `toml:"resource"`
 	}{}
+	c.Control.Maintainer = cedar.Maintainer {
+		Name: os.Getenv("CEDAR_MAINTAINER"),
+		Email: os.Getenv("CEDAR_EMAIL"),
+	}
 	if err := toml.NewDecoder(f).Decode(&c); err != nil {
 		log.Fatalln(err)
 	}

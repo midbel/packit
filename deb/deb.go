@@ -37,16 +37,12 @@ Priority: {{.Priority}}
 Architecture: {{.Arch}}
 Vendor: {{.Vendor}}
 Maintainer: {{.Name}} <{{.Email}}>
+Homepage: {{.Home}}
 Pre-Depends: {{join .Depends ", "}}
 Installed-Size: {{.Size}}
 Build-Using: {{.Compiler}}
 Description: {{.Summary}}
 `
-
-type Maintainer struct {
-	Name  string `toml:"name"`
-	Email string `toml:"email"`
-}
 
 type Control struct {
 	Package    string   `toml:"package"`
@@ -56,12 +52,12 @@ type Control struct {
 	Section    string   `toml:"section"`
 	Priority   string   `toml:"priority"`
 	Arch       string   `toml:"arch"`
-	Vendor     string   `tom:"vendor"`
+	Vendor     string   `toml:"vendor"`
+	Home       string   `toml:"homepage"`
 	Depends    []string `toml:"depends"`
-	Conffiles  []string `toml:"conffiles"`
 	Compiler   string   `toml:"compiler"`
 	Size       int      `toml:"size"`
-	Maintainer `toml:"maintainer"`
+	cedar.Maintainer `toml:"maintainer"`
 }
 
 type Writer struct {
