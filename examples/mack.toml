@@ -1,0 +1,46 @@
+location = "var/deb/mack-1.0.deb"
+
+[control]
+package      = "mack"
+version      = "1.0"
+license      = "MIT"
+section      = "utils"
+priority     = "optional"
+arch         = "amd64"
+vendor       = "midbel"
+homepage     = "https://github.com/midbel/mack"
+depends      = ["libc6"]
+size         = 4181
+summary      = "create deb or rpm package made easy."
+#description  = "it should be a multiline description"
+maintainer   = {
+  name  = "midbel",
+  email = "midbel@foobar.com",
+}
+compiler = "go-1.10"
+
+[[resource]]
+source      = "bin/mack"
+destination = "usr/bin/"
+mode = 0755
+
+[[resource]]
+source = "src/github.com/midbel/mack/LICENSE"
+destination = "usr/share/doc/mack/"
+filename = "copyright"
+
+# [[resource]]
+# source      = "src/github.com/midbel/mack/doc/CHANGELOG"
+# destination = "usr/share/doc/mack/"
+# filename    = "changelog.Debian.gz"
+# compress    = true
+
+# [[resource]]
+# source      = "src/github.com/midbel/mack/doc/mack.1"
+# destination = "usr/share/man/man1"
+# compress    = true
+# filename    = "mack.1.gz"
+
+[[resource]]
+source      = "src/github.com/midbel/mack/examples/mack.toml"
+destination = "usr/share/doc/mack/examples/mack.toml"
