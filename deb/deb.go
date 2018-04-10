@@ -45,18 +45,18 @@ Description: {{.Summary}}
 `
 
 type Control struct {
-	Package    string   `toml:"package"`
-	Version    string   `toml:"version"`
-	Summary    string   `toml:"summary"`
-	License    string   `toml:"license"`
-	Section    string   `toml:"section"`
-	Priority   string   `toml:"priority"`
-	Arch       string   `toml:"arch"`
-	Vendor     string   `toml:"vendor"`
-	Home       string   `toml:"homepage"`
-	Depends    []string `toml:"depends"`
-	Compiler   string   `toml:"compiler"`
-	Size       int      `toml:"size"`
+	Package         string   `toml:"package"`
+	Version         string   `toml:"version"`
+	Summary         string   `toml:"summary"`
+	License         string   `toml:"license"`
+	Section         string   `toml:"section"`
+	Priority        string   `toml:"priority"`
+	Arch            string   `toml:"arch"`
+	Vendor          string   `toml:"vendor"`
+	Home            string   `toml:"homepage"`
+	Depends         []string `toml:"depends"`
+	Compiler        string   `toml:"compiler"`
+	Size            int      `toml:"size"`
 	mack.Maintainer `toml:"maintainer"`
 }
 
