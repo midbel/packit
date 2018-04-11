@@ -29,6 +29,11 @@ var commands = []*cli.Command{
 		Usage: "deb <config,...>",
 		Short: "create deb files from many configuration files",
 	},
+	{
+		Run:   runShow,
+		Usage: "show <config,...>",
+		Short: "show information of deb files",
+	},
 }
 
 func main() {
