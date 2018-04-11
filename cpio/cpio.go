@@ -47,34 +47,7 @@ func NewWriter(w io.Writer) *Writer {
 }
 
 func (w *Writer) WriteHeader(h *Header) error {
-	buf := new(bytes.Buffer)
-	z := int64(len(h.Filename)) + 1
-
-	buf.Write(magic)
-	writeHeaderInt(buf, h.Inode)
-	writeHeaderInt(buf, h.Mode)
-	writeHeaderInt(buf, h.Uid)
-	writeHeaderInt(buf, h.Gid)
-	writeHeaderInt(buf, h.Links)
-	writeHeaderInt(buf, h.ModTime.Unix())
-	writeHeaderInt(buf, h.Length)
-	writeHeaderInt(buf, h.Major)
-	writeHeaderInt(buf, h.Minor)
-	writeHeaderInt(buf, h.RMajor)
-	writeHeaderInt(buf, h.RMinor)
-	writeHeaderInt(buf, z)
-	writeHeaderInt(buf, 0)
-	writeFilename(buf, h.Filename)
-
-	w.blocks += headerLen + z
-	if mod := (headerLen + z) % 4; mod != 0 {
-		bs := make([]byte, 4-mod)
-		n, _ := buf.Write(bs)
-		w.blocks += int64(n)
-	}
-
-	_, err := io.Copy(w.inner, buf)
-	return err
+	return w.writeHeader(h, false)
 }
 
 func (w *Writer) Write(bs []byte) (int, error) {
@@ -94,7 +67,7 @@ func (w *Writer) Write(bs []byte) (int, error) {
 
 func (w *Writer) Close() error {
 	h := Header{Filename: trailer}
-	if err := w.WriteHeader(&h); err != nil {
+	if err := w.writeHeader(&h, true); err != nil {
 		return err
 	}
 	var err error
@@ -102,6 +75,41 @@ func (w *Writer) Close() error {
 		bs := make([]byte, blockSize-mod)
 		_, err = w.inner.Write(bs)
 	}
+	return err
+}
+
+func (w *Writer) writeHeader(h *Header, trailing bool) error {
+	buf := new(bytes.Buffer)
+	z := int64(len(h.Filename)) + 1
+
+	buf.Write(magic)
+	writeHeaderInt(buf, h.Inode)
+	writeHeaderInt(buf, h.Mode)
+	writeHeaderInt(buf, h.Uid)
+	writeHeaderInt(buf, h.Gid)
+	writeHeaderInt(buf, h.Links)
+	if t := h.ModTime; t.IsZero() {
+		writeHeaderInt(buf, 0)
+	} else {
+		writeHeaderInt(buf, t.Unix())
+	}
+	writeHeaderInt(buf, h.Length)
+	writeHeaderInt(buf, h.Major)
+	writeHeaderInt(buf, h.Minor)
+	writeHeaderInt(buf, h.RMajor)
+	writeHeaderInt(buf, h.RMinor)
+	writeHeaderInt(buf, z)
+	writeHeaderInt(buf, 0)
+	writeFilename(buf, h.Filename)
+
+	w.blocks += headerLen + z
+	if mod := (headerLen + z) % 4; mod != 0 && !trailing {
+		bs := make([]byte, 4-mod)
+		n, _ := buf.Write(bs)
+		w.blocks += int64(n)
+	}
+
+	_, err := io.Copy(w.inner, buf)
 	return err
 }
 
