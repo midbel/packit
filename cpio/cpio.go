@@ -15,6 +15,7 @@ var magic = []byte("070701")
 const trailer = "TRAILER!!!"
 
 const (
+	blockSize = 512
 	headerLen = 110
 	fieldLen  = 8
 	magicLen  = 6
@@ -31,10 +32,77 @@ type Header struct {
 	Minor    int64
 	RMajor   int64
 	RMinor   int64
-	Size     int64
 	Check    int64
 	ModTime  time.Time
 	Filename string
+}
+
+type Writer struct {
+	inner  io.Writer
+	blocks int64
+}
+
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{inner: w}
+}
+
+func (w *Writer) WriteHeader(h *Header) error {
+	buf := new(bytes.Buffer)
+	z := int64(len(h.Filename)) + 1
+
+	buf.Write(magic)
+	writeHeaderInt(buf, h.Inode)
+	writeHeaderInt(buf, h.Mode)
+	writeHeaderInt(buf, h.Uid)
+	writeHeaderInt(buf, h.Gid)
+	writeHeaderInt(buf, h.Links)
+	writeHeaderInt(buf, h.ModTime.Unix())
+	writeHeaderInt(buf, h.Length)
+	writeHeaderInt(buf, h.Major)
+	writeHeaderInt(buf, h.Minor)
+	writeHeaderInt(buf, h.RMajor)
+	writeHeaderInt(buf, h.RMinor)
+	writeHeaderInt(buf, z)
+	writeHeaderInt(buf, 0)
+	writeFilename(buf, h.Filename)
+
+	w.blocks += headerLen + z
+	if mod := (headerLen + z) % 4; mod != 0 {
+		bs := make([]byte, 4-mod)
+		n, _ := buf.Write(bs)
+		w.blocks += int64(n)
+	}
+
+	_, err := io.Copy(w.inner, buf)
+	return err
+}
+
+func (w *Writer) Write(bs []byte) (int, error) {
+	vs := make([]byte, len(bs))
+	copy(vs, bs)
+	if mod := len(bs) % 4; mod != 0 {
+		zs := make([]byte, 4-mod)
+		vs = append(vs, zs...)
+	}
+	n, err := w.inner.Write(vs)
+	if err != nil {
+		return n, err
+	}
+	w.blocks += int64(n)
+	return len(bs), err
+}
+
+func (w *Writer) Close() error {
+	h := Header{Filename: trailer}
+	if err := w.WriteHeader(&h); err != nil {
+		return err
+	}
+	var err error
+	if mod := w.blocks % blockSize; mod != 0 {
+		bs := make([]byte, blockSize-mod)
+		_, err = w.inner.Write(bs)
+	}
+	return err
 }
 
 type Reader struct {
@@ -54,7 +122,10 @@ func (r *Reader) Next() (*Header, error) {
 	}
 	r.body = nil
 
-	var h Header
+	var (
+		h Header
+		z int64
+	)
 	if err := readMagic(r.inner); err != nil {
 		r.err = err
 		return nil, err
@@ -70,17 +141,17 @@ func (r *Reader) Next() (*Header, error) {
 	h.Minor = readHeaderField(r.inner)
 	h.RMajor = readHeaderField(r.inner)
 	h.RMinor = readHeaderField(r.inner)
-	h.Size = readHeaderField(r.inner)
+	z = readHeaderField(r.inner)
 	h.Check = readHeaderField(r.inner)
-	h.Filename = readFilename(r.inner, h.Size)
-	if mod := (headerLen + h.Size) % 4; mod != 0 {
+	h.Filename = readFilename(r.inner, z)
+	if mod := (headerLen + z) % 4; mod != 0 {
 		_, err := r.inner.Discard(4 - int(mod))
 		if err != nil {
 			return nil, err
 		}
 	}
 	if h.Filename == trailer {
-		return nil, io.EOF
+		return &h, io.EOF
 	}
 	r.hdr = &h
 	n := r.hdr.Length
@@ -93,13 +164,19 @@ func (r *Reader) Next() (*Header, error) {
 }
 
 func (r *Reader) Read(bs []byte) (int, error) {
+	if r.body == nil {
+		return 0, io.EOF
+	}
 	if r.err != nil {
 		return 0, r.err
 	}
 	n, err := io.ReadAtLeast(r.body, bs, len(bs))
 	if int64(n) == r.hdr.Length {
 		if mod := r.hdr.Length % 4; mod != 0 {
-			io.CopyN(ioutil.Discard, r.body, 4-mod)
+			_, e := io.CopyN(ioutil.Discard, r.body, 4-mod)
+			if e != nil {
+				err = e
+			}
 		}
 		r.body = nil
 	}
@@ -129,6 +206,7 @@ func readFilename(r io.Reader, n int64) string {
 }
 
 func readHeaderField(r io.Reader) int64 {
+	//TODO: check for rewrite with fmt.Fscanf()
 	bs := make([]byte, fieldLen)
 	if _, err := io.ReadFull(r, bs); err != nil {
 		return -1
@@ -138,4 +216,12 @@ func readHeaderField(r io.Reader) int64 {
 		return -1
 	}
 	return i
+}
+
+func writeHeaderInt(w *bytes.Buffer, f int64) {
+	fmt.Fprintf(w, "%08x", uint64(f))
+}
+
+func writeFilename(w *bytes.Buffer, f string) {
+	io.WriteString(w, f+"\x00")
 }
