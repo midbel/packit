@@ -92,23 +92,33 @@ func parseHeader(r *bufio.Reader) (*Header, error) {
   binary.Read(r, binary.BigEndian, &m)
 	binary.Read(r, binary.BigEndian, &h.Count)
 	binary.Read(r, binary.BigEndian, &h.Length)
+
+  buf, size, offset := new(bytes.Buffer), h.Length+(h.Count*16), h.Count*16
+  if _, err := io.CopyN(buf, r, int64(size)); err != nil {
+    return nil, err
+  }
+  rs := bytes.NewReader(buf.Bytes())
+  buf.Reset()
+
 	h.Index = make([]*Entry, h.Count)
   for i := range h.Index {
     var e Entry
-    binary.Read(r, binary.BigEndian, &e.Tag)
-    binary.Read(r, binary.BigEndian, &e.Type)
-    binary.Read(r, binary.BigEndian, &e.Offset)
-    binary.Read(r, binary.BigEndian, &e.Count)
+    binary.Read(rs, binary.BigEndian, &e.Tag)
+    binary.Read(rs, binary.BigEndian, &e.Type)
+    binary.Read(rs, binary.BigEndian, &e.Offset)
+    binary.Read(rs, binary.BigEndian, &e.Count)
+
+    rs.Seek(int64(offset)+int64(e.Offset), io.SeekStart)
+    if err := parseValue(&e, rs); err != nil {
+      return nil, err
+    }
+    rs.Seek(int64(i*16), io.SeekStart)
 
     h.Index[i] = &e
   }
   sort.Slice(h.Index, func(i, j int) bool {
     return h.Index[i].Offset < h.Index[j].Offset
   })
-  h.store = new(bytes.Buffer)
-  if _, err := io.CopyN(h.store, r, int64(h.Length)); err != nil {
-    return nil, err
-  }
   if mod := h.Length%8; mod != 0 {
     r.Discard(8-int(mod))
   }
@@ -143,4 +153,64 @@ func parseLead(r *bufio.Reader) (*Lead, error) {
 		return nil, err
 	}
 	return &e, nil
+}
+
+func parseValue(e *Entry, r *bytes.Reader) error {
+  switch e.Type {
+  case Null:
+  case Char:
+  case Int8:
+    var v int8
+    binary.Read(r, binary.BigEndian, &v)
+    e.Value = v
+  case Int16:
+    var v int16
+    binary.Read(r, binary.BigEndian, &v)
+    e.Value = v
+  case Int32:
+    var v int32
+    binary.Read(r, binary.BigEndian, &v)
+    e.Value = v
+  case Int64:
+    var v int64
+    binary.Read(r, binary.BigEndian, &v)
+    e.Value = v
+  case String:
+    v, err := readString(r)
+    if err != nil {
+      return err
+    }
+    e.Value = v
+  case Binary:
+    bs := make([]byte, e.Count)
+    if _, err := io.ReadFull(r, bs); err != nil {
+      return err
+    }
+    e.Value = fmt.Sprintf("%x", bs)
+  case StringArray:
+    vs := make([]string, e.Count)
+    for i := range vs {
+      v, err := readString(r)
+      if err != nil {
+        return err
+      }
+      vs[i] = v
+    }
+    e.Value = vs
+  case I18NString:
+  default:
+    return fmt.Errorf("unsupported type %s", e.Type)
+  }
+  return nil
+}
+
+func readString(r io.ByteReader) (string, error) {
+  var bs []byte
+  for b, err := r.ReadByte(); b != 0; b, err = r.ReadByte() {
+    if err != nil {
+      return "", err
+    }
+    bs = append(bs, b)
+  }
+  return string(bs), nil
 }
