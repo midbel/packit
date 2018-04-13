@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-var magic = []byte("070701")
+var (
+	magicASCII = []byte("070701")
+	magicCRC   = []byte("070702")
+)
 
 const trailer = "TRAILER!!!"
 
@@ -82,7 +85,7 @@ func (w *Writer) writeHeader(h *Header, trailing bool) error {
 	buf := new(bytes.Buffer)
 	z := int64(len(h.Filename)) + 1
 
-	buf.Write(magic)
+	buf.Write(magicASCII)
 	writeHeaderInt(buf, h.Inode)
 	writeHeaderInt(buf, h.Mode)
 	writeHeaderInt(buf, h.Uid)
@@ -199,7 +202,7 @@ func readMagic(r io.Reader) error {
 	if _, err := io.ReadFull(r, bs); err != nil {
 		return err
 	}
-	if bytes.Equal(bs, magic) {
+	if bytes.Equal(bs, magicCRC) || bytes.Equal(bs, magicASCII) {
 		return nil
 	}
 	return fmt.Errorf("unknown magic number found %x", bs)
