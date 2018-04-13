@@ -121,6 +121,7 @@ type Reader struct {
 	body  io.Reader
 	hdr   *Header
 	err   error
+	remain  int
 }
 
 func NewReader(r io.Reader) *Reader {
@@ -169,7 +170,7 @@ func (r *Reader) Next() (*Header, error) {
 	if mod := n % 4; mod != 0 {
 		n += 4 - mod
 	}
-	r.body = io.LimitReader(r.inner, n)
+	r.body, r.remain = io.LimitReader(r.inner, n), int(r.hdr.Length)
 
 	return r.hdr, nil
 }
@@ -182,14 +183,15 @@ func (r *Reader) Read(bs []byte) (int, error) {
 		return 0, r.err
 	}
 	n, err := io.ReadAtLeast(r.body, bs, len(bs))
-	if int64(n) == r.hdr.Length {
+	r.remain -= n
+	if r.remain <= 0 {
 		if mod := r.hdr.Length % 4; mod != 0 {
 			_, e := io.CopyN(ioutil.Discard, r.body, 4-mod)
 			if e != nil {
 				err = e
 			}
 		}
-		r.body = nil
+		r.body, r.remain = nil, 0
 	}
 	if err != nil {
 		r.err = err
