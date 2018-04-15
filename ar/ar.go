@@ -3,7 +3,7 @@ package ar
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,8 +14,14 @@ import (
 )
 
 var (
-	magic = []byte("!<arch>")
-	linelinefeed  = []byte{0x60, 0x0A}
+	magic    = []byte("!<arch>")
+	linefeed = []byte{0x60, 0x0A}
+)
+
+var (
+	ErrMagic    = errors.New("ar: Invalid Magic")
+	ErrTooShort = errors.New("ar: write too short")
+	ErrTooLong  = errors.New("ar: write too long")
 )
 
 type Header struct {
@@ -29,21 +35,27 @@ type Header struct {
 
 type Writer struct {
 	inner io.Writer
+	hdr   Header
+	err   error
 }
 
 func NewWriter(w io.Writer) (*Writer, error) {
 	if _, err := w.Write(magic); err != nil {
 		return nil, err
 	}
-	if _, err := w.Write([]byte{0x0A}); err != nil {
+	if _, err := w.Write([]byte{linefeed[1]}); err != nil {
 		return nil, err
 	}
-	return &Writer{w}, nil
+	return &Writer{inner: w}, nil
 }
 
 func (w *Writer) WriteHeader(h *Header) error {
-	buf := new(bytes.Buffer)
+	if w.err != nil {
+		return w.err
+	}
+	w.hdr = *h
 
+	buf := new(bytes.Buffer)
 	writeHeaderField(buf, path.Base(h.Name)+"/", 16)
 	writeHeaderField(buf, strconv.FormatInt(h.ModTime.Unix(), 10), 12)
 	writeHeaderField(buf, strconv.FormatInt(int64(h.Uid), 10), 6)
@@ -60,7 +72,7 @@ func (w *Writer) Write(bs []byte) (int, error) {
 	vs := make([]byte, len(bs))
 	copy(vs, bs)
 	if len(bs)%2 == 1 {
-		vs = append(vs, 0x0A)
+		vs = append(vs, linefeed[1])
 	}
 	n, err := w.inner.Write(vs)
 	if err != nil {
@@ -90,7 +102,7 @@ func List(file string) ([]*Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	hs := make([]*Header, 0, 100)
+	var hs []*Header
 	for {
 		h, err := r.Next()
 		if err == io.EOF {
@@ -111,7 +123,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return nil, err
 	}
 	if !bytes.Equal(bs, magic) {
-		return nil, fmt.Errorf("not an ar archive")
+		return nil, ErrMagic
 	}
 	if _, err := rs.Discard(len(bs) + 1); err != nil {
 		return nil, err
@@ -178,7 +190,7 @@ func readModTime(r io.Reader, h *Header) error {
 	}
 	i, err := strconv.ParseInt(string(bs), 0, 64)
 	if err != nil {
-		return fmt.Errorf("time: %s", err)
+		return err
 	}
 	h.ModTime = time.Unix(i, 0)
 	return nil
@@ -190,7 +202,7 @@ func readFileInfos(r io.Reader, h *Header) error {
 	} else {
 		i, err := strconv.ParseInt(string(bs), 0, 64)
 		if err != nil {
-			return fmt.Errorf("uid: %s", err)
+			return err
 		}
 		h.Uid = int(i)
 	}
@@ -199,7 +211,7 @@ func readFileInfos(r io.Reader, h *Header) error {
 	} else {
 		i, err := strconv.ParseInt(string(bs), 0, 64)
 		if err != nil {
-			return fmt.Errorf("gid: %s", err)
+			return err
 		}
 		h.Gid = int(i)
 	}
@@ -208,7 +220,7 @@ func readFileInfos(r io.Reader, h *Header) error {
 	} else {
 		i, err := strconv.ParseInt(string(bs), 0, 64)
 		if err != nil {
-			return fmt.Errorf("mode: %s", err)
+			return err
 		}
 		h.Mode = int(i)
 	}
@@ -217,7 +229,7 @@ func readFileInfos(r io.Reader, h *Header) error {
 	} else {
 		i, err := strconv.ParseInt(string(bs), 0, 64)
 		if err != nil {
-			return fmt.Errorf("length: %s", err)
+			return err
 		}
 		h.Length = int(i)
 	}
