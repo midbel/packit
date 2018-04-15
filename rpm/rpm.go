@@ -12,6 +12,11 @@ import (
 const MagicRPM = 0xedabeedb
 const MagicHDR = 0x008eade8
 
+const (
+	MajorRPM = 3
+	MinorRPM = 0
+)
+
 type builder struct {
 	inner io.Writer
 
