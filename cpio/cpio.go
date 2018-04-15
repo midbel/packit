@@ -117,11 +117,11 @@ func (w *Writer) writeHeader(h *Header, trailing bool) error {
 }
 
 type Reader struct {
-	inner *bufio.Reader
-	body  io.Reader
-	hdr   *Header
-	err   error
-	remain  int
+	inner  *bufio.Reader
+	body   io.Reader
+	hdr    *Header
+	err    error
+	remain int
 }
 
 func NewReader(r io.Reader) *Reader {
