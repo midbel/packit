@@ -7,9 +7,29 @@ import (
 
 const etcDir = "etc/"
 
+type Builder interface {
+	Build(Control, []*File) error
+}
+
 type Maintainer struct {
 	Name  string `toml:"name"`
 	Email string `toml:"email"`
+}
+
+type Control struct {
+	Package    string   `toml:"package"`
+	Version    string   `toml:"version"`
+	Summary    string   `toml:"summary"`
+	License    string   `toml:"license"`
+	Section    string   `toml:"section"`
+	Priority   string   `toml:"priority"`
+	Arch       string   `toml:"arch"`
+	Vendor     string   `toml:"vendor"`
+	Home       string   `toml:"homepage"`
+	Depends    []string `toml:"depends"`
+	Compiler   string   `toml:"compiler"`
+	Size       int      `toml:"size"`
+	Maintainer `toml:"maintainer"`
 }
 
 type File struct {

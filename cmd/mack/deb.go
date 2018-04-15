@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/midbel/cli"
@@ -33,7 +32,7 @@ func makeDEB(file string) error {
 	defer f.Close()
 	c := struct {
 		Location string       `toml:"location"`
-		Control  deb.Control  `toml:"control"`
+		Control  mack.Control `toml:"control"`
 		Files    []*mack.File `toml:"resource"`
 	}{}
 	c.Control.Maintainer = mack.Maintainer{
@@ -49,21 +48,12 @@ func makeDEB(file string) error {
 	}
 	defer d.Close()
 
-	pkg, err := deb.NewWriter(d)
+	pkg, err := deb.NewBuilder(d)
 	if err != nil {
 		return err
 	}
-	if err := pkg.WriteControl(c.Control); err != nil {
-		return fmt.Errorf("failed to write control:", err)
-	}
-	for _, f := range c.Files {
-		if err := pkg.WriteFile(f); err != nil {
-			return fmt.Errorf("failed to write file:", f.Dst, err)
-		}
-	}
-	err = pkg.Close()
-	if err != nil {
+	if err := pkg.Build(c.Control, c.Files); err != nil {
 		os.Remove(c.Location)
 	}
-	return err
+	return nil
 }
