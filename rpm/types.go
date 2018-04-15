@@ -9,9 +9,6 @@ import (
 	"sort"
 )
 
-const MagicRPM = 0xedabeedb
-const MagicHDR = 0x008eade8
-
 type EntryType int32
 
 const (

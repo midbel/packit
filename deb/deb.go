@@ -77,7 +77,7 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 			return err
 		}
 	}
-	c.Size = int(w.size/1024)
+	c.Size = int(w.size / 1024)
 	if err := w.writeControl(c); err != nil {
 		return err
 	}
