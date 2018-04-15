@@ -48,6 +48,7 @@ type builder struct {
 	inner   *ar.Writer
 	modtime time.Time
 
+	size      int64
 	conffiles []string
 	md5sums   []string
 
@@ -76,6 +77,7 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 			return err
 		}
 	}
+	c.Size = int(w.size/1024)
 	if err := w.writeControl(c); err != nil {
 		return err
 	}
@@ -96,6 +98,11 @@ func (w *builder) writeFile(f *mack.File) error {
 		return err
 	}
 	defer r.Close()
+	i, err := r.Stat()
+	if err != nil {
+		return err
+	}
+	w.size += i.Size()
 	if f.Conf || mack.IsConfFile(f.Dst) {
 		p := f.String()
 		if s := string(os.PathSeparator); !strings.HasPrefix(p, s) {
