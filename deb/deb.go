@@ -44,7 +44,7 @@ Build-Using: {{.Compiler}}
 Description: {{.Summary}}
 `
 
-type Builder struct {
+type builder struct {
 	inner   *ar.Writer
 	modtime time.Time
 
@@ -55,13 +55,13 @@ type Builder struct {
 	data    *tarball
 }
 
-func NewBuilder(w io.Writer) (*Builder, error) {
+func NewBuilder(w io.Writer) (mack.Builder, error) {
 	n := time.Now()
 	aw := ar.NewWriter(w)
 	if err := writeDebianBinaryFile(aw, n); err != nil {
 		return nil, err
 	}
-	wd := &Builder{
+	wd := &builder{
 		inner:   aw,
 		modtime: n,
 		control: newTarball(DebControlTar),
@@ -70,7 +70,7 @@ func NewBuilder(w io.Writer) (*Builder, error) {
 	return wd, nil
 }
 
-func (w *Builder) Build(c mack.Control, files []*mack.File) error {
+func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	for _, f := range files {
 		if err := w.writeFile(f); err != nil {
 			return err
@@ -82,7 +82,7 @@ func (w *Builder) Build(c mack.Control, files []*mack.File) error {
 	return w.flush()
 }
 
-func (w *Builder) writeControl(c mack.Control) error {
+func (w *builder) writeControl(c mack.Control) error {
 	body, err := prepareControl(c)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (w *Builder) writeControl(c mack.Control) error {
 	return w.control.WriteString(DebControlFile, body.String(), w.modtime)
 }
 
-func (w *Builder) writeFile(f *mack.File) error {
+func (w *builder) writeFile(f *mack.File) error {
 	r, err := os.Open(f.Src)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func (w *Builder) writeFile(f *mack.File) error {
 	return nil
 }
 
-func (w *Builder) flush() error {
+func (w *builder) flush() error {
 	if len(w.md5sums) > 0 {
 		body := new(bytes.Buffer)
 		for _, s := range w.md5sums {
