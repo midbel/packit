@@ -58,7 +58,10 @@ type builder struct {
 
 func NewBuilder(w io.Writer) (mack.Builder, error) {
 	n := time.Now()
-	aw := ar.NewWriter(w)
+	aw, err := ar.NewWriter(w)
+	if err != nil {
+		return nil, err
+	}
 	if err := writeDebianBinaryFile(aw, n); err != nil {
 		return nil, err
 	}

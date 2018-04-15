@@ -15,7 +15,7 @@ import (
 
 var (
 	magic = []byte("!<arch>")
-	feed  = []byte{0x60, 0x0A}
+	linelinefeed  = []byte{0x60, 0x0A}
 )
 
 type Header struct {
@@ -31,10 +31,14 @@ type Writer struct {
 	inner io.Writer
 }
 
-func NewWriter(w io.Writer) *Writer {
-	w.Write(magic)
-	w.Write([]byte{0x0A})
-	return &Writer{w}
+func NewWriter(w io.Writer) (*Writer, error) {
+	if _, err := w.Write(magic); err != nil {
+		return nil, err
+	}
+	if _, err := w.Write([]byte{0x0A}); err != nil {
+		return nil, err
+	}
+	return &Writer{w}, nil
 }
 
 func (w *Writer) WriteHeader(h *Header) error {
@@ -46,15 +50,10 @@ func (w *Writer) WriteHeader(h *Header) error {
 	writeHeaderField(buf, strconv.FormatInt(int64(h.Gid), 10), 6)
 	writeHeaderField(buf, strconv.FormatInt(int64(h.Mode), 8), 8)
 	writeHeaderField(buf, strconv.FormatInt(int64(h.Length), 10), 10)
-	buf.Write(feed)
+	buf.Write(linefeed)
 
 	_, err := io.Copy(w.inner, buf)
 	return err
-}
-
-func writeHeaderField(w *bytes.Buffer, s string, n int) {
-	io.WriteString(w, s)
-	io.WriteString(w, strings.Repeat(" ", n-len(s)))
 }
 
 func (w *Writer) Write(bs []byte) (int, error) {
@@ -140,8 +139,8 @@ func (r *Reader) Next() (*Header, error) {
 		r.err = err
 		return nil, err
 	}
-	bs := make([]byte, len(feed))
-	if _, err := r.inner.Read(bs); err != nil || !bytes.Equal(bs, feed) {
+	bs := make([]byte, len(linefeed))
+	if _, err := r.inner.Read(bs); err != nil || !bytes.Equal(bs, linefeed) {
 		return nil, err
 	}
 	r.hdr = &h
@@ -231,4 +230,9 @@ func readHeaderField(r io.Reader, n int) ([]byte, error) {
 		return nil, err
 	}
 	return bytes.TrimSpace(bs), nil
+}
+
+func writeHeaderField(w *bytes.Buffer, s string, n int) {
+	io.WriteString(w, s)
+	io.WriteString(w, strings.Repeat(" ", n-len(s)))
 }
