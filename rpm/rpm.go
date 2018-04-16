@@ -30,6 +30,16 @@ func NewBuilder(w io.Writer) mack.Builder {
 }
 
 func (w *builder) Build(c mack.Control, files []*mack.File) error {
+	e := Lead{
+		Major: MajorRPM,
+		Minor: MinorRPM,
+		Name:  c.Package,
+		Arch:  0,
+		Os:    0,
+	}
+	if err := writeLead(w.inner, e); err != nil {
+		return err
+	}
 	body, err := w.writeArchive(files)
 	if err != nil {
 		return err
@@ -89,4 +99,29 @@ func writeFile(w *cpio.Writer, f *mack.File) ([]byte, error) {
 		return nil, err
 	}
 	return s.Sum(nil), err
+}
+
+func writeLead(w io.Writer, e Lead) error {
+	body := new(bytes.Buffer)
+	binary.Write(body, binary.BigEndian, uint32(MagicRPM))
+	binary.Write(body, binary.BigEndian, e.Major)
+	binary.Write(body, binary.BigEndian, e.Minor)
+	binary.Write(body, binary.BigEndian, e.Type)
+	binary.Write(body, binary.BigEndian, e.Arch)
+	if n := e.Name; len(n) > 66 {
+		io.WriteString(body, n[:66])
+	} else {
+		bs := make([]byte, 66-len(n))
+		vs := append([]byte(n), bs...)
+		body.Write(vs)
+	}
+
+	binary.Write(body, binary.BigEndian, e.Os)
+	binary.Write(body, binary.BigEndian, e.SigType)
+	for i := 0; i < 4; i++ {
+		binary.Write(body, binary.BigEndian, uint32(0))
+	}
+
+	_, err := io.Copy(w, body)
+	return err
 }
