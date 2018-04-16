@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -86,8 +87,9 @@ func (w *Writer) Close() error {
 }
 
 type Reader struct {
+	mu    sync.Mutex
 	inner *bufio.Reader
-	hdr   *Header
+	curr  io.Reader
 	err   error
 }
 
@@ -132,46 +134,55 @@ func NewReader(r io.Reader) (*Reader, error) {
 }
 
 func (r *Reader) Next() (*Header, error) {
-	var h Header
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.err != nil {
 		return nil, r.err
 	}
-	if _, err := r.inner.Peek(16); err != nil {
-		return nil, io.EOF
+	h, err := r.next()
+	r.err = err
+	return h, r.err
+}
+
+func (r *Reader) next() (*Header, error) {
+	if r.curr != nil {
+		io.Copy(ioutil.Discard, r.curr)
 	}
+
+	var h Header
 	if err := readFilename(r.inner, &h); err != nil {
 		r.err = err
 		return nil, err
 	}
 	if err := readModTime(r.inner, &h); err != nil {
-		r.err = err
 		return nil, err
 	}
 	if err := readFileInfos(r.inner, &h); err != nil {
-		r.err = err
 		return nil, err
 	}
 	bs := make([]byte, len(linefeed))
 	if _, err := r.inner.Read(bs); err != nil || !bytes.Equal(bs, linefeed) {
 		return nil, err
 	}
-	r.hdr = &h
-	return r.hdr, r.err
+	r.curr = &fileReader{
+		reader:    r.inner,
+		remaining: h.Length,
+		size:      h.Length,
+	}
+	return &h, r.err
 }
 
 func (r *Reader) Read(bs []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.err != nil {
 		return 0, r.err
 	}
-	vs := make([]byte, r.hdr.Length)
-	n, err := io.ReadFull(r.inner, vs)
-	if err != nil {
+	n, err := r.curr.Read(bs)
+	if err != nil && err != io.EOF {
 		r.err = err
 	}
-	if r.hdr.Length%2 == 1 {
-		r.inner.Discard(1)
-	}
-	return copy(bs, vs[:n]), r.err
+	return n, err
 }
 
 func readFilename(r io.Reader, h *Header) error {
@@ -247,4 +258,26 @@ func readHeaderField(r io.Reader, n int) ([]byte, error) {
 func writeHeaderField(w *bytes.Buffer, s string, n int) {
 	io.WriteString(w, s)
 	io.WriteString(w, strings.Repeat(" ", n-len(s)))
+}
+
+type fileReader struct {
+	reader          io.Reader
+	remaining, size int
+}
+
+func (f *fileReader) Read(bs []byte) (int, error) {
+	if f.remaining <= 0 {
+		if m := f.size % 2; f.size != 0 && m == 1 {
+			b := bufio.NewReader(f.reader)
+			b.ReadByte()
+			f.size = 0
+		}
+		return 0, io.EOF
+	}
+	if len(bs) > f.remaining {
+		bs = bs[:f.remaining]
+	}
+	n, err := f.reader.Read(bs)
+	f.remaining -= n
+	return n, err
 }
