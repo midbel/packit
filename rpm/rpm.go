@@ -9,12 +9,12 @@ import (
 	"github.com/midbel/mack/cpio"
 )
 
-const MagicRPM = 0xedabeedb
-const MagicHDR = 0x008eade8
-
 const (
-	MajorRPM = 3
-	MinorRPM = 0
+	SigTypeRPM = 5
+	MajorRPM   = 3
+	MinorRPM   = 0
+	MagicRPM   = 0xedabeedb
+	MagicHDR   = 0x008eade8
 )
 
 type builder struct {
@@ -31,11 +31,10 @@ func NewBuilder(w io.Writer) mack.Builder {
 
 func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	e := Lead{
-		Major: MajorRPM,
-		Minor: MinorRPM,
-		Name:  c.Package,
-		Arch:  0,
-		Os:    0,
+		Major:   MajorRPM,
+		Minor:   MinorRPM,
+		SigType: SigTypeRPM,
+		Name:    c.Package,
 	}
 	if err := writeLead(w.inner, e); err != nil {
 		return err
@@ -44,7 +43,8 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	_, err := io.Copy(w.inner, body)
+	return err
 }
 
 func (w *build) writeArchive(files []*mack.File) (*bytes.Buffer, error) {
