@@ -20,6 +20,7 @@ type Control struct {
 	Package    string   `toml:"package"`
 	Version    string   `toml:"version"`
 	Summary    string   `toml:"summary"`
+	Desc       string   `toml:"description"`
 	License    string   `toml:"license"`
 	Section    string   `toml:"section"`
 	Priority   string   `toml:"priority"`
