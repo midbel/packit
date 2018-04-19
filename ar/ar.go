@@ -10,7 +10,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -36,7 +35,7 @@ type Header struct {
 
 type Writer struct {
 	inner io.Writer
-	hdr   Header
+	curr  io.Writer
 	err   error
 }
 
@@ -54,7 +53,10 @@ func (w *Writer) WriteHeader(h *Header) error {
 	if w.err != nil {
 		return w.err
 	}
-	w.hdr = *h
+	if err := w.Flush(); err != nil {
+		w.err = err
+		return err
+	}
 
 	buf := new(bytes.Buffer)
 	writeHeaderField(buf, path.Base(h.Name)+"/", 16)
@@ -66,28 +68,52 @@ func (w *Writer) WriteHeader(h *Header) error {
 	buf.Write(linefeed)
 
 	_, err := io.Copy(w.inner, buf)
-	return err
-}
-
-func (w *Writer) Write(bs []byte) (int, error) {
-	vs := make([]byte, len(bs))
-	copy(vs, bs)
-	if len(bs)%2 == 1 {
-		vs = append(vs, linefeed[1])
-	}
-	n, err := w.inner.Write(vs)
 	if err != nil {
-		return n, err
+		w.err = err
+		return err
 	}
-	return len(bs), err
-}
-
-func (w *Writer) Close() error {
+	w.curr = &fileWriter{
+		writer:    w.inner,
+		remaining: h.Length,
+		size:      h.Length,
+	}
 	return nil
 }
 
+func (w *Writer) Flush() error {
+	if w.curr == nil {
+		return nil
+	}
+	if w.err != nil {
+		return w.err
+	}
+	c := w.curr.(*fileWriter)
+	if c == nil || c.remaining > 0 {
+		return ErrTooShort
+	}
+	if mod := c.size % 2; mod == 1 {
+		_, w.err = w.inner.Write(linefeed[1:])
+	}
+	w.curr = nil
+	return w.err
+}
+
+func (w *Writer) Write(bs []byte) (int, error) {
+	if w.err != nil {
+		return 0, w.err
+	}
+	n, err := w.curr.Write(bs)
+	if err != nil && err != ErrTooLong {
+		w.err = err
+	}
+	return n, err
+}
+
+func (w *Writer) Close() error {
+	return w.Flush()
+}
+
 type Reader struct {
-	mu    sync.Mutex
 	inner *bufio.Reader
 	curr  io.Reader
 	err   error
@@ -134,8 +160,6 @@ func NewReader(r io.Reader) (*Reader, error) {
 }
 
 func (r *Reader) Next() (*Header, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -173,8 +197,6 @@ func (r *Reader) next() (*Header, error) {
 }
 
 func (r *Reader) Read(bs []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.err != nil {
 		return 0, r.err
 	}
@@ -279,5 +301,35 @@ func (f *fileReader) Read(bs []byte) (int, error) {
 	}
 	n, err := f.reader.Read(bs)
 	f.remaining -= n
+	return n, err
+}
+
+type fileWriter struct {
+	writer          io.Writer
+	remaining, size int
+}
+
+func (f *fileWriter) Write(bs []byte) (int, error) {
+	if f.remaining < 0 {
+		return 0, ErrTooLong
+	}
+	var rest int
+	switch {
+	case len(bs) == 0:
+		return 0, nil
+	case len(bs) > f.size:
+		rest = f.size
+	case len(bs)-f.remaining < 0:
+		rest = f.remaining
+	default:
+	}
+	if rest > 0 {
+		bs = bs[:rest]
+	}
+	n, err := f.writer.Write(bs)
+	f.remaining -= n
+	if rest > 0 {
+		return n, ErrTooLong
+	}
 	return n, err
 }
