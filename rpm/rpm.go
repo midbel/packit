@@ -200,7 +200,7 @@ func writeMetadata(c *mack.Control) (*bytes.Buffer, error) {
 		binary.Write(&body, binary.BigEndian, f.Len())
 		store.Write(f.Bytes())
 	}
-	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8) | 1))
+	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8)|1))
 	binary.Write(&meta, binary.BigEndian, int32(len(fs)))
 	binary.Write(&meta, binary.BigEndian, int32(body.Len()))
 
