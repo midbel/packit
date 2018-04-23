@@ -100,6 +100,7 @@ func makeDEB(file string) error {
 	}
 	if err := pkg.Build(c.Control, c.Files); err != nil {
 		os.Remove(c.Location)
+		return err
 	}
 	return nil
 }

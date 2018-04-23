@@ -15,7 +15,8 @@ import (
 	"time"
 
 	"github.com/midbel/mack"
-	"github.com/midbel/mack/ar"
+	"github.com/midbel/tape"
+	"github.com/midbel/tape/ar"
 )
 
 const (
@@ -154,13 +155,13 @@ func writeTarball(a *ar.Writer, t *tarball, n time.Time) error {
 	if err := t.Close(); err != nil {
 		return err
 	}
-	h := ar.Header{
-		Name:    t.Name,
-		Uid:     0,
-		Gid:     0,
-		ModTime: n,
-		Mode:    0644,
-		Length:  t.body.Len(),
+	h := tape.Header{
+		Filename: t.Name,
+		Uid:      0,
+		Gid:      0,
+		ModTime:  n,
+		Mode:     0644,
+		Length:   int64(t.body.Len()),
 	}
 	if err := a.WriteHeader(&h); err != nil {
 		return err
@@ -172,13 +173,13 @@ func writeTarball(a *ar.Writer, t *tarball, n time.Time) error {
 }
 
 func writeDebianBinaryFile(a *ar.Writer, n time.Time) error {
-	h := ar.Header{
-		Name:    DebBinaryFile,
-		Uid:     0,
-		Gid:     0,
-		ModTime: n,
-		Mode:    0644,
-		Length:  len(DebVersion),
+	h := tape.Header{
+		Filename: DebBinaryFile,
+		Uid:      0,
+		Gid:      0,
+		ModTime:  n,
+		Mode:     0644,
+		Length:   int64(len(DebVersion)),
 	}
 	if err := a.WriteHeader(&h); err != nil {
 		return err

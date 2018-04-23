@@ -11,7 +11,8 @@ import (
 	"syscall"
 
 	"github.com/midbel/mack"
-	"github.com/midbel/mack/cpio"
+	"github.com/midbel/tape"
+	"github.com/midbel/tape/cpio"
 )
 
 const (
@@ -96,7 +97,7 @@ func writeFile(w *cpio.Writer, f *mack.File) ([]byte, error) {
 	if !ok || stat == nil {
 		return nil, fmt.Errorf("can not get stat for info %s", f)
 	}
-	h := cpio.Header{
+	h := tape.Header{
 		Filename: f.String(),
 		Mode:     int64(i.Mode()),
 		Length:   i.Size(),
