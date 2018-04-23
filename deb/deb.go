@@ -272,6 +272,45 @@ func (t *tarball) WriteFile(f *mack.File, n time.Time) ([]byte, error) {
 	return sum[:], nil
 }
 
+func (t *tarball) WriteDirectoryTree(ds string, n time.Time) error {
+	var b string
+	ix := t.paths.Search(ds)
+	if n := t.paths.Len(); n > 0 && ix < n && t.paths[ix] == ds {
+		return nil
+	}
+	for _, p := range strings.Split(ds, string(os.PathSeparator)) {
+		if p == "" {
+			continue
+		}
+		b = filepath.Join(b, p)
+		ix := t.paths.Search(b)
+		if n := t.paths.Len(); n > 0 && ix < n && t.paths[ix] == b {
+			continue
+		}
+		hd := tar.Header{
+			Name:     "./" + b + "/",
+			ModTime:  n,
+			Mode:     0755,
+			Gid:      0,
+			Uid:      0,
+			Typeflag: tar.TypeDir,
+		}
+		if err := t.ark.WriteHeader(&hd); err != nil {
+			return err
+		}
+		t.paths = append(t.paths, b)
+		t.paths.Sort()
+	}
+	return nil
+}
+
+func (t *tarball) Close() error {
+	if err := t.ark.Close(); err != nil {
+		return err
+	}
+	return t.zip.Close()
+}
+
 func readFile(p string, z bool) ([]byte, error) {
 	bs, err := ioutil.ReadFile(p)
 	if err != nil {
@@ -289,39 +328,4 @@ func readFile(p string, z bool) ([]byte, error) {
 		bs = b.Bytes()
 	}
 	return bs, nil
-}
-
-func (t *tarball) WriteDirectoryTree(ds string, n time.Time) error {
-	ix := t.paths.Search(ds)
-	if n := t.paths.Len(); n > 0 && ix < n && t.paths[ix] == ds {
-		return nil
-	}
-	t.paths = append(t.paths, ds)
-	t.paths.Sort()
-	var b string
-	for _, p := range strings.Split(ds, string(os.PathSeparator)) {
-		if p == "" {
-			continue
-		}
-		hd := tar.Header{
-			Name:     "./" + filepath.Join(b, p) + "/",
-			ModTime:  n,
-			Mode:     0755,
-			Gid:      0,
-			Uid:      0,
-			Typeflag: tar.TypeDir,
-		}
-		if err := t.ark.WriteHeader(&hd); err != nil {
-			return err
-		}
-		b = filepath.Join(b, p)
-	}
-	return nil
-}
-
-func (t *tarball) Close() error {
-	if err := t.ark.Close(); err != nil {
-		return err
-	}
-	return t.zip.Close()
 }
