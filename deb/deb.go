@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -211,6 +212,8 @@ type tarball struct {
 	body *bytes.Buffer
 	zip  *gzip.Writer
 	ark  *tar.Writer
+
+	paths sort.StringSlice
 }
 
 func newTarball(n string) *tarball {
@@ -289,6 +292,12 @@ func readFile(p string, z bool) ([]byte, error) {
 }
 
 func (t *tarball) WriteDirectoryTree(ds string, n time.Time) error {
+	ix := t.paths.Search(ds)
+	if n := t.paths.Len(); n > 0 && ix < n && t.paths[ix] == ds {
+		return nil
+	}
+	t.paths = append(t.paths, ds)
+	t.paths.Sort()
 	var b string
 	for _, p := range strings.Split(ds, string(os.PathSeparator)) {
 		if p == "" {
