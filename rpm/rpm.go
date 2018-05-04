@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 
 	"github.com/midbel/mack"
 	"github.com/midbel/tape"
@@ -21,6 +21,26 @@ const (
 	MinorRPM   = 0
 	MagicRPM   = 0xedabeedb
 	MagicHDR   = 0x008eade8
+)
+
+const (
+	SigBase        = 256
+	SigLength      = 1000
+	SigPGP         = 1002
+	SigMD5         = 1004
+	SigSha1        = SigBase + 13
+	SigPayloadSize = 1007
+)
+
+const (
+	TagPackage = 1000
+	TagVersion = 1001
+	TagRelease = 1002
+	TagSummary = 1004
+	TagDesc    = 1005
+	TagVendor  = 1011
+	TagLicense = 1014
+	TagURL     = 1020
 )
 
 type builder struct {
@@ -49,15 +69,56 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(w.inner, meta); err != nil {
-		return err
-	}
 	body, err := w.writeArchive(files)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(w.inner, body)
+
+	var data bytes.Buffer
+	md5sum, shasum := md5.New(), sha1.New()
+	if _, err := io.Copy(io.MultiWriter(&data, md5sum, shasum), io.MultiReader(meta, body)); err != nil {
+		return err
+	}
+	fs := []Field{
+		number{tag: SigLength, kind: int32(Int32), Value: int64(data.Len())},
+		binarray{tag: SigMD5, Value: md5sum.Sum(nil)},
+		binarray{tag: SigSha1, Value: shasum.Sum(nil)},
+	}
+	sig, err := writeFields(fs, true)
+	if err != nil {
+		return nil
+	}
+	_, err = io.Copy(w.inner, io.MultiReader(sig, &data))
 	return err
+}
+
+func writeFields(fs []Field, pad bool) (*bytes.Buffer, error) {
+	var meta, body, store bytes.Buffer
+	var i int32
+	for _, f := range fs {
+		fmt.Println(f)
+		if f.Skip() {
+			continue
+		}
+		i++
+
+		binary.Write(&body, binary.BigEndian, f.Tag())
+		binary.Write(&body, binary.BigEndian, f.Type())
+		binary.Write(&body, binary.BigEndian, int32(store.Len()))
+		binary.Write(&body, binary.BigEndian, f.Len())
+		store.Write(f.Bytes())
+	}
+	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8)|1))
+	binary.Write(&meta, binary.BigEndian, uint32(0))
+	binary.Write(&meta, binary.BigEndian, i)
+	binary.Write(&meta, binary.BigEndian, int32(store.Len()))
+
+	_, err := io.Copy(&meta, io.MultiReader(&body, &store))
+	if mod := meta.Len() % 8; mod != 0 && pad {
+		bs := make([]byte, 8-mod)
+		meta.Write(bs)
+	}
+	return &meta, err
 }
 
 func (w *builder) writeArchive(files []*mack.File) (*bytes.Buffer, error) {
@@ -93,38 +154,21 @@ func writeFile(w *cpio.Writer, f *mack.File) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	stat, ok := i.Sys().(*syscall.Stat_t)
-	if !ok || stat == nil {
-		return nil, fmt.Errorf("can not get stat for info %s", f)
-	}
 	h := tape.Header{
 		Filename: f.String(),
 		Mode:     int64(i.Mode()),
 		Length:   i.Size(),
 		ModTime:  i.ModTime(),
-		Major:    int64(stat.Dev >> 32),
-		Minor:    int64(stat.Dev & 0xFFFFFFFF),
 	}
 	if err := w.WriteHeader(&h); err != nil {
 		return nil, err
 	}
 	s := md5.New()
-	if _, err := io.Copy(io.MultiWriter(w, s), r); err != nil {
+	if _, err := io.Copy(w, io.TeeReader(r, s)); err != nil {
 		return nil, err
 	}
 	return s.Sum(nil), err
 }
-
-const (
-	TagPackage = 1000
-	TagVersion = 1001
-	TagRelease = 1002
-	TagSummary = 1004
-	TagDesc    = 1005
-	TagVendor  = 1011
-	TagLicense = 1014
-	TagURL     = 1020
-)
 
 type Field interface {
 	Tag() int32
@@ -134,6 +178,17 @@ type Field interface {
 	Bytes() []byte
 }
 
+type binarray struct {
+	tag   int32
+	Value []byte
+}
+
+func (b binarray) Skip() bool    { return len(b.Value) == 0 }
+func (b binarray) Tag() int32    { return b.tag }
+func (b binarray) Type() int32   { return int32(Binary) }
+func (b binarray) Len() int32    { return int32(len(b.Value)) }
+func (b binarray) Bytes() []byte { return b.Value }
+
 type number struct {
 	tag   int32
 	kind  int32
@@ -142,21 +197,21 @@ type number struct {
 
 func (n number) Skip() bool  { return false }
 func (n number) Tag() int32  { return n.tag }
-func (n number) Type() int32 { return int32(n.kind) }
-func (n number) Len() int32 {
-	switch e := n.kind; EntryType(e) {
-	case Int8:
-		return 1
-	case Int16:
-		return 2
-	case Int32:
-		return 4
-	default:
-		return 8
-	}
-}
+func (n number) Type() int32 { return n.kind }
+func (n number) Len() int32  { return 1 }
 func (n number) Bytes() []byte {
-	return nil
+	var w bytes.Buffer
+	switch EntryType(n.kind) {
+	case Int8:
+		binary.Write(&w, binary.BigEndian, int8(n.Value))
+	case Int16:
+		binary.Write(&w, binary.BigEndian, int16(n.Value))
+	case Int32:
+		binary.Write(&w, binary.BigEndian, int32(n.Value))
+	case Int64:
+		binary.Write(&w, binary.BigEndian, int64(n.Value))
+	}
+	return w.Bytes()
 }
 
 type varchar struct {
@@ -188,25 +243,7 @@ func controlToFields(c *mack.Control) []Field {
 
 func writeMetadata(c *mack.Control) (*bytes.Buffer, error) {
 	fs := controlToFields(c)
-	var meta, body, store bytes.Buffer
-
-	for _, f := range fs {
-		if f.Skip() {
-			continue
-		}
-		offset := int32(store.Len())
-		binary.Write(&body, binary.BigEndian, f.Tag())
-		binary.Write(&body, binary.BigEndian, f.Type())
-		binary.Write(&body, binary.BigEndian, offset)
-		binary.Write(&body, binary.BigEndian, f.Len())
-		store.Write(f.Bytes())
-	}
-	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8)|1))
-	binary.Write(&meta, binary.BigEndian, int32(len(fs)))
-	binary.Write(&meta, binary.BigEndian, int32(body.Len()))
-
-	_, err := io.Copy(&meta, io.MultiReader(&body, &store))
-	return &meta, err
+	return writeFields(fs, false)
 }
 
 func writeLead(w io.Writer, e Lead) error {
