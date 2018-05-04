@@ -30,6 +30,11 @@ var commands = []*cli.Command{
 		Short: "create deb files from many configuration files",
 	},
 	{
+		Run:   runRPM,
+		Usage: "rpm <config,...>",
+		Short: "create rpm files from many configuration files",
+	},
+	{
 		Run:   runShow,
 		Usage: "show <config,...>",
 		Short: "show information of deb files",

@@ -19,7 +19,7 @@ func runRPM(cmd *cli.Command, args []string) error {
 	for _, a := range cmd.Flag.Args() {
 		file := a
 		g.Go(func() error {
-			return makeDEB(file)
+			return makeRPM(file)
 		})
 	}
 	return g.Wait()
@@ -66,6 +66,7 @@ func makeRPM(file string) error {
 	pkg := rpm.NewBuilder(d)
 	if err := pkg.Build(c.Control, c.Files); err != nil {
 		os.Remove(c.Location)
+		return err
 	}
 	return nil
 }
