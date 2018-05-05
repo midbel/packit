@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -29,6 +30,11 @@ const (
 )
 
 const (
+	TagSignatureIndex = 62
+	TagImmutableIndex = 63
+)
+
+const (
 	SigBase    = 256
 	SigDSA     = SigBase + 11
 	SigRSA     = SigBase + 12
@@ -50,14 +56,18 @@ const (
 	TagSize      = 1009
 	TagVendor    = 1011
 	TagLicense   = 1014
+	TagPackager  = 1015
 	TagURL       = 1020
 	TagOS        = 1021
 	TagArch      = 1022
 	TagSizes     = 1028
 	TagModes     = 1030
 	TagDigests   = 1035
+	TagContribs  = 1081
 	TagBasenames = 1117
 	TagDirnames  = 1118
+	TagOwners    = 1039
+	TagGroups    = 1040
 )
 
 type builder struct {
@@ -92,17 +102,18 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	}
 
 	var data bytes.Buffer
-	md5sum, shasum := md5.New(), sha1.New()
-	if _, err := io.Copy(io.MultiWriter(&data, md5sum, shasum), io.MultiReader(meta, body)); err != nil {
+	md5sum, sha1sum, sha256sum := md5.New(), sha1.New(), sha256.New()
+	if _, err := io.Copy(io.MultiWriter(&data, md5sum, sha1sum, sha256sum), io.MultiReader(meta, body)); err != nil {
 		return err
 	}
 	fs := []Field{
 		number{tag: SigLength, kind: int32(Int32), Value: int64(data.Len())},
 		number{tag: SigPayload, kind: int32(Int32), Value: int64(size + meta.Len())},
 		binarray{tag: SigMD5, Value: md5sum.Sum(nil)},
-		binarray{tag: SigSha1, Value: shasum.Sum(nil)},
+		binarray{tag: SigSha1, Value: sha1sum.Sum(nil)},
+		binarray{tag: SigSha256, Value: sha256sum.Sum(nil)},
 	}
-	sig, err := writeFields(fs, true)
+	sig, err := writeFields(fs, TagSignatureIndex, true)
 	if err != nil {
 		return nil
 	}
@@ -110,26 +121,37 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	return err
 }
 
-func writeFields(fs []Field, pad bool) (*bytes.Buffer, error) {
-	sort.Slice(fs, func(i, j int) bool { return fs[i].Tag() < fs[j].Tag() })
+func writeFields(fs []Field, tag int32, pad bool) (*bytes.Buffer, error) {
+	sort.Slice(fs, func(i, j int) bool {
+		return fs[i].Tag() < fs[j].Tag()
+	})
 	var meta, body, store bytes.Buffer
-	var i int32
 	for _, f := range fs {
-		if f.Skip() {
-			continue
-		}
-		i++
-
 		binary.Write(&body, binary.BigEndian, f.Tag())
 		binary.Write(&body, binary.BigEndian, f.Type())
 		binary.Write(&body, binary.BigEndian, int32(store.Len()))
 		binary.Write(&body, binary.BigEndian, f.Len())
 		store.Write(f.Bytes())
 	}
+
 	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8)|1))
 	binary.Write(&meta, binary.BigEndian, uint32(0))
-	binary.Write(&meta, binary.BigEndian, i)
-	binary.Write(&meta, binary.BigEndian, int32(store.Len()))
+
+	if tag > 0 {
+		binary.Write(&meta, binary.BigEndian, int32(len(fs)+1))
+		binary.Write(&meta, binary.BigEndian, int32(store.Len()+16))
+		offset := -16 * (1 + len(fs))
+		f := index{tag: tag, Value: int32(offset)}
+
+		binary.Write(&meta, binary.BigEndian, f.Tag())
+		binary.Write(&meta, binary.BigEndian, f.Type())
+		binary.Write(&meta, binary.BigEndian, int32(store.Len()))
+		binary.Write(&meta, binary.BigEndian, f.Len())
+		store.Write(f.Bytes())
+	} else {
+		binary.Write(&meta, binary.BigEndian, int32(len(fs)))
+		binary.Write(&meta, binary.BigEndian, int32(store.Len()))
+	}
 
 	_, err := io.Copy(&meta, io.MultiReader(&body, &store))
 	if mod := meta.Len() % 8; mod != 0 && pad {
@@ -265,32 +287,66 @@ func (a array) Bytes() []byte {
 	return b.Bytes()
 }
 
+type index struct {
+	tag   int32
+	Value int32
+}
+
+func (i index) Skip() bool  { return false }
+func (i index) Tag() int32  { return i.tag }
+func (i index) Type() int32 { return int32(Binary) }
+func (i index) Len() int32  { return 16 }
+func (i index) Bytes() []byte {
+	var b bytes.Buffer
+	binary.Write(&b, binary.BigEndian, i.tag)
+	binary.Write(&b, binary.BigEndian, int32(0))
+	binary.Write(&b, binary.BigEndian, i.Value)
+	binary.Write(&b, binary.BigEndian, i.Len())
+	return b.Bytes()
+}
+
 func controlToFields(c *mack.Control) []Field {
 	var fs []Field
 
 	fs = append(fs, varchar{tag: TagPackage, Value: c.Package})
 	fs = append(fs, varchar{tag: TagVersion, Value: c.Version})
 	fs = append(fs, varchar{tag: TagSummary, Value: c.Summary})
-	fs = append(fs, varchar{tag: TagBuildTime, Value: time.Now().Format(time.RFC3339)})
+	fs = append(fs, number{tag: TagBuildTime, kind: int32(Int32), Value: time.Now().Unix()})
 	fs = append(fs, varchar{tag: TagDesc, Value: c.Desc})
 	fs = append(fs, varchar{tag: TagVendor, Value: c.Vendor})
+	fs = append(fs, varchar{tag: TagPackager, Value: c.Maintainer.String()})
 	fs = append(fs, varchar{tag: TagLicense, Value: c.License})
 	fs = append(fs, varchar{tag: TagURL, Value: c.Home})
 	fs = append(fs, varchar{tag: TagOS, Value: "linux"})
 	fs = append(fs, varchar{tag: TagOS, Value: c.Arch})
 
+	if n := len(c.Contributors); n > 0 {
+		cs := make([]string, n)
+		for i, c := range c.Contributors {
+			cs[i] = c.String()
+		}
+		fs = append(fs, array{tag: TagContribs, Value: cs})
+	}
+
 	return fs
 }
+
+const (
+	defaultUser  = "root"
+	defaultGroup = "root"
+)
 
 func writeMetadata(c *mack.Control, files, sums []string, sizes []int64) (*bytes.Buffer, error) {
 	fs := controlToFields(c)
 	ds, bs := make([]string, len(files)), make([]string, len(files))
+	os, gs := make([]string, len(files)), make([]string, len(files))
 	for i := range files {
 		d, n := filepath.Split(files[i])
 		if !strings.HasPrefix(d, "/") {
 			d = "/" + d
 		}
 		ds[i], bs[i] = d, n
+		os[i], gs[i] = defaultUser, defaultGroup
 	}
 	zs := make([]string, len(sizes))
 	var total int64
@@ -301,9 +357,11 @@ func writeMetadata(c *mack.Control, files, sums []string, sizes []int64) (*bytes
 	fs = append(fs, number{tag: TagSize, kind: int32(Int32), Value: total})
 	fs = append(fs, array{tag: TagBasenames, Value: bs})
 	fs = append(fs, array{tag: TagDirnames, Value: ds})
+	fs = append(fs, array{tag: TagOwners, Value: os})
+	fs = append(fs, array{tag: TagGroups, Value: gs})
 	fs = append(fs, array{tag: TagDigests, Value: sums})
 	fs = append(fs, array{tag: TagSizes, Value: zs})
-	return writeFields(fs, false)
+	return writeFields(fs, TagImmutableIndex, false)
 }
 
 func writeLead(w io.Writer, e Lead) error {
