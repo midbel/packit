@@ -9,6 +9,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/midbel/mack"
 	"github.com/midbel/tape"
@@ -24,23 +29,35 @@ const (
 )
 
 const (
-	SigBase        = 256
-	SigLength      = 1000
-	SigPGP         = 1002
-	SigMD5         = 1004
-	SigSha1        = SigBase + 13
-	SigPayloadSize = 1007
+	SigBase    = 256
+	SigDSA     = SigBase + 11
+	SigRSA     = SigBase + 12
+	SigSha1    = SigBase + 13
+	SigSha256  = SigBase + 17
+	SigLength  = 1000
+	SigPGP     = 1002
+	SigMD5     = 1004
+	SigPayload = 1007
 )
 
 const (
-	TagPackage = 1000
-	TagVersion = 1001
-	TagRelease = 1002
-	TagSummary = 1004
-	TagDesc    = 1005
-	TagVendor  = 1011
-	TagLicense = 1014
-	TagURL     = 1020
+	TagPackage   = 1000
+	TagVersion   = 1001
+	TagRelease   = 1002
+	TagSummary   = 1004
+	TagDesc      = 1005
+	TagBuildTime = 1006
+	TagSize      = 1009
+	TagVendor    = 1011
+	TagLicense   = 1014
+	TagURL       = 1020
+	TagOS        = 1021
+	TagArch      = 1022
+	TagSizes     = 1028
+	TagModes     = 1030
+	TagDigests   = 1035
+	TagBasenames = 1117
+	TagDirnames  = 1118
 )
 
 type builder struct {
@@ -65,11 +82,11 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	if err := writeLead(w.inner, e); err != nil {
 		return err
 	}
-	meta, err := writeMetadata(&c)
+	size, body, err := w.writeArchive(files)
 	if err != nil {
 		return err
 	}
-	body, err := w.writeArchive(files)
+	meta, err := writeMetadata(&c, w.filenames, w.md5sums, w.sizes)
 	if err != nil {
 		return err
 	}
@@ -81,6 +98,7 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	}
 	fs := []Field{
 		number{tag: SigLength, kind: int32(Int32), Value: int64(data.Len())},
+		number{tag: SigPayload, kind: int32(Int32), Value: int64(size + meta.Len())},
 		binarray{tag: SigMD5, Value: md5sum.Sum(nil)},
 		binarray{tag: SigSha1, Value: shasum.Sum(nil)},
 	}
@@ -93,10 +111,10 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 }
 
 func writeFields(fs []Field, pad bool) (*bytes.Buffer, error) {
+	sort.Slice(fs, func(i, j int) bool { return fs[i].Tag() < fs[j].Tag() })
 	var meta, body, store bytes.Buffer
 	var i int32
 	for _, f := range fs {
-		fmt.Println(f)
 		if f.Skip() {
 			continue
 		}
@@ -121,38 +139,40 @@ func writeFields(fs []Field, pad bool) (*bytes.Buffer, error) {
 	return &meta, err
 }
 
-func (w *builder) writeArchive(files []*mack.File) (*bytes.Buffer, error) {
+func (w *builder) writeArchive(files []*mack.File) (int, *bytes.Buffer, error) {
 	body := new(bytes.Buffer)
 	ark := cpio.NewWriter(body)
 	for _, f := range files {
-		bs, err := writeFile(ark, f)
+		n, bs, err := writeFile(ark, f)
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		w.sizes = append(w.sizes, int64(len(bs)))
+		w.sizes = append(w.sizes, n)
 		w.md5sums = append(w.md5sums, fmt.Sprintf("%x", bs))
 		w.filenames = append(w.filenames, f.String())
 	}
 	if err := ark.Close(); err != nil {
-		return nil, err
+		return 0, nil, err
 	}
+	total := body.Len()
+
 	bz := new(bytes.Buffer)
 	gz, _ := gzip.NewWriterLevel(bz, gzip.BestCompression)
 	if _, err := io.Copy(gz, body); err != nil {
-		return nil, err
+		return total, nil, err
 	}
-	return bz, nil
+	return total, bz, nil
 }
 
-func writeFile(w *cpio.Writer, f *mack.File) ([]byte, error) {
+func writeFile(w *cpio.Writer, f *mack.File) (int64, []byte, error) {
 	r, err := os.Open(f.Src)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	defer r.Close()
 	i, err := r.Stat()
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	h := tape.Header{
 		Filename: f.String(),
@@ -161,13 +181,13 @@ func writeFile(w *cpio.Writer, f *mack.File) ([]byte, error) {
 		ModTime:  i.ModTime(),
 	}
 	if err := w.WriteHeader(&h); err != nil {
-		return nil, err
+		return h.Length, nil, err
 	}
 	s := md5.New()
 	if _, err := io.Copy(w, io.TeeReader(r, s)); err != nil {
-		return nil, err
+		return h.Length, nil, err
 	}
-	return s.Sum(nil), err
+	return h.Length, s.Sum(nil), err
 }
 
 type Field interface {
@@ -227,22 +247,62 @@ func (v varchar) Bytes() []byte {
 	return append([]byte(v.Value), 0)
 }
 
+type array struct {
+	tag   int32
+	Value []string
+}
+
+func (a array) Skip() bool  { return len(a.Value) == 0 }
+func (a array) Tag() int32  { return a.tag }
+func (a array) Type() int32 { return int32(StringArray) }
+func (a array) Len() int32  { return int32(len(a.Value)) }
+func (a array) Bytes() []byte {
+	var b bytes.Buffer
+	for _, v := range a.Value {
+		io.WriteString(&b, v)
+		b.WriteByte(0)
+	}
+	return b.Bytes()
+}
+
 func controlToFields(c *mack.Control) []Field {
 	var fs []Field
 
 	fs = append(fs, varchar{tag: TagPackage, Value: c.Package})
 	fs = append(fs, varchar{tag: TagVersion, Value: c.Version})
 	fs = append(fs, varchar{tag: TagSummary, Value: c.Summary})
+	fs = append(fs, varchar{tag: TagBuildTime, Value: time.Now().Format(time.RFC3339)})
 	fs = append(fs, varchar{tag: TagDesc, Value: c.Desc})
 	fs = append(fs, varchar{tag: TagVendor, Value: c.Vendor})
 	fs = append(fs, varchar{tag: TagLicense, Value: c.License})
 	fs = append(fs, varchar{tag: TagURL, Value: c.Home})
+	fs = append(fs, varchar{tag: TagOS, Value: "linux"})
+	fs = append(fs, varchar{tag: TagOS, Value: c.Arch})
 
 	return fs
 }
 
-func writeMetadata(c *mack.Control) (*bytes.Buffer, error) {
+func writeMetadata(c *mack.Control, files, sums []string, sizes []int64) (*bytes.Buffer, error) {
 	fs := controlToFields(c)
+	ds, bs := make([]string, len(files)), make([]string, len(files))
+	for i := range files {
+		d, n := filepath.Split(files[i])
+		if !strings.HasPrefix(d, "/") {
+			d = "/" + d
+		}
+		ds[i], bs[i] = d, n
+	}
+	zs := make([]string, len(sizes))
+	var total int64
+	for i := range sizes {
+		zs[i] = strconv.FormatInt(sizes[i], 10)
+		total += sizes[i]
+	}
+	fs = append(fs, number{tag: TagSize, kind: int32(Int32), Value: total})
+	fs = append(fs, array{tag: TagBasenames, Value: bs})
+	fs = append(fs, array{tag: TagDirnames, Value: ds})
+	fs = append(fs, array{tag: TagDigests, Value: sums})
+	fs = append(fs, array{tag: TagSizes, Value: zs})
 	return writeFields(fs, false)
 }
 
