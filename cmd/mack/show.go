@@ -1,28 +1,43 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 
 	"github.com/midbel/cli"
-	// "github.com/midbel/mack"
-	"golang.org/x/sync/errgroup"
+	"github.com/midbel/tape/ar"
 )
 
 func runShow(cmd *cli.Command, args []string) error {
-	check := cmd.Flag.Bool("c", false, "check")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	var g errgroup.Group
-	for _, a := range cmd.Flag.Args() {
-		a := a
-		g.Go(func() error {
-			return showDEB(a, *check)
-		})
+	f, err := os.Open(cmd.Flag.Arg(0))
+	if err != nil {
+		return err
 	}
-	return g.Wait()
+	rs := bufio.NewReader(f)
+	bs, err := rs.Peek(16)
+	if err != nil {
+		return err
+	}
+	var show func(io.Reader) error
+	switch {
+	case bytes.HasPrefix(bs, ar.Magic):
+		show = showDEB
+	default:
+		return fmt.Errorf("unknown packet type")
+	}
+	return show(rs)
 }
 
-func showDEB(file string, check bool) error {
+func showDEB(r io.Reader) error {
+	return fmt.Errorf("not yet implemented")
+}
+
+func showRPM(r io.Reader) error {
 	return fmt.Errorf("not yet implemented")
 }
