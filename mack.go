@@ -1,6 +1,7 @@
 package mack
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 )
@@ -16,21 +17,26 @@ type Maintainer struct {
 	Email string `toml:"email"`
 }
 
+func (m Maintainer) String() string {
+	return fmt.Sprintf("%s <%s>", m.Name, m.Email)
+}
+
 type Control struct {
-	Package    string   `toml:"package"`
-	Version    string   `toml:"version"`
-	Summary    string   `toml:"summary"`
-	Desc       string   `toml:"description"`
-	License    string   `toml:"license"`
-	Section    string   `toml:"section"`
-	Priority   string   `toml:"priority"`
-	Arch       string   `toml:"arch"`
-	Vendor     string   `toml:"vendor"`
-	Home       string   `toml:"homepage"`
-	Depends    []string `toml:"depends"`
-	Compiler   string   `toml:"compiler"`
-	Size       int      `toml:"size"`
-	Maintainer `toml:"maintainer"`
+	Package      string       `toml:"package"`
+	Version      string       `toml:"version"`
+	Summary      string       `toml:"summary"`
+	Desc         string       `toml:"description"`
+	License      string       `toml:"license"`
+	Section      string       `toml:"section"`
+	Priority     string       `toml:"priority"`
+	Arch         string       `toml:"arch"`
+	Vendor       string       `toml:"vendor"`
+	Home         string       `toml:"homepage"`
+	Depends      []string     `toml:"depends"`
+	Compiler     string       `toml:"compiler"`
+	Size         int          `toml:"size"`
+	Contributors []Maintainer `toml:"contributors"`
+	Maintainer   `toml:"maintainer"`
 }
 
 type File struct {
