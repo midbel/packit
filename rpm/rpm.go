@@ -127,31 +127,16 @@ func writeFields(fs []Field, tag int32, pad bool) (*bytes.Buffer, error) {
 	})
 	var meta, body, store bytes.Buffer
 	for _, f := range fs {
-		binary.Write(&body, binary.BigEndian, f.Tag())
-		binary.Write(&body, binary.BigEndian, f.Type())
-		binary.Write(&body, binary.BigEndian, int32(store.Len()))
-		binary.Write(&body, binary.BigEndian, f.Len())
-		store.Write(f.Bytes())
+		writeField(&body, &store, f)
 	}
 
 	binary.Write(&meta, binary.BigEndian, uint32((MagicHDR<<8)|1))
 	binary.Write(&meta, binary.BigEndian, uint32(0))
+	binary.Write(&meta, binary.BigEndian, int32(len(fs)+1))
+	binary.Write(&meta, binary.BigEndian, int32(store.Len()+16))
 
-	if tag > 0 {
-		binary.Write(&meta, binary.BigEndian, int32(len(fs)+1))
-		binary.Write(&meta, binary.BigEndian, int32(store.Len()+16))
-		offset := -16 * (1 + len(fs))
-		f := index{tag: tag, Value: int32(offset)}
-
-		binary.Write(&meta, binary.BigEndian, f.Tag())
-		binary.Write(&meta, binary.BigEndian, f.Type())
-		binary.Write(&meta, binary.BigEndian, int32(store.Len()))
-		binary.Write(&meta, binary.BigEndian, f.Len())
-		store.Write(f.Bytes())
-	} else {
-		binary.Write(&meta, binary.BigEndian, int32(len(fs)))
-		binary.Write(&meta, binary.BigEndian, int32(store.Len()))
-	}
+	f := index{tag: tag, Value: -16 * int32(1+len(fs))}
+	writeField(&meta, &store, f)
 
 	_, err := io.Copy(&meta, io.MultiReader(&body, &store))
 	if mod := meta.Len() % 8; mod != 0 && pad {
@@ -159,6 +144,14 @@ func writeFields(fs []Field, tag int32, pad bool) (*bytes.Buffer, error) {
 		meta.Write(bs)
 	}
 	return &meta, err
+}
+
+func writeField(b, s *bytes.Buffer, f Field) {
+	binary.Write(b, binary.BigEndian, f.Tag())
+	binary.Write(b, binary.BigEndian, f.Type())
+	binary.Write(b, binary.BigEndian, int32(s.Len()))
+	binary.Write(b, binary.BigEndian, f.Len())
+	store.Write(f.Bytes())
 }
 
 func (w *builder) writeArchive(files []*mack.File) (int, *bytes.Buffer, error) {
