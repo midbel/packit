@@ -24,6 +24,7 @@ func (m Maintainer) String() string {
 type Control struct {
 	Package      string       `toml:"package"`
 	Version      string       `toml:"version"`
+	Release      string       `toml:"release"`
 	Summary      string       `toml:"summary"`
 	Desc         string       `toml:"description"`
 	License      string       `toml:"license"`
