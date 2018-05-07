@@ -151,7 +151,8 @@ func writeField(b, s *bytes.Buffer, f Field) {
 	binary.Write(b, binary.BigEndian, f.Type())
 	binary.Write(b, binary.BigEndian, int32(s.Len()))
 	binary.Write(b, binary.BigEndian, f.Len())
-	store.Write(f.Bytes())
+
+	s.Write(f.Bytes())
 }
 
 func (w *builder) writeArchive(files []*mack.File) (int, *bytes.Buffer, error) {
@@ -292,7 +293,7 @@ func (i index) Len() int32  { return 16 }
 func (i index) Bytes() []byte {
 	var b bytes.Buffer
 	binary.Write(&b, binary.BigEndian, i.tag)
-	binary.Write(&b, binary.BigEndian, int32(0))
+	binary.Write(&b, binary.BigEndian, int32(Binary))
 	binary.Write(&b, binary.BigEndian, i.Value)
 	binary.Write(&b, binary.BigEndian, i.Len())
 	return b.Bytes()
