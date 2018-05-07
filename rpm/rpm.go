@@ -108,7 +108,7 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 	}
 	fs := []Field{
 		number{tag: SigLength, kind: int32(Int32), Value: int64(data.Len())},
-		number{tag: SigPayload, kind: int32(Int32), Value: int64(size + meta.Len())},
+		number{tag: SigPayload, kind: int32(Int32), Value: int64(size)},
 		binarray{tag: SigMD5, Value: md5sum.Sum(nil)},
 		binarray{tag: SigSha1, Value: sha1sum.Sum(nil)},
 		binarray{tag: SigSha256, Value: sha256sum.Sum(nil)},
