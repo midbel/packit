@@ -104,14 +104,15 @@ func (w *builder) Build(c mack.Control, files []*mack.File) error {
 
 	var data bytes.Buffer
 	md5sum, sha1sum, sha256sum := md5.New(), sha1.New(), sha256.New()
-	if _, err := io.Copy(io.MultiWriter(&data, md5sum, sha1sum, sha256sum), io.MultiReader(meta, body)); err != nil {
+	payload := io.MultiReader(io.TeeReader(meta, sha1sum), body)
+	if _, err := io.Copy(io.MultiWriter(&data, md5sum, sha256sum), payload); err != nil {
 		return err
 	}
 	fs := []Field{
 		number{tag: SigLength, kind: int32(Int32), Value: int64(data.Len())},
 		number{tag: SigPayload, kind: int32(Int32), Value: int64(size)},
 		binarray{tag: SigMD5, Value: md5sum.Sum(nil)},
-		binarray{tag: SigSha1, Value: sha1sum.Sum(nil)},
+		varchar{tag: SigSha1, Value: fmt.Sprintf("%x", sha1sum.Sum(nil))},
 		binarray{tag: SigSha256, Value: sha256sum.Sum(nil)},
 	}
 	sig, err := writeFields(fs, TagSignatureIndex, true)
@@ -148,13 +149,28 @@ func writeFields(fs []Field, tag int32, pad bool) (*bytes.Buffer, error) {
 }
 
 func writeField(b, s *bytes.Buffer, f Field) {
-	var c bytes.Buffer
-	// fmt.Printf("store: %5d -> %5d => %16T %+[3]v", s.Len(), s.Len()+len(f.Bytes()), f)
-	// fmt.Println()
-	binary.Write(io.MultiWriter(b, &c), binary.BigEndian, f.Tag())
-	binary.Write(io.MultiWriter(b, &c), binary.BigEndian, f.Type())
-	binary.Write(io.MultiWriter(b, &c), binary.BigEndian, int32(s.Len()))
-	binary.Write(io.MultiWriter(b, &c), binary.BigEndian, f.Len())
+	var boundary int
+	switch e := f.Type(); EntryType(e) {
+	case Int8:
+		boundary = 1
+	case Int16:
+		boundary = 2
+	case Int32:
+		boundary = 4
+	case Int64:
+		boundary = 8
+	}
+	if boundary > 0 {
+		if mod := s.Len() % boundary; mod != 0 {
+			bs := make([]byte, boundary-mod)
+			s.Write(bs)
+		}
+	}
+
+	binary.Write(b, binary.BigEndian, f.Tag())
+	binary.Write(b, binary.BigEndian, f.Type())
+	binary.Write(b, binary.BigEndian, int32(s.Len()))
+	binary.Write(b, binary.BigEndian, f.Len())
 
 	s.Write(f.Bytes())
 }
@@ -190,9 +206,9 @@ func controlToFields(c *mack.Control) []Field {
 	fs = append(fs, varchar{tag: TagPackage, Value: c.Package})
 	fs = append(fs, varchar{tag: TagVersion, Value: c.Version})
 	fs = append(fs, varchar{tag: TagRelease, Value: c.Release})
-	fs = append(fs, varchar{tag: TagSummary, Value: c.Summary})
+	fs = append(fs, varchar{tag: TagSummary, kind: int32(I18NString), Value: c.Summary})
+	fs = append(fs, varchar{tag: TagDesc, kind: int32(I18NString), Value: c.Desc})
 	fs = append(fs, number{tag: TagBuildTime, kind: int32(Int32), Value: when.Unix()})
-	fs = append(fs, varchar{tag: TagDesc, Value: c.Desc})
 	fs = append(fs, varchar{tag: TagVendor, Value: c.Vendor})
 	fs = append(fs, varchar{tag: TagPackager, Value: c.Maintainer.String()})
 	fs = append(fs, varchar{tag: TagLicense, Value: c.License})
