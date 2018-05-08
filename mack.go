@@ -30,6 +30,7 @@ type Control struct {
 	License      string       `toml:"license"`
 	Section      string       `toml:"section"`
 	Priority     string       `toml:"priority"`
+	Os           string       `toml:"os"`
 	Arch         string       `toml:"arch"`
 	Vendor       string       `toml:"vendor"`
 	Home         string       `toml:"homepage"`

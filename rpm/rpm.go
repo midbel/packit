@@ -55,9 +55,11 @@ const (
 	TagBuildTime = 1006
 	TagBuildHost = 1007
 	TagSize      = 1009
+	TagDistrib   = 1010
 	TagVendor    = 1011
 	TagLicense   = 1014
 	TagPackager  = 1015
+	TagGroup     = 1016
 	TagURL       = 1020
 	TagOS        = 1021
 	TagArch      = 1022
@@ -200,7 +202,13 @@ func (w *builder) writeArchive(files []*mack.File) (int, *bytes.Buffer, error) {
 	return total, bz, nil
 }
 
+const defaultHost = "localhost.localdomain"
+
 func controlToFields(c *mack.Control) []Field {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = defaultHost
+	}
 	when := time.Now().UTC()
 	var fs []Field
 	fs = append(fs, varchar{tag: TagPackage, Value: c.Package})
@@ -208,13 +216,17 @@ func controlToFields(c *mack.Control) []Field {
 	fs = append(fs, varchar{tag: TagRelease, Value: c.Release})
 	fs = append(fs, varchar{tag: TagSummary, kind: int32(I18NString), Value: c.Summary})
 	fs = append(fs, varchar{tag: TagDesc, kind: int32(I18NString), Value: c.Desc})
+	fs = append(fs, varchar{tag: TagGroup, kind: int32(I18NString), Value: c.Section})
+	fs = append(fs, varchar{tag: TagOS, Value: c.Os})
 	fs = append(fs, number{tag: TagBuildTime, kind: int32(Int32), Value: when.Unix()})
+	fs = append(fs, varchar{tag: TagBuildHost, Value: host})
+	fs = append(fs, varchar{tag: TagDistrib, Value: c.Vendor})
 	fs = append(fs, varchar{tag: TagVendor, Value: c.Vendor})
 	fs = append(fs, varchar{tag: TagPackager, Value: c.Maintainer.String()})
 	fs = append(fs, varchar{tag: TagLicense, Value: c.License})
 	fs = append(fs, varchar{tag: TagURL, Value: c.Home})
-	fs = append(fs, varchar{tag: TagOS, Value: "linux"})
-	fs = append(fs, varchar{tag: TagOS, Value: c.Arch})
+	fs = append(fs, varchar{tag: TagOS, Value: c.Os})
+	fs = append(fs, varchar{tag: TagArch, Value: c.Arch})
 
 	if n := len(c.Contributors); n > 0 {
 		cs := make([]string, n)
