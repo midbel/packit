@@ -4,12 +4,19 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const etcDir = "etc/"
 
 type Builder interface {
 	Build(Control, []*File) error
+}
+
+type Changelog struct {
+	When       time.Time `toml:"date"`
+	Maintainer `toml:"maintainer"`
+	Changes    []string `toml:"changes"`
 }
 
 type Maintainer struct {
@@ -37,7 +44,7 @@ type Control struct {
 	Depends      []string     `toml:"depends"`
 	Compiler     string       `toml:"compiler"`
 	Size         int          `toml:"size"`
-	Contributors []Maintainer `toml:"contributors"`
+	Changes      []Changelog  `toml:"changelog"`
 	Maintainer   `toml:"maintainer"`
 }
 
