@@ -66,7 +66,9 @@ const (
 	TagSizes     = 1028
 	TagModes     = 1030
 	TagDigests   = 1035
-	TagContribs  = 1081
+	TagChangeTime  = 1080
+	TagChangeName  = 1081
+	TagChangeText  = 1082
 	TagBasenames = 1117
 	TagDirnames  = 1118
 	TagOwners    = 1039
@@ -228,12 +230,16 @@ func controlToFields(c *mack.Control) []Field {
 	fs = append(fs, varchar{tag: TagOS, Value: c.Os})
 	fs = append(fs, varchar{tag: TagArch, Value: c.Arch})
 
-	if n := len(c.Contributors); n > 0 {
-		cs := make([]string, n)
-		for i, c := range c.Contributors {
-			cs[i] = c.String()
+	if n := len(c.Changes); n > 0 {
+		ts, cs, ls := make([]int64, n), make([]string, n), make([]string, n)
+		for i := range c.Changes {
+			ts[i] = c.Changes[i].When.Unix()
+			cs[i] = c.Changes[i].Maintainer.String()
+			ls[i] = strings.Join(c.Changes[i].Changes, "\n")
 		}
-		fs = append(fs, array{tag: TagContribs, Value: cs})
+		fs = append(fs, numarray{tag: TagChangeTime, kind: int32(Int32), Value: ts})
+		fs = append(fs, strarray{tag: TagChangeName, Value: cs})
+		fs = append(fs, strarray{tag: TagChangeText, Value: ls})
 	}
 
 	return fs
@@ -289,12 +295,12 @@ func writeMetadata(c *mack.Control, files, sums []string, sizes []int64) (*bytes
 		total += sizes[i]
 	}
 	fs = append(fs, number{tag: TagSize, kind: int32(Int32), Value: total})
-	fs = append(fs, array{tag: TagBasenames, Value: bs})
-	fs = append(fs, array{tag: TagDirnames, Value: ds})
-	fs = append(fs, array{tag: TagOwners, Value: os})
-	fs = append(fs, array{tag: TagGroups, Value: gs})
-	fs = append(fs, array{tag: TagDigests, Value: sums})
-	fs = append(fs, array{tag: TagSizes, Value: zs})
+	fs = append(fs, strarray{tag: TagBasenames, Value: bs})
+	fs = append(fs, strarray{tag: TagDirnames, Value: ds})
+	fs = append(fs, strarray{tag: TagOwners, Value: os})
+	fs = append(fs, strarray{tag: TagGroups, Value: gs})
+	fs = append(fs, strarray{tag: TagDigests, Value: sums})
+	fs = append(fs, strarray{tag: TagSizes, Value: zs})
 	return writeFields(fs, TagImmutableIndex, false)
 }
 
