@@ -52,13 +52,19 @@ func (n number) Bytes() []byte {
 
 type varchar struct {
 	tag   int32
+	kind  int32
 	Value string
 }
 
-func (v varchar) Skip() bool  { return len(v.Value) == 0 }
-func (v varchar) Tag() int32  { return v.tag }
-func (v varchar) Type() int32 { return int32(String) }
-func (v varchar) Len() int32  { return 1 }
+func (v varchar) Skip() bool { return len(v.Value) == 0 }
+func (v varchar) Tag() int32 { return v.tag }
+func (v varchar) Type() int32 {
+	if v.kind == 0 {
+		return int32(String)
+	}
+	return v.kind
+}
+func (v varchar) Len() int32 { return 1 }
 func (v varchar) Bytes() []byte {
 	return append([]byte(v.Value), 0)
 }
