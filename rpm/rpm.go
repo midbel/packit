@@ -235,7 +235,7 @@ func controlToFields(c *mack.Control) []Field {
 		for i := range c.Changes {
 			ts[i] = c.Changes[i].When.Unix()
 			cs[i] = c.Changes[i].Maintainer.String()
-			ls[i] = strings.Join(c.Changes[i].Changes, "\n")
+			ls[i] = c.Changes[i].Changes
 		}
 		fs = append(fs, numarray{tag: TagChangeTime, kind: int32(Int32), Value: ts})
 		fs = append(fs, strarray{tag: TagChangeName, Value: cs})

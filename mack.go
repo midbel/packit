@@ -15,8 +15,8 @@ type Builder interface {
 
 type Changelog struct {
 	When       time.Time `toml:"date"`
+	Changes    string `toml:"changes"`
 	Maintainer `toml:"maintainer"`
-	Changes    []string `toml:"changes"`
 }
 
 type Maintainer struct {
