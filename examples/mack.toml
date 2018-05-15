@@ -1,4 +1,4 @@
-location = "var/deb/mack-1.0.deb"
+location = "var/deb/mack-1.0.rpm"
 
 [control]
 package      = "mack"
@@ -11,13 +11,33 @@ vendor       = "midbel"
 homepage     = "https://github.com/midbel/mack"
 depends      = ["libc6"]
 size         = 4181
-summary      = "create deb or rpm package made easy."
-#description  = "it should be a multiline description"
+summary      = "Manage binary pACKage made easy."
+description  = """mack help you to create your binary package without \
+any external dependencies
+
+Features:
+
+* create deb package
+* create rpm package
+* show package information
+"""
 maintainer   = {
   name  = "midbel",
   email = "midbel@foobar.com",
 }
 compiler = "go-1.10"
+
+[[control.changelog]]
+date = 2018-05-15T12:10:00Z
+maintainer = {
+  name = "midbel",
+  email = "midbel@foobar.com",
+}
+changes = """
+- build deb package(s) from configuration file
+- build rpm package(s) from configuration file
+"""
+
 
 [[resource]]
 source      = "bin/mack"
