@@ -47,32 +47,32 @@ const (
 )
 
 const (
-	TagPackage   = 1000
-	TagVersion   = 1001
-	TagRelease   = 1002
-	TagSummary   = 1004
-	TagDesc      = 1005
-	TagBuildTime = 1006
-	TagBuildHost = 1007
-	TagSize      = 1009
-	TagDistrib   = 1010
-	TagVendor    = 1011
-	TagLicense   = 1014
-	TagPackager  = 1015
-	TagGroup     = 1016
-	TagURL       = 1020
-	TagOS        = 1021
-	TagArch      = 1022
-	TagSizes     = 1028
-	TagModes     = 1030
-	TagDigests   = 1035
-	TagChangeTime  = 1080
-	TagChangeName  = 1081
-	TagChangeText  = 1082
-	TagBasenames = 1117
-	TagDirnames  = 1118
-	TagOwners    = 1039
-	TagGroups    = 1040
+	TagPackage    = 1000
+	TagVersion    = 1001
+	TagRelease    = 1002
+	TagSummary    = 1004
+	TagDesc       = 1005
+	TagBuildTime  = 1006
+	TagBuildHost  = 1007
+	TagSize       = 1009
+	TagDistrib    = 1010
+	TagVendor     = 1011
+	TagLicense    = 1014
+	TagPackager   = 1015
+	TagGroup      = 1016
+	TagURL        = 1020
+	TagOS         = 1021
+	TagArch       = 1022
+	TagSizes      = 1028
+	TagModes      = 1030
+	TagDigests    = 1035
+	TagChangeTime = 1080
+	TagChangeName = 1081
+	TagChangeText = 1082
+	TagBasenames  = 1117
+	TagDirnames   = 1118
+	TagOwners     = 1039
+	TagGroups     = 1040
 )
 
 type builder struct {

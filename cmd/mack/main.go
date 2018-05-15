@@ -25,14 +25,9 @@ Use {{.Name}} [command] -h for more information about its usage.
 
 var commands = []*cli.Command{
 	{
-		Run:   runDeb,
-		Usage: "deb <config,...>",
-		Short: "create deb files from many configuration files",
-	},
-	{
-		Run:   runRPM,
-		Usage: "rpm <config,...>",
-		Short: "create rpm files from many configuration files",
+		Run:   runBuild,
+		Usage: "build <config,...>",
+		Short: "create package from configuration files",
 	},
 	{
 		Run:   runShow,

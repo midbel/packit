@@ -1,4 +1,5 @@
-location = "var/deb/mack-1.0.rpm"
+location = "var/deb/"
+type = "rpm"
 
 [control]
 package      = "mack"
@@ -6,7 +7,7 @@ version      = "1.0"
 license      = "MIT"
 section      = "utils"
 priority     = "optional"
-arch         = "amd64"
+arch         = "x64_86"
 vendor       = "midbel"
 homepage     = "https://github.com/midbel/mack"
 depends      = ["libc6"]
@@ -36,6 +37,7 @@ maintainer = {
 changes = """
 - build deb package(s) from configuration file
 - build rpm package(s) from configuration file
+- merge rpm and deb command into one build command
 """
 
 

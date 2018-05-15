@@ -31,10 +31,10 @@ type numarray struct {
 	Value []int64
 }
 
-func (n numarray) Skip() bool { return len(n.Value) == 0 }
-func (n numarray) Tag() int32 { return n.tag }
+func (n numarray) Skip() bool  { return len(n.Value) == 0 }
+func (n numarray) Tag() int32  { return n.tag }
 func (n numarray) Type() int32 { return n.kind }
-func (n numarray) Len() int32 { return int32(len(n.Value)) }
+func (n numarray) Len() int32  { return int32(len(n.Value)) }
 func (n numarray) Bytes() []byte {
 	var w bytes.Buffer
 	for _, v := range n.Value {

@@ -15,7 +15,7 @@ type Builder interface {
 
 type Changelog struct {
 	When       time.Time `toml:"date"`
-	Changes    string `toml:"changes"`
+	Changes    string    `toml:"changes"`
 	Maintainer `toml:"maintainer"`
 }
 
@@ -29,23 +29,23 @@ func (m Maintainer) String() string {
 }
 
 type Control struct {
-	Package      string       `toml:"package"`
-	Version      string       `toml:"version"`
-	Release      string       `toml:"release"`
-	Summary      string       `toml:"summary"`
-	Desc         string       `toml:"description"`
-	License      string       `toml:"license"`
-	Section      string       `toml:"section"`
-	Priority     string       `toml:"priority"`
-	Os           string       `toml:"os"`
-	Arch         string       `toml:"arch"`
-	Vendor       string       `toml:"vendor"`
-	Home         string       `toml:"homepage"`
-	Depends      []string     `toml:"depends"`
-	Compiler     string       `toml:"compiler"`
-	Size         int          `toml:"size"`
-	Changes      []Changelog  `toml:"changelog"`
-	Maintainer   `toml:"maintainer"`
+	Package    string      `toml:"package"`
+	Version    string      `toml:"version"`
+	Release    string      `toml:"release"`
+	Summary    string      `toml:"summary"`
+	Desc       string      `toml:"description"`
+	License    string      `toml:"license"`
+	Section    string      `toml:"section"`
+	Priority   string      `toml:"priority"`
+	Os         string      `toml:"os"`
+	Arch       string      `toml:"arch"`
+	Vendor     string      `toml:"vendor"`
+	Home       string      `toml:"homepage"`
+	Depends    []string    `toml:"depends"`
+	Compiler   string      `toml:"compiler"`
+	Size       int         `toml:"size"`
+	Changes    []Changelog `toml:"changelog"`
+	Maintainer `toml:"maintainer"`
 }
 
 type File struct {
