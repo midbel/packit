@@ -2,6 +2,7 @@ package deb
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -44,6 +45,7 @@ Pre-Depends: {{join .Depends ", "}}
 Installed-Size: {{.Size}}
 Build-Using: {{.Compiler}}
 Description: {{.Summary}}
+{{indent .Desc}}
 `
 
 type builder struct {
@@ -194,6 +196,20 @@ func writeDebianBinaryFile(a *ar.Writer, n time.Time) error {
 func prepareControl(c mack.Control) (*bytes.Buffer, error) {
 	fs := template.FuncMap{
 		"join": strings.Join,
+		"indent": func(s string) string {
+			var lines []string
+
+			sc := bufio.NewScanner(strings.NewReader(s))
+			sc.Split(bufio.ScanLines)
+			for sc.Scan() {
+				x := sc.Text()
+				if x == "" {
+					x = "."
+				}
+				lines = append(lines, " " + x)
+			}
+			return strings.Join(lines, "\n")
+		},
 	}
 	t, err := template.New("control").Funcs(fs).Parse(strings.TrimSpace(control) + "\n")
 	if err != nil {
