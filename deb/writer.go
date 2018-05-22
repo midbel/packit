@@ -206,7 +206,7 @@ func prepareControl(c mack.Control) (*bytes.Buffer, error) {
 				if x == "" {
 					x = "."
 				}
-				lines = append(lines, " " + x)
+				lines = append(lines, " "+x)
 			}
 			return strings.Join(lines, "\n")
 		},
