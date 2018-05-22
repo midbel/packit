@@ -34,6 +34,11 @@ var commands = []*cli.Command{
 		Usage: "show <config,...>",
 		Short: "show information of deb files",
 	},
+	{
+		Run:   runConvert,
+		Usage: "convert <src> <dst>",
+		Short: "convert src package to dst package",
+	},
 }
 
 func main() {

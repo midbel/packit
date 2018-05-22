@@ -2,6 +2,7 @@ package deb
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/midbel/mack"
@@ -194,9 +196,11 @@ func readControl(r io.Reader) (*mack.Control, error) {
 			ctrl.Depends = strings.Split(v, ", ")
 		case "build-using":
 			ctrl.Compiler = v
+		case "installed-size":
+			ctrl.Size, _ = strconv.Atoi(v)
 		case "description":
 			lines := strings.SplitN(v, "\n", 2)
-			ctrl.Summary, ctrl.Desc = lines[0], lines[1]
+			ctrl.Summary, ctrl.Desc = lines[0], unindent(lines[1])
 		}
 	}
 	return &ctrl, nil
@@ -222,4 +226,17 @@ func isSupported(r io.Reader) error {
 		return fmt.Errorf("unsupported deb version: %s", w.String())
 	}
 	return nil
+}
+
+func unindent(s string) string {
+	sc := bufio.NewScanner(strings.NewReader(s))
+	var lines []string
+	for sc.Scan() {
+		s := strings.TrimSpace(sc.Text())
+		if s == "." {
+			s = ""
+		}
+		lines = append(lines, s)
+	}
+	return strings.Join(lines, "\n")
 }
