@@ -4,21 +4,31 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/midbel/mack"
 	"github.com/midbel/tape/ar"
 )
 
+type Control struct {
+	*mack.Control
+
+	MD5    string
+	SHA1   string
+	SHA256 string
+}
+
 type File struct {
-	Name    string
-	Size    int64
-	Mode    uint32
-	ModTime time.Time
+	Name string
+	Uid  int
+	Gid  int
+	os.FileInfo
 }
 
 type Package struct {
@@ -26,6 +36,10 @@ type Package struct {
 
 	control *bytes.Reader
 	data    *bytes.Reader
+
+	md5sum  string
+	sha1sum string
+	sha2sum string
 }
 
 func Open(file string) (*Package, error) {
@@ -33,14 +47,13 @@ func Open(file string) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	// md5sum := md5.New()
-	// sha1sum := sha1.New()
-	// sha2sum := sha256.New()
-	// sha5sum := sha512.New()
-	//
-	// w := io.MultiWriter(md5sum, sha1sum, sha2sum, sha5sum)
-	// a, err := ar.NewReader(io.TeeReader(r, w))
-	a, err := ar.NewReader(r)
+	md5sum := md5.New()
+	sha1sum := sha1.New()
+	sha2sum := sha256.New()
+
+	w := io.MultiWriter(md5sum, sha1sum, sha2sum)
+	a, err := ar.NewReader(io.TeeReader(r, w))
+	// a, err := ar.NewReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -79,10 +92,14 @@ func Open(file string) (*Package, error) {
 			return nil, fmt.Errorf("unknown filename %s", h.Filename)
 		}
 	}
+	p.MD5 = fmt.Sprintf("%x", md5sum.Sum(nil))
+	p.SHA1 = fmt.Sprintf("%x", sha1sum.Sum(nil))
+	p.SHA256 = fmt.Sprintf("%x", sha2sum.Sum(nil))
+
 	return &p, nil
 }
 
-func (p *Package) Control() (*mack.Control, error) {
+func (p *Package) Control() (*Control, error) {
 	if _, err := p.control.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
@@ -97,9 +114,19 @@ func (p *Package) Control() (*mack.Control, error) {
 			return nil, err
 		}
 		if h.Name == DebControlFile {
-			return readControl(r)
+			break
 		}
 	}
+	c, err := readControl(r)
+	if err != nil {
+		return nil, err
+	}
+	return &Control{
+		Control: c,
+		md5sum:  p.md5sum,
+		sha1sum: p.sha1sum,
+		sha2sum: p.sha2sum,
+	}, nil
 }
 
 func (p *Package) Check() (bool, error) {
@@ -132,9 +159,10 @@ func listFiles(r io.ReadSeeker) ([]File, error) {
 			return nil, err
 		}
 		f := File{
-			Name:    h.Name,
-			Size:    h.Size,
-			ModTime: h.ModTime,
+			Name:     h.Name,
+			Uid:      h.Uid,
+			Gid:      h.Gid,
+			FileInfo: h.FileInfo(),
 		}
 		fs = append(fs, f)
 	}
