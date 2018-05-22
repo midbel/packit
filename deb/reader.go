@@ -92,9 +92,9 @@ func Open(file string) (*Package, error) {
 			return nil, fmt.Errorf("unknown filename %s", h.Filename)
 		}
 	}
-	p.MD5 = fmt.Sprintf("%x", md5sum.Sum(nil))
-	p.SHA1 = fmt.Sprintf("%x", sha1sum.Sum(nil))
-	p.SHA256 = fmt.Sprintf("%x", sha2sum.Sum(nil))
+	p.md5sum = fmt.Sprintf("%x", md5sum.Sum(nil))
+	p.sha1sum = fmt.Sprintf("%x", sha1sum.Sum(nil))
+	p.sha2sum = fmt.Sprintf("%x", sha2sum.Sum(nil))
 
 	return &p, nil
 }
@@ -123,9 +123,9 @@ func (p *Package) Control() (*Control, error) {
 	}
 	return &Control{
 		Control: c,
-		md5sum:  p.md5sum,
-		sha1sum: p.sha1sum,
-		sha2sum: p.sha2sum,
+		MD5:     p.md5sum,
+		SHA1:    p.sha1sum,
+		SHA256:  p.sha2sum,
 	}, nil
 }
 
