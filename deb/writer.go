@@ -244,6 +244,9 @@ func newTarball(n string) *tarball {
 }
 
 func (t *tarball) WriteString(f, c string, n time.Time) error {
+	if !strings.HasPrefix(f, "./") {
+		f = "./" + f
+	}
 	h := tar.Header{
 		Name:     f,
 		ModTime:  n,
@@ -270,7 +273,7 @@ func (t *tarball) WriteFile(f *mack.File, n time.Time) ([]byte, error) {
 		return nil, err
 	}
 	h := tar.Header{
-		Name:     f.String(),
+		Name:     "./" + f.String(),
 		Size:     int64(len(bs)),
 		ModTime:  n,
 		Mode:     f.Mode(),
