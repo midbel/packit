@@ -2,6 +2,8 @@ package mack
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,10 +15,10 @@ type Builder interface {
 	Build(Control, []*File) error
 }
 
-type Changelog struct {
-	When       time.Time `toml:"date"`
-	Changes    string    `toml:"changes"`
-	Maintainer `toml:"maintainer"`
+type Change struct {
+	When        time.Time `toml:"date"`
+	Changes     []string  `toml:"changes"`
+	*Maintainer `toml:"maintainer"`
 }
 
 type Maintainer struct {
@@ -28,24 +30,63 @@ func (m Maintainer) String() string {
 	return fmt.Sprintf("%s <%s>", m.Name, m.Email)
 }
 
+type code string
+
+func (c *code) String() string {
+	return string(*c)
+}
+
+func (c *code) Set(s string) error {
+	if i, err := os.Stat(s); err == nil && i.Mode().IsRegular() {
+		bs, err := ioutil.ReadFile(s)
+		if err != nil {
+			return err
+		}
+		*c = code(bs)
+	} else {
+		*c = code(s)
+	}
+	return nil
+}
+
+type Script struct {
+	Text code `toml:"script"`
+}
+
+func (s *Script) String() string {
+	return s.Text.String()
+}
+
+func (s *Script) Valid() bool {
+	if s.Text == "" {
+		return false
+	}
+	return strings.HasPrefix(s.Text.String(), "#!")
+}
+
 type Control struct {
-	Package    string      `toml:"package"`
-	Version    string      `toml:"version"`
-	Release    string      `toml:"release"`
-	Summary    string      `toml:"summary"`
-	Desc       string      `toml:"description"`
-	License    string      `toml:"license"`
-	Section    string      `toml:"section"`
-	Priority   string      `toml:"priority"`
-	Os         string      `toml:"os"`
-	Arch       string      `toml:"arch"`
-	Vendor     string      `toml:"vendor"`
-	Home       string      `toml:"homepage"`
-	Depends    []string    `toml:"depends"`
-	Compiler   string      `toml:"compiler"`
-	Size       int         `toml:"size"`
-	Changes    []Changelog `toml:"changelog"`
-	Maintainer `toml:"maintainer"`
+	Package     string   `toml:"package"`
+	Version     string   `toml:"version"`
+	Release     string   `toml:"release"`
+	Summary     string   `toml:"summary"`
+	Desc        string   `toml:"description"`
+	License     string   `toml:"license"`
+	Section     string   `toml:"section"`
+	Priority    string   `toml:"priority"`
+	Os          string   `toml:"os"`
+	Arch        string   `toml:"arch"`
+	Vendor      string   `toml:"vendor"`
+	Home        string   `toml:"homepage"`
+	Depends     []string `toml:"depends"`
+	Suggests    []string `toml:"suggests"`
+	Compiler    string   `toml:"compiler"`
+	*Maintainer `toml:"maintainer"`
+
+	Size int64 `toml:"-"`
+}
+
+func (c Control) PackageName() string {
+	return fmt.Sprintf("%s-%s", c.Package, c.Version)
 }
 
 type File struct {
@@ -55,6 +96,9 @@ type File struct {
 	Compress bool   `toml:"compress"`
 	Perm     int    `toml:"mode"`
 	Conf     bool   `toml:"conf"`
+
+	Sum  string `toml:"-"`
+	Size int64  `toml:"-"`
 }
 
 func (f File) String() string {
