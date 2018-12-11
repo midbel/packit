@@ -76,6 +76,16 @@ type makefile struct {
 	Postrm   *mack.Script `toml:"post-remove"`
 }
 
+type Package struct {}
+
+func Prepare(r io.Reader) (*Package, error) {
+	return nil, nil
+}
+
+func Open(r io.Reader) (*Package, error) {
+	return nil, nil
+}
+
 // func (mf *makefile) Build(w io.Writer) error {
 // 	return nil
 // }
