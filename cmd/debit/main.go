@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -309,6 +310,7 @@ func writeData(w io.Writer, mf *makefile) error {
 		return err
 	}
 	digest := md5.New()
+	sort.Slice(mf.Files, func(i, j int) bool { return mf.Files[i].String() < mf.Files[j].String() })
 	for _, i := range mf.Files {
 		if i.Src == "" && i.Dst == "" {
 			continue
