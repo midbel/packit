@@ -75,6 +75,10 @@ type makefile struct {
 	Postrm   *mack.Script `toml:"post-remove"`
 }
 
+// func (mf *makefile) Build(w io.Writer) error {
+// 	return nil
+// }
+
 func main() {
 	datadir := flag.String("d", os.TempDir(), "datadir")
 	flag.Parse()
@@ -300,66 +304,11 @@ func writeControlFile(w *tar.Writer, c *mack.Control) error {
 func writeData(w io.Writer, mf *makefile) error {
 	wt := tar.NewWriter(w)
 
-	digest := md5.New()
-	done := make(map[string]struct{})
-	if len(mf.Changes) > 0 {
-		var body bytes.Buffer
-		for _, g := range mf.Changes {
-			if g.Maintainer == nil {
-				g.Maintainer = mf.Control.Maintainer
-			}
-		}
-		z, _ := gzip.NewWriterLevel(&body, gzip.BestCompression)
-		fs := template.FuncMap{
-			"strftime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
-		}
-		t, err := template.New("changelog").Funcs(fs).Parse(changelog)
-		if err != nil {
-			return err
-		}
-		i := struct {
-			Package string
-			Version string
-			Changes []*mack.Change
-		}{
-			Package: mf.Control.Package,
-			Version: mf.Control.Version,
-			Changes: mf.Changes,
-		}
-		if err := t.Execute(z, i); err != nil {
-			return err
-		}
-		if err := z.Close(); err != nil {
-			return err
-		}
-		name := filepath.Join("usr/share/doc", mf.Control.Package, "changelog.gz")
-		if done, err = intermediateDirectories(wt, name, done); err != nil {
-			return err
-		}
-		h := tar.Header{
-			Name:     name,
-			Mode:     0644,
-			Uid:      0,
-			Gid:      0,
-			Size:     int64(body.Len()),
-			ModTime:  time.Now().Truncate(time.Minute),
-			Typeflag: tar.TypeReg,
-		}
-		if err := wt.WriteHeader(&h); err != nil {
-			return err
-		}
-		if n, err := io.Copy(io.MultiWriter(wt, digest), &body); err != nil {
-			return err
-		} else {
-			f := mack.File{
-				Name: h.Name,
-				Size: int64(n),
-				Sum:  fmt.Sprintf("%x", digest.Sum(nil)),
-			}
-			mf.Files = append(mf.Files, &f)
-		}
-		digest.Reset()
+	done, err := writeChangelog(wt, mf)
+	if err != nil {
+		return err
 	}
+	digest := md5.New()
 	for _, i := range mf.Files {
 		if i.Src == "" && i.Dst == "" {
 			continue
@@ -397,6 +346,70 @@ func writeData(w io.Writer, mf *makefile) error {
 		digest.Reset()
 	}
 	return wt.Close()
+}
+
+func writeChangelog(w *tar.Writer, mf *makefile) (map[string]struct{}, error) {
+	done := make(map[string]struct{})
+	if len(mf.Changes) == 0 {
+		return done, nil
+	}
+	digest := md5.New()
+	var body bytes.Buffer
+	for _, g := range mf.Changes {
+		if g.Maintainer == nil {
+			g.Maintainer = mf.Control.Maintainer
+		}
+	}
+	z, _ := gzip.NewWriterLevel(&body, gzip.BestCompression)
+	fs := template.FuncMap{
+		"strftime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
+	}
+	t, err := template.New("changelog").Funcs(fs).Parse(changelog)
+	if err != nil {
+		return nil, err
+	}
+	i := struct {
+		Package string
+		Version string
+		Changes []*mack.Change
+	}{
+		Package: mf.Control.Package,
+		Version: mf.Control.Version,
+		Changes: mf.Changes,
+	}
+	if err := t.Execute(z, i); err != nil {
+		return nil, err
+	}
+	if err := z.Close(); err != nil {
+		return nil, err
+	}
+	name := filepath.Join("usr/share/doc", mf.Control.Package, "changelog.gz")
+	if done, err = intermediateDirectories(w, name, done); err != nil {
+		return nil, err
+	}
+	h := tar.Header{
+		Name:     name,
+		Mode:     0644,
+		Uid:      0,
+		Gid:      0,
+		Size:     int64(body.Len()),
+		ModTime:  time.Now().Truncate(time.Minute),
+		Typeflag: tar.TypeReg,
+	}
+	if err := w.WriteHeader(&h); err != nil {
+		return nil, err
+	}
+	if n, err := io.Copy(io.MultiWriter(w, digest), &body); err != nil {
+		return nil, err
+	} else {
+		f := mack.File{
+			Name: h.Name,
+			Size: int64(n),
+			Sum:  fmt.Sprintf("%x", digest.Sum(nil)),
+		}
+		mf.Files = append(mf.Files, &f)
+	}
+	return done, nil
 }
 
 func writeDebian(w *ar.Writer) error {
