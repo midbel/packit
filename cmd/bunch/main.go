@@ -353,19 +353,36 @@ func writeData(w io.Writer, mf *makefile) error {
 		if err != nil {
 			return err
 		}
-		s, err := f.Stat()
-		if err != nil {
-			return err
+
+		var (
+			r io.Reader
+			size int64
+		)
+		if i.Compress {
+			var rs bytes.Buffer
+			z, _ := gzip.NewWriterLevel(&rs, gzip.BestCompression)
+			if _, err := io.Copy(z, f); err != nil {
+				return err
+			}
+			if err := z.Close(); err != nil {
+				return err
+			}
+			size, r = int64(rs.Len()), &rs
+		} else {
+			s, err := f.Stat()
+			if err != nil {
+				return err
+			}
+			size, r = s.Size(), f
 		}
 		if done, err = intermediateDirectories(wt, i.String(), done); err != nil {
 			return err
 		}
-		r := io.TeeReader(f, digest)
 		h := tar.Header{
 			Name:     i.String(),
 			Mode:     i.Mode(),
-			Size:     s.Size(),
-			ModTime:  s.ModTime(),
+			Size:     size,
+			ModTime:  time.Now().Truncate(time.Minute),
 			Gid:      0,
 			Uid:      0,
 			Typeflag: tar.TypeReg,
@@ -373,7 +390,7 @@ func writeData(w io.Writer, mf *makefile) error {
 		if err := wt.WriteHeader(&h); err != nil {
 			return err
 		}
-		if i.Size, err = io.Copy(wt, r); err != nil {
+		if i.Size, err = io.Copy(wt, io.TeeReader(r, digest)); err != nil {
 			return err
 		}
 		i.Sum = fmt.Sprintf("%x", digest.Sum(nil))
