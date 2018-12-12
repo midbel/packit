@@ -44,8 +44,8 @@ Architecture: {{.Arch}}
 Vendor: {{.Vendor}}
 Maintainer: {{.Name}} <{{.Email}}>
 Homepage: {{.Home}}
-Depends: {{join .Depends ", "}}
-Suggests: {{join .Suggests ", "}}
+{{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
+{{if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}
 Installed-Size: {{.Size}}
 Build-Using: {{.Compiler}}
 Description: {{.Summary}}
@@ -58,6 +58,30 @@ const changelog = `{{range .Changes}}  {{$.Package}} ({{$.Version}}) unstable; u
 {{end}}
   -- {{.Maintainer.Name}} <{{.Maintainer.Email}}> {{strftime .When}}
 {{end}}`
+
+type blank struct {
+	io.Writer
+	last byte
+}
+
+func (b *blank) Write(bs []byte) (int, error) {
+	var (
+		xs []byte
+		offset int
+	)
+	if b.last != 0 {
+		xs = make([]byte, len(bs)+1)
+		xs[0], offset = b.last, 1
+	} else {
+		xs = make([]byte, len(bs))
+	}
+	copy(xs[offset:], bs)
+
+	xs = bytes.Replace(xs, []byte{0x0a, 0x0a}, []byte{0x0a}, -1)
+	b.last = bs[len(bs)-1]
+	_, err := b.Writer.Write(xs[offset:])
+	return len(bs), err
+}
 
 func init() {
 	log.SetOutput(os.Stdout)
@@ -293,7 +317,7 @@ func writeControlFile(w *tar.Writer, c *mack.Control) error {
 		return err
 	}
 	c.Size = c.Size >> 10
-	if err := t.Execute(&body, *c); err != nil {
+	if err := t.Execute(&blank{Writer: &body}, *c); err != nil {
 		return err
 	}
 	h := tar.Header{
