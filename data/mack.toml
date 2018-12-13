@@ -1,15 +1,15 @@
 [metadata]
-package      = "mack"
+package      = "packit"
 version      = "1.0"
 license      = "MIT"
 section      = "utils"
 priority     = "optional"
 arch         = "x64_86"
 vendor       = "midbel"
-homepage     = "https://github.com/midbel/mack"
+homepage     = "https://github.com/midbel/packit"
 depends      = ["libc6"]
-summary      = "Manage binary pACKage made easy."
-description  = """mack help you to create your binary package without \
+summary      = "Pack it"
+description  = """packit help you to create your binary package without \
 any external dependencies
 
 Features:
@@ -24,7 +24,7 @@ maintainer   = {
 }
 compiler = "go-1.10"
 
-[[control.changelog]]
+[[changelog]]
 date = 2018-05-15T12:10:00Z
 maintainer = {
   name = "midbel",
@@ -38,27 +38,27 @@ changes = """
 
 
 [[resource]]
-source      = "bin/mack"
+source      = "bin/packit"
 destination = "usr/bin/"
 mode = 0755
 
 [[resource]]
-source = "src/github.com/midbel/mack/LICENSE"
+source = "src/github.com/midbel/packit/LICENSE"
 destination = "usr/share/doc/mack/"
 filename = "copyright"
 
-# [[resource]]
-# source      = "src/github.com/midbel/mack/doc/CHANGELOG"
-# destination = "usr/share/doc/mack/"
-# filename    = "changelog.Debian.gz"
-# compress    = true
-
-# [[resource]]
-# source      = "src/github.com/midbel/mack/doc/mack.1"
-# destination = "usr/share/man/man1"
-# compress    = true
-# filename    = "mack.1.gz"
+[[resource]]
+source      = "src/github.com/midbel/packit/data/packit.1"
+destination = "usr/share/man/man1/"
+compress    = true
+filename    = "packit.1.gz"
 
 [[resource]]
-source      = "src/github.com/midbel/mack/examples/mack.toml"
+source      = "src/github.com/midbel/packit/data/packit.toml.5"
+destination = "usr/share/man/man5/"
+compress    = true
+filename    = "packit.toml.5.gz"
+
+[[resource]]
+source      = "src/github.com/midbel/packit/data/mack.toml"
 destination = "usr/share/doc/mack/examples/mack.toml"
