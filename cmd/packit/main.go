@@ -17,7 +17,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/midbel/mack"
+	"github.com/midbel/packit"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
 	"github.com/midbel/toml"

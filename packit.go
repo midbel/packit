@@ -1,4 +1,4 @@
-package mack
+package packit
 
 import (
 	"fmt"
