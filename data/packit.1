@@ -6,8 +6,22 @@ packit \- packaging made easy
 .SH SYNOPSIS
 .SY packit
 .OP \-d datadir
-.RI <packit.toml,...>
-.IR
+<packit.toml,...>
+.YS
+\" packit build sub command synopsis
+.SY "packit build"
+.OP \-d datadir
+<packit.toml,...>
+.YS
+\" packit convert sub command synopsis
+.SY "packit convert"
+.OP -d datadir
+<src.pkg>
+<dst.pkg>
+.YS
+\" packit show sub command synopsis
+.SY "packit show"
+<package.pkg,...>
 .YS
 .
 .SH DESCRIPTION
@@ -20,4 +34,4 @@ their documentation, into common package format such as deb and rpm.
 directory where packages will be written
 
 .SH SEE ALSO
-packit.toml(5), rpm(8), deb(5)
+packit.toml(5), deb(5), rpm(8)

@@ -3,7 +3,57 @@
 .SH NAME
 packit \- simple packaging tool configuration time
 .
+.SH DEFAULT
+.TP
+.BI format " list string"
+.
+.SH METADATA
+.TP
+.BI package " string"
+.TP
+.BI version " string"
+.TP
+.BI license " string"
+.TP
+.BI section " string"
+.TP
+.BI priority " string"
+.TP
+.BI arch " string"
+.TP
+.BI vendor " string"
+.TP
+.BI homepage " string"
+.TP
+.BI summary " string"
+.TP
+.BI description " string"
+.TP
+.BI maintainer " inline table"
+.TP
+.BI compiler " string"
+.TP
+.BI depends " list string"
+
+.SH CHANGELOG
+.TP
+.BI date " datetime"
+.TP
+.BI changes " list string"
+.TP
+.BI maintainer " inline table"
+
+.SH RESOURCE
+.TP
+.BI source " string"
+.TP
+.BI destination " string"
+.TP
+.BI conf " boolean"
+.TP
+.BI compress " boolean"
+
 .SH EXAMPLES
 .
 .SH SEE ALSO
-packit(1)
+packit(1), deb(5), rpm(8)
