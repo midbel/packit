@@ -74,7 +74,7 @@ type Control struct {
 	Section     string   `toml:"section"`
 	Priority    string   `toml:"priority"`
 	Os          string   `toml:"os"`
-	Arch        string   `toml:"arch"`
+	Arch        uint8    `toml:"arch"`
 	Vendor      string   `toml:"vendor"`
 	Home        string   `toml:"homepage"`
 	Depends     []string `toml:"depends"`
