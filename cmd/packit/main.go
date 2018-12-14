@@ -21,6 +21,7 @@ import (
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
 	"github.com/midbel/toml"
+	"github.com/midbel/cli"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -62,6 +63,32 @@ const changelog = `{{range .Changes}}  {{$.Package}} ({{$.Version}}) unstable; u
 type blank struct {
 	io.Writer
 	last byte
+}
+
+var commands = []*cli.Command{
+	{
+		Usage: "build [-d] <config.toml,...>",
+		Alias: []string{"make"},
+		Short: "build package(s) from configuration file",
+		Run: nil,
+	},
+	{
+		Usage: "convert <package> <package>",
+		Short: "convert a source package into a destination package format",
+		Run: nil,
+	},
+	{
+		Usage: "show <package>",
+		Alias: []string{"info"},
+		Short: "show package metadata",
+		Run: nil,
+	},
+	{
+		Usage: "verify <package,...>",
+		Alias: []string{"check"},
+		Short: "check the integrity of the given package(s)",
+		Run: nil,
+	},
 }
 
 func (b *blank) Write(bs []byte) (int, error) {
