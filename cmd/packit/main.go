@@ -41,7 +41,7 @@ Version: {{.Version}}
 License: {{.License}}
 Section: {{.Section}}
 Priority: {{.Priority}}
-Architecture: {{.Arch}}
+Architecture: {{arch .Arch}}
 Vendor: {{.Vendor}}
 Maintainer: {{.Name}} <{{.Email}}>
 Homepage: {{.Home}}
@@ -117,14 +117,25 @@ func init() {
 
 type makefile struct {
 	Type    string         `toml:"type"`
-	Control *mack.Control  `toml:"metadata"`
-	Files   []*mack.File   `toml:"resource"`
-	Changes []*mack.Change `toml:"changelog"`
+	Control *packit.Control  `toml:"metadata"`
+	Files   []*packit.File   `toml:"resource"`
+	Changes []*packit.Change `toml:"changelog"`
 
-	Preinst  *mack.Script `toml:"pre-install"`
-	Postinst *mack.Script `toml:"post-install"`
-	Prerm    *mack.Script `toml:"pre-remove"`
-	Postrm   *mack.Script `toml:"post-remove"`
+	Preinst  *packit.Script `toml:"pre-install"`
+	Postinst *packit.Script `toml:"post-install"`
+	Prerm    *packit.Script `toml:"pre-remove"`
+	Postrm   *packit.Script `toml:"post-remove"`
+}
+
+func debArch(a uint8) string {
+	switch a {
+	case 32:
+		return "i386"
+	case 64:
+		return "amd64"
+	default:
+		return "all"
+	}
 }
 
 type Package struct {}
@@ -288,7 +299,7 @@ func writeControl(w io.Writer, mf *makefile) error {
 func writeScriptFiles(w *tar.Writer, mf *makefile) error {
 	ms := []struct {
 		File string
-		*mack.Script
+		*packit.Script
 	}{
 		{File: "preinst", Script: mf.Preinst},
 		{File: "postinst", Script: mf.Postinst},
@@ -321,8 +332,9 @@ func writeScriptFiles(w *tar.Writer, mf *makefile) error {
 	return nil
 }
 
-func writeControlFile(w *tar.Writer, c *mack.Control) error {
+func writeControlFile(w *tar.Writer, c *packit.Control) error {
 	fs := template.FuncMap{
+		"arch": debArch,
 		"join": strings.Join,
 		"indent": func(v string) string {
 			var lines []string
@@ -451,7 +463,7 @@ func writeChangelog(w *tar.Writer, mf *makefile) (map[string]struct{}, error) {
 	i := struct {
 		Package string
 		Version string
-		Changes []*mack.Change
+		Changes []*packit.Change
 	}{
 		Package: mf.Control.Package,
 		Version: mf.Control.Version,
@@ -482,7 +494,7 @@ func writeChangelog(w *tar.Writer, mf *makefile) (map[string]struct{}, error) {
 	if n, err := io.Copy(io.MultiWriter(w, digest), &body); err != nil {
 		return nil, err
 	} else {
-		f := mack.File{
+		f := packit.File{
 			Name: h.Name,
 			Size: int64(n),
 			Sum:  fmt.Sprintf("%x", digest.Sum(nil)),
