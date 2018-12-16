@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"time"
@@ -32,6 +35,24 @@ func (r *RPM) Build(w io.Writer) error {
 	if err := r.writeHeader(&meta); err != nil {
 		return err
 	}
+
+	md5sum := md5.New()
+	sha256sum := sha256.New()
+	sha512sum := sha512.New()
+	var body bytes.Buffer
+
+	ws := io.MultiWriter(&body, md5sum, sha256sum, sha512sum)
+	if _, err := io.Copy(ws, io.MultiReader(&meta, &data)); err != nil {
+		return err
+	}
+	if err := r.writeSums(w, body.Len(), md5sum, sha256sum, sha512sum); err != nil {
+		return err
+	}
+	_, err := io.Copy(w, &body)
+	return err
+}
+
+func (r *RPM) writeSums(w io.Writer, n int, md, sh256, sh512 hash.Hash) error {
 	return nil
 }
 
