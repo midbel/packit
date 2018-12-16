@@ -2,6 +2,7 @@ package packit
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,7 +13,30 @@ import (
 const etcDir = "etc/"
 
 type Builder interface {
-	Build(Control, []*File) error
+	PackageName() string
+	Build(w io.Writer) error
+}
+
+type Makefile struct {
+	*Control `toml:"metadata"`
+	Files    []*File   `toml:"resource"`
+	Changes  []*Change `toml:"changelog"`
+
+	Preinst  *Script `toml:"pre-install"`
+	Postinst *Script `toml:"post-install"`
+	Prerm    *Script `toml:"pre-remove"`
+	Postrm   *Script `toml:"post-remove"`
+}
+
+func Prepare(m *Makefile, format string) (Builder, error) {
+	switch format {
+	case "deb", "":
+		return &DEB{m}, nil
+	case "rpm":
+		return &RPM{m}, nil
+	default:
+		return nil, fmt.Errorf("unsupported package type %q", format)
+	}
 }
 
 type Change struct {

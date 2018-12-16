@@ -17,11 +17,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/midbel/cli"
 	"github.com/midbel/packit"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
 	"github.com/midbel/toml"
-	"github.com/midbel/cli"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -70,30 +70,30 @@ var commands = []*cli.Command{
 		Usage: "build [-d] <config.toml,...>",
 		Alias: []string{"make"},
 		Short: "build package(s) from configuration file",
-		Run: nil,
+		Run:   nil,
 	},
 	{
 		Usage: "convert <package> <package>",
 		Short: "convert a source package into a destination package format",
-		Run: nil,
+		Run:   nil,
 	},
 	{
 		Usage: "show <package>",
 		Alias: []string{"info"},
 		Short: "show package metadata",
-		Run: nil,
+		Run:   nil,
 	},
 	{
 		Usage: "verify <package,...>",
 		Alias: []string{"check"},
 		Short: "check the integrity of the given package(s)",
-		Run: nil,
+		Run:   nil,
 	},
 }
 
 func (b *blank) Write(bs []byte) (int, error) {
 	var (
-		xs []byte
+		xs     []byte
 		offset int
 	)
 	if b.last != 0 {
@@ -116,7 +116,7 @@ func init() {
 }
 
 type makefile struct {
-	Type    string         `toml:"type"`
+	Type    string           `toml:"type"`
 	Control *packit.Control  `toml:"metadata"`
 	Files   []*packit.File   `toml:"resource"`
 	Changes []*packit.Change `toml:"changelog"`
@@ -138,21 +138,8 @@ func debArch(a uint8) string {
 	}
 }
 
-type Package struct {}
-
-func Prepare(r io.Reader) (*Package, error) {
-	return nil, nil
-}
-
-func Open(r io.Reader) (*Package, error) {
-	return nil, nil
-}
-
-// func (mf *makefile) Build(w io.Writer) error {
-// 	return nil
-// }
-
 func main() {
+	format := flag.String("k", "", "package format")
 	datadir := flag.String("d", os.TempDir(), "datadir")
 	flag.Parse()
 
@@ -170,19 +157,20 @@ func main() {
 			}
 			defer r.Close()
 
-			var mf makefile
+			var mf packit.Makefile
 			if err := toml.NewDecoder(r).Decode(&mf); err != nil {
 				return err
 			}
-			if mf.Type != "" && mf.Type != "binary" {
-				return fmt.Errorf("can not create deb for type %s", mf.Type)
+			b, err := packit.Prepare(&mf, *format)
+			if err != nil {
+				return err
 			}
-			w, err := os.Create(filepath.Join(*datadir, mf.Control.PackageName()+".deb"))
+			w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
 			if err != nil {
 				return err
 			}
 			defer w.Close()
-			return buildPackage(w, &mf)
+			return b.Build(w)
 		})
 	}
 	if err := group.Wait(); err != nil {
@@ -394,7 +382,7 @@ func writeData(w io.Writer, mf *makefile) error {
 		}
 
 		var (
-			r io.Reader
+			r    io.Reader
 			size int64
 		)
 		if i.Compress {
