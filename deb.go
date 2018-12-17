@@ -103,7 +103,7 @@ func (d *DEB) Build(w io.Writer) error {
 			Filename: t.File,
 			Uid:      0,
 			Gid:      0,
-			ModTime:  time.Now().Truncate(time.Minute),
+			ModTime:  time.Now().UTC().Truncate(time.Minute),
 			Mode:     0644,
 			Length:   int64(body.Len()),
 		}
@@ -163,7 +163,7 @@ func (d *DEB) writeData(w io.Writer) error {
 			Name:     i.String(),
 			Mode:     i.Mode(),
 			Size:     size,
-			ModTime:  time.Now().Truncate(time.Minute),
+			ModTime:  time.Now().UTC().Truncate(time.Minute),
 			Gid:      0,
 			Uid:      0,
 			Typeflag: tar.TypeReg,
@@ -216,7 +216,7 @@ func (d *DEB) writeControl(w io.Writer) error {
 		}
 		h := tar.Header{
 			Name:     f.File,
-			ModTime:  time.Now().Truncate(time.Minute),
+			ModTime:  time.Now().UTC().Truncate(time.Minute),
 			Uid:      0,
 			Gid:      0,
 			Mode:     0644,
@@ -250,7 +250,7 @@ func (d *DEB) writeControlFile(w *tar.Writer) error {
 	}
 	h := tar.Header{
 		Name:     debControlFile,
-		ModTime:  time.Now().Truncate(time.Minute),
+		ModTime:  time.Now().UTC().Truncate(time.Minute),
 		Uid:      0,
 		Gid:      0,
 		Mode:     0644,
@@ -299,7 +299,7 @@ func (d *DEB) writeChangelog(w *tar.Writer) (map[string]struct{}, error) {
 		Uid:      0,
 		Gid:      0,
 		Size:     int64(body.Len()),
-		ModTime:  time.Now().Truncate(time.Minute),
+		ModTime:  time.Now().UTC().Truncate(time.Minute),
 		Typeflag: tar.TypeReg,
 	}
 	if err := w.WriteHeader(&h); err != nil {
@@ -324,7 +324,7 @@ func (d *DEB) writeDebian(a *ar.Writer) error {
 		Filename: debBinaryFile,
 		Uid:      0,
 		Gid:      0,
-		ModTime:  time.Now().Truncate(time.Minute),
+		ModTime:  time.Now().UTC().Truncate(time.Minute),
 		Mode:     0644,
 		Length:   int64(len(debVersion)),
 	}
@@ -401,7 +401,7 @@ func tarIntermediateDirectories(w *tar.Writer, n string, done map[string]struct{
 		done[n] = struct{}{}
 		h := tar.Header{
 			Name:     n + "/",
-			ModTime:  time.Now().Truncate(time.Minute),
+			ModTime:  time.Now().UTC().Truncate(time.Minute),
 			Mode:     0755,
 			Gid:      0,
 			Uid:      0,

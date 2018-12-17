@@ -10,7 +10,13 @@ import (
 	"time"
 )
 
-const etcDir = "etc/"
+const (
+	defaultEtcDir = "etc/"
+	defaultDocDir = "usr/share/doc"
+	defaultHost   = "localhost.localdomain"
+	defaultUser   = "root"
+	defaultGroup  = "root"
+)
 
 type Builder interface {
 	PackageName() string
@@ -145,5 +151,5 @@ func (f File) Filename() string {
 }
 
 func IsConfFile(n string) bool {
-	return strings.Index(n, etcDir) >= 0
+	return strings.Index(n, defaultEtcDir) >= 0
 }
