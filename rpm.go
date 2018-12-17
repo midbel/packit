@@ -113,20 +113,37 @@ func (r *RPM) writeHeader(w io.Writer) error {
 	fields = append(fields, r.controlToFields()...)
 	fields = append(fields, r.filesToFields()...)
 
+	var index, store bytes.Buffer
 	for _, f := range fields {
-		var boundary int
+		if f.Skip() {
+			continue
+		}
+		var lim int
 		switch t := f.Type(); t {
 		case fieldInt8:
-			boundary = 1
+			lim = 1
 		case fieldInt16:
-			boundary = 2
+			lim = 2
 		case fieldInt32:
-			boundary = 4
+			lim = 4
 		case fieldInt64:
-			boundary = 8
+			lim = 8
 		}
-		if boundary > 0 {
+		if lim > 0 {
+			if m := store.Len() % lim; lim > 0 {
+				store.Write(make([]byte, lim-m))
+			}
+		}
+		binary.Write(&index, binary.BigEndian, f.Tag())
+		binary.Write(&index, binary.BigEndian, f.Type())
+		binary.Write(&index, binary.BigEndian, uint32(store.Len()))
+		binary.Write(&index, binary.BigEndian, f.Len())
 
+		store.Write(f.Bytes())
+	}
+	for _, r := range []io.Reader{&index, &store} {
+		if _, err := io.Copy(w, r); err != nil {
+			return err
 		}
 	}
 	return nil
