@@ -97,8 +97,7 @@ func (r *RPM) Build(w io.Writer) error {
 	md5sum := md5.New()
 	sha256sum := sha256.New()
 	var body bytes.Buffer
-	ws := io.MultiWriter(&body, md5sum, sha256sum)
-	if _, err := io.Copy(ws, io.MultiReader(&meta, &data)); err != nil {
+	if _, err := io.Copy(io.MultiWriter(&body, md5sum, sha256sum), io.MultiReader(&meta, &data)); err != nil {
 		return err
 	}
 	if err := r.writeSums(w, body.Len(), md5sum, sha1sum, sha256sum); err != nil {
@@ -109,43 +108,6 @@ func (r *RPM) Build(w io.Writer) error {
 }
 
 func (r *RPM) writeHeader(w io.Writer) error {
-	var fields []rpmField
-	fields = append(fields, r.controlToFields()...)
-	fields = append(fields, r.filesToFields()...)
-
-	var index, store bytes.Buffer
-	for _, f := range fields {
-		if f.Skip() {
-			continue
-		}
-		var lim int
-		switch t := f.Type(); t {
-		case fieldInt8:
-			lim = 1
-		case fieldInt16:
-			lim = 2
-		case fieldInt32:
-			lim = 4
-		case fieldInt64:
-			lim = 8
-		}
-		if lim > 0 {
-			if m := store.Len() % lim; lim > 0 {
-				store.Write(make([]byte, lim-m))
-			}
-		}
-		binary.Write(&index, binary.BigEndian, f.Tag())
-		binary.Write(&index, binary.BigEndian, f.Type())
-		binary.Write(&index, binary.BigEndian, uint32(store.Len()))
-		binary.Write(&index, binary.BigEndian, f.Len())
-
-		store.Write(f.Bytes())
-	}
-	for _, r := range []io.Reader{&index, &store} {
-		if _, err := io.Copy(w, r); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
