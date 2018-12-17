@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"io"
@@ -14,6 +15,14 @@ import (
 
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/cpio"
+)
+
+const (
+	rpmMagic = 0xedabeedb
+	rpmMajor = 3
+	rpmMinor = 0
+	rpmBinary = 0
+	rpmSigType = 5
 )
 
 type RPM struct {
@@ -117,5 +126,19 @@ func (r *RPM) writeSignatures(w io.Writer) error {
 }
 
 func (r *RPM) writeLead(w io.Writer) error {
-	return nil
+	body := make([]byte, 96)
+	binary.BigEndian.PutUint32(body[0:], uint32(rpmMagic))
+	binary.BigEndian.PutUint16(body[4:], uint16(rpmMajor)<<8 | uint16(rpmMinor))
+	binary.BigEndian.PutUint16(body[6:], rpmBinary)
+	binary.BigEndian.PutUint16(body[8:], 0)
+	if n := []byte(r.PackageName()); len(n) <= 65 {
+		copy(body[10:], n)
+	} else {
+		copy(body[10:], n[:65])
+	}
+	binary.BigEndian.PutUint16(body[76:], 0)
+	binary.BigEndian.PutUint16(body[78:], rpmSigType)
+
+	_, err := w.Write(body)
+	return err
 }
