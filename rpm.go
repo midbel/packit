@@ -89,10 +89,10 @@ func (r *RPM) Build(w io.Writer) error {
 		return err
 	}
 	var data, meta bytes.Buffer
-	if err := r.writeData(&data); err != nil {
+	size, err := r.writeData(&data)
+	if err != nil {
 		return err
 	}
-	size := data.Len()
 
 	sh1 := sha1.New()
 	if err := r.writeHeader(io.MultiWriter(&meta, sh1)); err != nil {
@@ -106,7 +106,7 @@ func (r *RPM) Build(w io.Writer) error {
 	if err := r.writeSums(w, size, body.Len(), md, sh1, sh256); err != nil {
 		return err
 	}
-	_, err := io.Copy(w, &body)
+	_, err = io.Copy(w, &body)
 	return err
 }
 
@@ -182,14 +182,15 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 	return err
 }
 
-func (r *RPM) writeData(w io.Writer) error {
-	wc := cpio.NewWriter(w)
+func (r *RPM) writeData(w io.Writer) (int, error) {
+	var data bytes.Buffer
+	wc := cpio.NewWriter(&data)
 
 	digest := md5.New()
 	for _, i := range r.Files {
 		f, err := os.Open(i.Src)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		var (
 			size int64
@@ -199,16 +200,16 @@ func (r *RPM) writeData(w io.Writer) error {
 			var body bytes.Buffer
 			z := gzip.NewWriter(&body)
 			if _, err := io.Copy(z, f); err != nil {
-				return err
+				return 0, err
 			}
 			if err := z.Close(); err != nil {
-				return err
+				return 0, err
 			}
 			r, size = &body, int64(body.Len())
 		} else {
 			s, err := f.Stat()
 			if err != nil {
-				return err
+				return 0, err
 			}
 			size, r = s.Size(), f
 		}
@@ -221,17 +222,25 @@ func (r *RPM) writeData(w io.Writer) error {
 			ModTime:  time.Now().Truncate(time.Minute),
 		}
 		if err := wc.WriteHeader(&h); err != nil {
-			return err
+			return 0, err
 		}
 		if i.Size, err = io.Copy(io.MultiWriter(wc, digest), r); err != nil {
-			return err
+			return 0, err
 		}
 		i.Sum = fmt.Sprintf("%x", digest.Sum(nil))
 
 		f.Close()
 		digest.Reset()
 	}
-	return wc.Close()
+	size := data.Len()
+	z, _ := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if _, err := io.Copy(z, &data); err != nil {
+		return 0, err
+	}
+	if err := z.Close(); err != nil {
+		return 0, err
+	}
+	return size, wc.Close()
 }
 
 func (r *RPM) writeLead(w io.Writer) error {
