@@ -7,7 +7,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
-	// "encoding/hex"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"io"
@@ -23,12 +23,13 @@ import (
 )
 
 const (
-	rpmMagic   = 0xedabeedb
-	rpmHeader  = 0x8eade801
-	rpmMajor   = 3
-	rpmMinor   = 0
-	rpmBinary  = 0
-	rpmSigType = 5
+	rpmMagic    = 0xedabeedb
+	rpmHeader   = 0x8eade801
+	rpmMajor    = 3
+	rpmMinor    = 0
+	rpmBinary   = 0
+	rpmSigType  = 5
+	rpmEntryLen = 16
 )
 
 const (
@@ -99,24 +100,28 @@ func (r *RPM) Build(w io.Writer) error {
 	if err := r.writeHeader(io.MultiWriter(&meta, sh1)); err != nil {
 		return err
 	}
+
 	md, sh256 := md5.New(), sha256.New()
 	var body bytes.Buffer
 	if _, err := io.Copy(io.MultiWriter(&body, md, sh256), io.MultiReader(&meta, &data)); err != nil {
 		return err
 	}
-	if err := r.writeSums(w, size, body.Len(), md, sh1, sh256); err != nil {
+	var sig bytes.Buffer
+	if err := r.writeSums(io.MultiWriter(w, &sig), size, body.Len(), md, sh1, sh256); err != nil {
 		return err
 	}
+	fmt.Println("signature", sig.Len())
 	_, err = io.Copy(w, &body)
 	return err
 }
 
 func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) error {
+	hx := h1.Sum(nil)
 	fields := []rpmField{
 		number{tag: rpmSigLength, kind: fieldInt32, Value: int64(all)},
 		number{tag: rpmSigPayload, kind: fieldInt32, Value: int64(data)},
 		binarray{tag: rpmSigMD5, Value: md.Sum(nil)},
-		varchar{tag: rpmSigSha1, Value: fmt.Sprintf("%x", h1.Sum(nil))},
+		varchar{tag: rpmSigSha1, kind: fieldString, Value: hex.EncodeToString(hx[:])},
 		binarray{tag: rpmSigSha256, Value: h256.Sum(nil)},
 	}
 	return writeFields(w, fields, rpmTagSignatureIndex, true)
@@ -170,8 +175,10 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		count++
 	}
 	if tag > 0 {
-		count++
-		writeField(index{tag: tag, Value: -int32(stor.Len() + 8)})
+		binary.Write(&stor, binary.BigEndian, uint32(tag))
+		binary.Write(&stor, binary.BigEndian, uint32(0))
+		binary.Write(&stor, binary.BigEndian, -int32(stor.Len()))
+		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
 	}
 
 	binary.Write(w, binary.BigEndian, uint32(rpmHeader))
@@ -236,6 +243,9 @@ func (r *RPM) writeData(w io.Writer) (int, error) {
 		f.Close()
 		digest.Reset()
 	}
+	if err := wc.Close(); err != nil {
+		return 0, err
+	}
 	size := data.Len()
 	z, _ := gzip.NewWriterLevel(w, gzip.BestCompression)
 	if _, err := io.Copy(z, &data); err != nil {
@@ -244,7 +254,7 @@ func (r *RPM) writeData(w io.Writer) (int, error) {
 	if err := z.Close(); err != nil {
 		return 0, err
 	}
-	return size, wc.Close()
+	return size, nil
 }
 
 func (r *RPM) writeLead(w io.Writer) error {
