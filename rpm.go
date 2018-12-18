@@ -7,12 +7,13 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
+	// "encoding/hex"
 	"fmt"
 	"hash"
 	"io"
 	"os"
 	"path/filepath"
-	// "sort"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -37,8 +38,8 @@ const (
 
 const (
 	rpmSigBase    = 256
-	rpmSigDSA     = rpmSigBase + 11
-	rpmSigRSA     = rpmSigBase + 12
+	// rpmSigDSA     = rpmSigBase + 11
+	// rpmSigRSA     = rpmSigBase + 12
 	rpmSigSha1    = rpmSigBase + 13
 	rpmSigSha256  = rpmSigBase + 17
 	rpmSigLength  = 1000
@@ -115,7 +116,7 @@ func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) erro
 		number{tag: rpmSigLength, kind: fieldInt32, Value: int64(all)},
 		number{tag: rpmSigPayload, kind: fieldInt32, Value: int64(data)},
 		binarray{tag: rpmSigMD5, Value: md.Sum(nil)},
-		varchar{tag: rpmSigSha1, Value: fmt.Sprintf("%x", h1.Sum(nil))},
+		varchar{tag: rpmSigSha1, kind: fieldString, Value: fmt.Sprintf("%x", h1.Sum(nil))},
 		binarray{tag: rpmSigSha256, Value: h256.Sum(nil)},
 	}
 	return writeFields(w, fields, rpmTagSignatureIndex, true)
@@ -125,6 +126,7 @@ func (r *RPM) writeHeader(w io.Writer) error {
 	fields := r.controlToFields()
 	fields = append(fields, r.filesToFields()...)
 
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
 	return writeFields(w, fields, rpmTagImmutableIndex, false)
 }
 
@@ -160,7 +162,6 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		stor.Write(f.Bytes())
 	}
 
-	// sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
 	for i := range fields {
 		if fields[i].Skip() {
 			continue
@@ -236,7 +237,7 @@ func (r *RPM) writeData(w io.Writer) (int, error) {
 	}
 	size := data.Len()
 	z, _ := gzip.NewWriterLevel(w, gzip.BestCompression)
-	if _, err := io.Copy(w, &data); err != nil {
+	if _, err := io.Copy(z, &data); err != nil {
 		return 0, err
 	}
 	if err := z.Close(); err != nil {
@@ -256,7 +257,7 @@ func (r *RPM) writeLead(w io.Writer) error {
 	} else {
 		copy(body[10:], n[:65])
 	}
-	binary.BigEndian.PutUint16(body[76:], 0)
+	binary.BigEndian.PutUint16(body[76:], 1)
 	binary.BigEndian.PutUint16(body[78:], rpmSigType)
 
 	_, err := w.Write(body)
