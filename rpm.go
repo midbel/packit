@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	rpmSigBase    = 256
+	rpmSigBase = 256
 	// rpmSigDSA     = rpmSigBase + 11
 	// rpmSigRSA     = rpmSigBase + 12
 	rpmSigSha1    = rpmSigBase + 13
@@ -116,7 +116,7 @@ func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) erro
 		number{tag: rpmSigLength, kind: fieldInt32, Value: int64(all)},
 		number{tag: rpmSigPayload, kind: fieldInt32, Value: int64(data)},
 		binarray{tag: rpmSigMD5, Value: md.Sum(nil)},
-		varchar{tag: rpmSigSha1, kind: fieldString, Value: fmt.Sprintf("%x", h1.Sum(nil))},
+		varchar{tag: rpmSigSha1, Value: fmt.Sprintf("%x", h1.Sum(nil))},
 		binarray{tag: rpmSigSha256, Value: h256.Sum(nil)},
 	}
 	return writeFields(w, fields, rpmTagSignatureIndex, true)
@@ -126,7 +126,6 @@ func (r *RPM) writeHeader(w io.Writer) error {
 	fields := r.controlToFields()
 	fields = append(fields, r.filesToFields()...)
 
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
 	return writeFields(w, fields, rpmTagImmutableIndex, false)
 }
 
@@ -162,6 +161,7 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		stor.Write(f.Bytes())
 	}
 
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
 	for i := range fields {
 		if fields[i].Skip() {
 			continue
@@ -169,14 +169,15 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		writeField(fields[i])
 		count++
 	}
-	count++
+	if tag > 0 {
+		count++
+		writeField(index{tag: tag, Value: -int32(stor.Len() + 8)})
+	}
 
 	binary.Write(w, binary.BigEndian, uint32(rpmHeader))
 	binary.Write(w, binary.BigEndian, uint32(0))
 	binary.Write(w, binary.BigEndian, count)
-	binary.Write(w, binary.BigEndian, int32(stor.Len()+16))
-
-	writeField(index{tag: tag, Value: -16 * int32(count)})
+	binary.Write(w, binary.BigEndian, int32(stor.Len()))
 
 	n, err := io.Copy(w, io.MultiReader(&hdr, &stor))
 	if m := n % 8; m != 0 && pad {
