@@ -12,7 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	// "sort"
 	"strconv"
 	"strings"
 	"time"
@@ -124,7 +124,7 @@ func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) erro
 func (r *RPM) writeHeader(w io.Writer) error {
 	fields := r.controlToFields()
 	fields = append(fields, r.filesToFields()...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
+
 	return writeFields(w, fields, rpmTagImmutableIndex, false)
 }
 
@@ -160,23 +160,25 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		stor.Write(f.Bytes())
 	}
 
-	for _, f := range fields {
-		if f.Skip() {
+	// sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
+	for i := range fields {
+		if fields[i].Skip() {
 			continue
 		}
-		writeField(f)
+		writeField(fields[i])
 		count++
 	}
+	count++
+
 	binary.Write(w, binary.BigEndian, uint32(rpmHeader))
 	binary.Write(w, binary.BigEndian, uint32(0))
-	binary.Write(w, binary.BigEndian, count+1)
+	binary.Write(w, binary.BigEndian, count)
 	binary.Write(w, binary.BigEndian, int32(stor.Len()+16))
 
-	f := index{tag: tag, Value: -16 * int32(count+1)}
-	writeField(f)
+	writeField(index{tag: tag, Value: -16 * int32(count)})
 
 	n, err := io.Copy(w, io.MultiReader(&hdr, &stor))
-	if m := n % 8; pad && m != 0 {
+	if m := n % 8; m != 0 && pad {
 		w.Write(make([]byte, 8-m))
 	}
 	return err
@@ -234,7 +236,7 @@ func (r *RPM) writeData(w io.Writer) (int, error) {
 	}
 	size := data.Len()
 	z, _ := gzip.NewWriterLevel(w, gzip.BestCompression)
-	if _, err := io.Copy(z, &data); err != nil {
+	if _, err := io.Copy(w, &data); err != nil {
 		return 0, err
 	}
 	if err := z.Close(); err != nil {
