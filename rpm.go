@@ -184,7 +184,7 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 
 		binary.Write(&stor, binary.BigEndian, uint32(tag))
 		binary.Write(&stor, binary.BigEndian, uint32(fieldBinary))
-		binary.Write(&stor, binary.BigEndian, int32(-hdr.Len()))
+		binary.Write(&stor, binary.BigEndian, int32(-hdr.Len()-rpmEntryLen))
 		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
 	}
 
@@ -304,7 +304,7 @@ func (r *RPM) controlToFields() []rpmField {
 	fs = append(fs, varchar{tag: rpmTagLicense, Value: r.Control.License})
 	fs = append(fs, varchar{tag: rpmTagURL, Value: r.Control.Home})
 	fs = append(fs, varchar{tag: rpmTagOS, Value: r.Control.Os})
-	// fs = append(fs, varchar{tag: rpmTagArch, Value: r.Control.Arch})
+	fs = append(fs, varchar{tag: rpmTagArch, Value: "amd64"})
 
 	if n := len(r.Changes); n > 0 {
 		ts, cs, ls := make([]int64, n), make([]string, n), make([]string, n)
