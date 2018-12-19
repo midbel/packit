@@ -184,7 +184,7 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 
 		binary.Write(&stor, binary.BigEndian, uint32(tag))
 		binary.Write(&stor, binary.BigEndian, uint32(fieldBinary))
-		binary.Write(&stor, binary.BigEndian, -int32(stor.Len()+4))
+		binary.Write(&stor, binary.BigEndian, int32(-hdr.Len()))
 		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
 	}
 
