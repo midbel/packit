@@ -110,19 +110,22 @@ func (r *RPM) Build(w io.Writer) error {
 	if err := r.writeSums(io.MultiWriter(w, &sig), size, body.Len(), md, sh1, sh256); err != nil {
 		return err
 	}
-	fmt.Println("signature", sig.Len())
+	fmt.Println("signature length", sig.Len())
 	_, err = io.Copy(w, &body)
 	return err
 }
 
 func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) error {
-	hx := h1.Sum(nil)
+	h1x := h1.Sum(nil)
+	h2x := h256.Sum(nil)
+	mdx := md.Sum(nil)
+
 	fields := []rpmField{
 		number{tag: rpmSigLength, kind: fieldInt32, Value: int64(all)},
 		number{tag: rpmSigPayload, kind: fieldInt32, Value: int64(data)},
-		binarray{tag: rpmSigMD5, Value: md.Sum(nil)},
-		varchar{tag: rpmSigSha1, kind: fieldString, Value: hex.EncodeToString(hx[:])},
-		binarray{tag: rpmSigSha256, Value: h256.Sum(nil)},
+		binarray{tag: rpmSigMD5, Value: mdx[:]},
+		varchar{tag: rpmSigSha1, Value: hex.EncodeToString(h1x[:])},
+		binarray{tag: rpmSigSha256, Value: h2x[:]},
 	}
 	return writeFields(w, fields, rpmTagSignatureIndex, true)
 }
@@ -177,7 +180,7 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 	if tag > 0 {
 		binary.Write(&stor, binary.BigEndian, uint32(tag))
 		binary.Write(&stor, binary.BigEndian, uint32(0))
-		binary.Write(&stor, binary.BigEndian, -int32(stor.Len()))
+		binary.Write(&stor, binary.BigEndian, -int32(stor.Len()+4))
 		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
 	}
 
