@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -110,7 +109,7 @@ func (r *RPM) Build(w io.Writer) error {
 	if err := r.writeSums(io.MultiWriter(w, &sig), size, body.Len(), md, sh1, sh256); err != nil {
 		return err
 	}
-	fmt.Println("signature length", sig.Len())
+
 	_, err = io.Copy(w, &body)
 	return err
 }
@@ -123,8 +122,8 @@ func (r *RPM) writeSums(w io.Writer, data, all int, md, h1, h256 hash.Hash) erro
 	fields := []rpmField{
 		number{tag: rpmSigLength, kind: fieldInt32, Value: int64(all)},
 		number{tag: rpmSigPayload, kind: fieldInt32, Value: int64(data)},
-		binarray{tag: rpmSigMD5, Value: mdx[:]},
 		varchar{tag: rpmSigSha1, Value: hex.EncodeToString(h1x[:])},
+		binarray{tag: rpmSigMD5, Value: mdx[:]},
 		binarray{tag: rpmSigSha256, Value: h2x[:]},
 	}
 	return writeFields(w, fields, rpmTagSignatureIndex, true)
@@ -139,8 +138,8 @@ func (r *RPM) writeHeader(w io.Writer) error {
 
 func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 	var (
-		hdr, stor bytes.Buffer
-		count     int32
+		hdr, idx, stor bytes.Buffer
+		count          int32
 	)
 
 	writeField := func(f rpmField) {
@@ -169,7 +168,6 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		stor.Write(f.Bytes())
 	}
 
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Tag() < fields[j].Tag() })
 	for i := range fields {
 		if fields[i].Skip() {
 			continue
@@ -178,8 +176,14 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 		count++
 	}
 	if tag > 0 {
+		count++
+		binary.Write(&idx, binary.BigEndian, uint32(tag))
+		binary.Write(&idx, binary.BigEndian, uint32(fieldBinary))
+		binary.Write(&idx, binary.BigEndian, int32(stor.Len()))
+		binary.Write(&idx, binary.BigEndian, int32(rpmEntryLen))
+
 		binary.Write(&stor, binary.BigEndian, uint32(tag))
-		binary.Write(&stor, binary.BigEndian, uint32(0))
+		binary.Write(&stor, binary.BigEndian, uint32(fieldBinary))
 		binary.Write(&stor, binary.BigEndian, -int32(stor.Len()+4))
 		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
 	}
@@ -189,7 +193,7 @@ func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
 	binary.Write(w, binary.BigEndian, count)
 	binary.Write(w, binary.BigEndian, int32(stor.Len()))
 
-	n, err := io.Copy(w, io.MultiReader(&hdr, &stor))
+	n, err := io.Copy(w, io.MultiReader(&idx, &hdr, &stor))
 	if m := n % 8; m != 0 && pad {
 		w.Write(make([]byte, 8-m))
 	}
