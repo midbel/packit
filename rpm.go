@@ -37,6 +37,12 @@ const (
 )
 
 const (
+	rpmPayloadFormat     = "cpio"
+	rpmPayloadCompressor = "gzip"
+	rpmPayloadFlags      = "9"
+)
+
+const (
 	rpmSigBase = 256
 	// rpmSigDSA     = rpmSigBase + 11
 	// rpmSigRSA     = rpmSigBase + 12
@@ -49,32 +55,35 @@ const (
 )
 
 const (
-	rpmTagPackage    = 1000
-	rpmTagVersion    = 1001
-	rpmTagRelease    = 1002
-	rpmTagSummary    = 1004
-	rpmTagDesc       = 1005
-	rpmTagBuildTime  = 1006
-	rpmTagBuildHost  = 1007
-	rpmTagSize       = 1009
-	rpmTagDistrib    = 1010
-	rpmTagVendor     = 1011
-	rpmTagLicense    = 1014
-	rpmTagPackager   = 1015
-	rpmTagGroup      = 1016
-	rpmTagURL        = 1020
-	rpmTagOS         = 1021
-	rpmTagArch       = 1022
-	rpmTagSizes      = 1028
-	rpmTagModes      = 1030
-	rpmTagDigests    = 1035
-	rpmTagChangeTime = 1080
-	rpmTagChangeName = 1081
-	rpmTagChangeText = 1082
-	rpmTagBasenames  = 1117
-	rpmTagDirnames   = 1118
-	rpmTagOwners     = 1039
-	rpmTagGroups     = 1040
+	rpmTagPackage      = 1000
+	rpmTagVersion      = 1001
+	rpmTagRelease      = 1002
+	rpmTagSummary      = 1004
+	rpmTagDesc         = 1005
+	rpmTagBuildTime    = 1006
+	rpmTagBuildHost    = 1007
+	rpmTagSize         = 1009
+	rpmTagDistrib      = 1010
+	rpmTagVendor       = 1011
+	rpmTagLicense      = 1014
+	rpmTagPackager     = 1015
+	rpmTagGroup        = 1016
+	rpmTagURL          = 1020
+	rpmTagOS           = 1021
+	rpmTagArch         = 1022
+	rpmTagSizes        = 1028
+	rpmTagModes        = 1030
+	rpmTagDigests      = 1035
+	rpmTagChangeTime   = 1080
+	rpmTagChangeName   = 1081
+	rpmTagChangeText   = 1082
+	rpmTagBasenames    = 1117
+	rpmTagDirnames     = 1118
+	rpmTagPayload      = 1124
+	rpmTagCompressor   = 1125
+	rpmTagPayloadFlags = 1126
+	rpmTagOwners       = 1039
+	rpmTagGroups       = 1040
 )
 
 type RPM struct {
@@ -300,11 +309,14 @@ func (r *RPM) controlToFields() []rpmField {
 	fs = append(fs, varchar{tag: rpmTagBuildHost, Value: host})
 	fs = append(fs, varchar{tag: rpmTagDistrib, Value: r.Control.Vendor})
 	fs = append(fs, varchar{tag: rpmTagVendor, Value: r.Control.Vendor})
-	fs = append(fs, varchar{tag: rpmTagPackager, Value: r.Control.Maintainer.String()})
+	fs = append(fs, varchar{tag: rpmTagPackager, Value: "packit"})
 	fs = append(fs, varchar{tag: rpmTagLicense, Value: r.Control.License})
 	fs = append(fs, varchar{tag: rpmTagURL, Value: r.Control.Home})
 	fs = append(fs, varchar{tag: rpmTagOS, Value: r.Control.Os})
-	fs = append(fs, varchar{tag: rpmTagArch, Value: "amd64"})
+	fs = append(fs, varchar{tag: rpmTagArch, Value: rpmArch(r.Control.Arch)})
+	fs = append(fs, varchar{tag: rpmTagPayload, Value: rpmPayloadFormat})
+	fs = append(fs, varchar{tag: rpmTagCompressor, Value: rpmPayloadCompressor})
+	fs = append(fs, varchar{tag: rpmTagPayloadFlags, Value: rpmPayloadFlags})
 
 	if n := len(r.Changes); n > 0 {
 		ts, cs, ls := make([]int64, n), make([]string, n), make([]string, n)
@@ -340,6 +352,8 @@ func (r *RPM) filesToFields() []rpmField {
 		dirs[i], bases[i] = d, n
 		users[i], groups[i] = defaultUser, defaultGroup
 		sizes[i], digests[i] = strconv.FormatInt(r.Files[i].Size, 10), r.Files[i].Sum
+
+		r.Size += r.Files[i].Size
 	}
 
 	fs = append(fs, number{tag: rpmTagSize, kind: fieldInt32, Value: r.Size})
@@ -487,4 +501,15 @@ func (i index) Bytes() []byte {
 	binary.Write(&b, binary.BigEndian, i.Value)
 	binary.Write(&b, binary.BigEndian, i.Len())
 	return b.Bytes()
+}
+
+func rpmArch(a uint8) string {
+	switch a {
+	case 32:
+		return "i386"
+	case 64:
+		return "x86_64"
+	default:
+		return "noarch"
+	}
 }
