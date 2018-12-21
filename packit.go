@@ -55,6 +55,13 @@ type Makefile struct {
 	Postrm   *Script `toml:"post-remove"`
 }
 
+func (m *Makefile) String() string {
+	if m.Control != nil {
+		return m.Control.Package
+	}
+	return "makefile"
+}
+
 func Open(file string) (Package, error) {
 	r, err := os.Open(file)
 	if err != nil {
@@ -66,21 +73,21 @@ func Open(file string) (Package, error) {
 	if _, err := r.Read(magic); err != nil {
 		return nil, err
 	}
-	var open func(r io.Reader) (Package, error)
+	var readPackage func(r io.Reader) (Package, error)
 	if bytes.HasPrefix(magic, ar.Magic) {
-		open = openDEB
+		readPackage = openDEB
 	} else if bytes.HasPrefix(magic, rpmMagic) {
-		open = openRPM
+		readPackage = openRPM
 	} else {
 		return nil, fmt.Errorf("unrecognized package type")
 	}
-	if open == nil {
+	if readPackage == nil {
 		return nil, fmt.Errorf("not yet implemented")
 	}
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	return open(r)
+	return readPackage(r)
 }
 
 func Prepare(m *Makefile, format string) (Package, error) {

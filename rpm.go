@@ -102,7 +102,7 @@ func (r rpmHeaderEntry) Size() int64 {
 
 func openRPM(r io.Reader) (Package, error) {
 	var (
-		pkg RPM
+		p   RPM
 		err error
 	)
 	// step 1: read lead: check major/minor version
@@ -114,16 +114,16 @@ func openRPM(r io.Reader) (Package, error) {
 		return nil, err
 	}
 	// step 3: read metadata
-	if pkg.Makefile, err = readHeader(r); err != nil {
+	if p.Makefile, err = readHeader(r); err != nil {
 		return nil, err
 	}
 	// step 4: payload??? ignore for now
-	return &pkg, nil
+	return &p, nil
 }
 
 func readHeader(r io.Reader) (*Makefile, error) {
 	var c Control
-	f := func(tag int32, v interface{}) error {
+	fn := func(tag int32, v interface{}) error {
 		switch tag {
 		case rpmTagPackage:
 			c.Package = v.(string)
@@ -147,11 +147,10 @@ func readHeader(r io.Reader) (*Makefile, error) {
 		}
 		return nil
 	}
-	if err := readFields(r, false, f); err != nil {
+	if err := readFields(r, false, fn); err != nil {
 		return nil, err
 	}
-	m := Makefile{Control: &c}
-	return &m, nil
+	return &Makefile{Control: &c}, nil
 }
 
 func readSignature(r io.Reader) (*Signature, error) {
