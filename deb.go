@@ -62,6 +62,10 @@ type DEB struct {
 	*Makefile
 }
 
+func openDEB(r io.Reader) error {
+	return nil
+}
+
 func (d *DEB) PackageName() string {
 	return d.Control.PackageName() + ".deb"
 }

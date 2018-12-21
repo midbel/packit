@@ -1,6 +1,7 @@
 package packit
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,9 +23,12 @@ import (
 	"github.com/midbel/tape/cpio"
 )
 
+var (
+	rpmMagic  = []byte{0xed, 0xab, 0xee, 0xdb}
+	rpmHeader = []byte{0x8e, 0xad, 0xe8, 0x01}
+)
+
 const (
-	rpmMagic    = 0xedabeedb
-	rpmHeader   = 0x8eade801
 	rpmMajor    = 3
 	rpmMinor    = 0
 	rpmBinary   = 0
@@ -44,12 +49,12 @@ const (
 
 const (
 	rpmSigBase = 256
+	// rpmSigPGP     = 1002
 	// rpmSigDSA     = rpmSigBase + 11
 	// rpmSigRSA     = rpmSigBase + 12
 	rpmSigSha1    = rpmSigBase + 13
 	rpmSigSha256  = rpmSigBase + 17
 	rpmSigLength  = 1000
-	rpmSigPGP     = 1002
 	rpmSigMD5     = 1004
 	rpmSigPayload = 1007
 )
@@ -90,8 +95,215 @@ type RPM struct {
 	*Makefile
 }
 
+func (r rpmHeaderEntry) Size() int64 {
+	z := (r.Count * rpmEntryLen) + r.Len
+	return int64(z)
+}
+
+func openRPM(r io.Reader) error {
+	// step 1: read lead: check major/minor version
+	if err := readLead(r); err != nil {
+		return err
+	}
+	// step 2: read signature
+	if _, err := readSignature(r); err != nil {
+		return err
+	}
+	// step 3: read metadata
+	h1x := sha1.New()
+	if _, err := readHeader(io.TeeReader(r, h1x)); err != nil {
+		return err
+	}
+	// step 4: payload??? ignore for now
+	return nil
+}
+
+func readSignature(r io.Reader) (*Signature, error) {
+	var s Signature
+	f := func(tag int32, v interface{}) error {
+		switch tag {
+		case rpmSigSha1:
+			s.Sha1 = v.(string)
+		case rpmSigSha256:
+			if xs, ok := v.([]byte); ok {
+				s.Sha256 = hex.EncodeToString(xs)
+			}
+		case rpmSigMD5:
+			if xs, ok := v.([]byte); ok {
+				s.MD5 = hex.EncodeToString(xs)
+			}
+		case rpmSigLength:
+			s.Size = v.(int64)
+		case rpmSigPayload:
+			s.Payload = v.(int64)
+		default:
+		}
+		return nil
+	}
+	return &s, readFields(r, true, f)
+}
+
+func readHeader(r io.Reader) (*Makefile, error) {
+	var m Makefile
+	f := func(tag int32, v interface{}) error {
+		return nil
+	}
+	return &m, readFields(r, false, f)
+}
+
+func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) error {
+	if f == nil {
+		f = func(_ int32, _ interface{}) error { return nil }
+	}
+	var e rpmHeaderEntry
+	if err := binary.Read(r, binary.BigEndian, &e); err != nil {
+		return err
+	}
+	magic := binary.BigEndian.Uint32(rpmHeader) >> 8
+	if e.Magic >> 8 != magic {
+		return fmt.Errorf("invalid RPM header: %06x", e.Magic)
+	}
+	if v := e.Magic & 0xFF; byte(v) != rpmHeader[3] {
+		return fmt.Errorf("unsupported RPM header version: %d", v)
+	}
+	es := make([]rpmEntry, int(e.Count))
+	for i := 0; i < len(es); i++ {
+		if err := binary.Read(r, binary.BigEndian, &es[i]); err != nil {
+			return err
+		}
+	}
+	size := e.Len
+	if m := (e.Len+rpmEntryLen+(e.Count*rpmEntryLen))%8; padding && m > 0 {
+		size += 8-m
+	}
+	xs := make([]byte, int(size))
+	if _, err := io.ReadFull(r, xs); err != nil {
+		return err
+	}
+	stor := bytes.NewReader(xs)
+	sort.Slice(es, func(i, j int) bool { return es[i].Offset < es[j].Offset })
+	for i := 0; i < len(es); i++ {
+		e := es[i]
+		if _, err := stor.Seek(int64(e.Offset), io.SeekStart); err != nil {
+			return err
+		}
+		n := stor.Len()
+		if j := i+1; j < len(es) {
+			n = int(es[j].Offset-es[i].Offset)
+		}
+		v, err := e.Decode(io.LimitReader(stor, int64(n)))
+		if err != nil {
+			return err
+		}
+		if err := f(e.Tag, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type rpmHeaderEntry struct {
+	Magic uint32
+	Spare uint32
+	Count int32
+	Len   int32
+}
+
+type rpmEntry struct {
+	Tag    int32
+	Type   fieldType
+	Offset int32
+	Len    int32
+}
+
+func (e rpmEntry) Decode(r io.Reader) (interface{}, error) {
+	var (
+		v interface{}
+		err error
+	)
+	switch e.Type {
+	case fieldChar:
+		var i byte
+		err, v = binary.Read(r, binary.BigEndian, &i), i
+	case fieldInt8:
+		var i int8
+		err, v = binary.Read(r, binary.BigEndian, &i), int64(i)
+	case fieldInt16:
+		var i int16
+		err, v = binary.Read(r, binary.BigEndian, &i), int64(i)
+	case fieldInt32:
+		var i int32
+		err, v = binary.Read(r, binary.BigEndian, &i), int64(i)
+	case fieldInt64:
+		var i int64
+		err, v = binary.Read(r, binary.BigEndian, &i), i
+	case fieldString, fieldI18NString:
+		s := bufio.NewScanner(r)
+		s.Split(nullSplit)
+		if s.Scan() {
+			v = s.Text()
+		}
+		err = s.Err()
+	case fieldStrArray:
+		s := bufio.NewScanner(r)
+		s.Split(nullSplit)
+
+		vs := make([]string, int(e.Len))
+		for i := 0; i < len(vs); i++ {
+			if b := s.Scan(); b {
+				vs[i] = s.Text()
+			}
+		}
+		v, err = vs, s.Err()
+	case fieldBinary:
+		xs := make([]byte, int(e.Len))
+		if _, err = io.ReadFull(r, xs); err == nil {
+			v = xs
+		}
+	default:
+		err = fmt.Errorf("unknown field type %d", e.Type)
+	}
+	return v, err
+}
+
+func nullSplit(bs []byte, ateof bool) (int, []byte, error) {
+	if ix := bytes.IndexByte(bs, 0); ix < 0 {
+		return 0, nil, nil
+	} else {
+		xs := make([]byte, ix)
+		return copy(xs, bs)+1, xs, nil
+	}
+}
+
+func readLead(r io.Reader) error {
+	c := struct {
+		Magic     uint32
+		Major     uint8
+		Minor     uint8
+		Type      uint16
+		Arch      uint16
+		Name      [66]byte
+		Os        uint16
+		Signature uint16
+		Spare     [16]byte
+	}{}
+	if err := binary.Read(r, binary.BigEndian, &c); err != nil {
+		return err
+	}
+	if c.Magic != binary.BigEndian.Uint32(rpmMagic) {
+		return fmt.Errorf("invalid RPM magic: %08x", c.Magic)
+	}
+	if c.Major != rpmMajor {
+		return fmt.Errorf("unsupported RPM version: %d.%d", c.Major, c.Minor)
+	}
+	if c.Signature != rpmSigType {
+		return fmt.Errorf("invalid RPM signature type: %d", c.Signature)
+	}
+	return nil
+}
+
 func (r *RPM) PackageName() string {
-	return r.Control.PackageName() + ".rpm"
+	return r.Control.PackageName() + "." + rpmArch(r.Control.Arch) + ".rpm"
 }
 
 func (r *RPM) Build(w io.Writer) error {
@@ -143,70 +355,6 @@ func (r *RPM) writeHeader(w io.Writer) error {
 	fields = append(fields, r.filesToFields()...)
 
 	return writeFields(w, fields, rpmTagImmutableIndex, false)
-}
-
-func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
-	var (
-		hdr, idx, stor bytes.Buffer
-		count          int32
-	)
-
-	writeField := func(f rpmField) {
-		var lim int
-		switch e := f.Type(); e {
-		case fieldInt8:
-			lim = 1
-		case fieldInt16:
-			lim = 2
-		case fieldInt32:
-			lim = 4
-		case fieldInt64:
-			lim = 8
-		}
-		if lim > 0 {
-			if mod := stor.Len() % lim; mod != 0 {
-				for i := 0; i < lim-mod; i++ {
-					stor.WriteByte(0)
-				}
-			}
-		}
-		binary.Write(&hdr, binary.BigEndian, f.Tag())
-		binary.Write(&hdr, binary.BigEndian, f.Type())
-		binary.Write(&hdr, binary.BigEndian, int32(stor.Len()))
-		binary.Write(&hdr, binary.BigEndian, f.Len())
-		stor.Write(f.Bytes())
-	}
-
-	for i := range fields {
-		if fields[i].Skip() {
-			continue
-		}
-		writeField(fields[i])
-		count++
-	}
-	if tag > 0 {
-		count++
-		binary.Write(&idx, binary.BigEndian, uint32(tag))
-		binary.Write(&idx, binary.BigEndian, uint32(fieldBinary))
-		binary.Write(&idx, binary.BigEndian, int32(stor.Len()))
-		binary.Write(&idx, binary.BigEndian, int32(rpmEntryLen))
-
-		binary.Write(&stor, binary.BigEndian, uint32(tag))
-		binary.Write(&stor, binary.BigEndian, uint32(fieldBinary))
-		binary.Write(&stor, binary.BigEndian, int32(-hdr.Len()-rpmEntryLen))
-		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
-	}
-
-	binary.Write(w, binary.BigEndian, uint32(rpmHeader))
-	binary.Write(w, binary.BigEndian, uint32(0))
-	binary.Write(w, binary.BigEndian, count)
-	binary.Write(w, binary.BigEndian, int32(stor.Len()))
-
-	n, err := io.Copy(w, io.MultiReader(&idx, &hdr, &stor))
-	if m := n % 8; m != 0 && pad {
-		w.Write(make([]byte, 8-m))
-	}
-	return err
 }
 
 func (r *RPM) writeData(w io.Writer) (int, error) {
@@ -275,7 +423,8 @@ func (r *RPM) writeData(w io.Writer) (int, error) {
 
 func (r *RPM) writeLead(w io.Writer) error {
 	body := make([]byte, 96)
-	binary.BigEndian.PutUint32(body[0:], uint32(rpmMagic))
+	copy(body, rpmMagic)
+	// binary.BigEndian.PutUint32(body[0:], uint32(rpmMagic))
 	binary.BigEndian.PutUint16(body[4:], uint16(rpmMajor)<<8|uint16(rpmMinor))
 	binary.BigEndian.PutUint16(body[6:], rpmBinary)
 	binary.BigEndian.PutUint16(body[8:], 0)
@@ -365,6 +514,73 @@ func (r *RPM) filesToFields() []rpmField {
 	fs = append(fs, strarray{tag: rpmTagSizes, Values: sizes})
 
 	return fs
+}
+
+func writeFields(w io.Writer, fields []rpmField, tag int32, pad bool) error {
+	var (
+		hdr, idx, stor bytes.Buffer
+		count          int32
+	)
+
+	writeField := func(f rpmField) {
+		var lim int
+		switch e := f.Type(); e {
+		case fieldInt8:
+			lim = 1
+		case fieldInt16:
+			lim = 2
+		case fieldInt32:
+			lim = 4
+		case fieldInt64:
+			lim = 8
+		}
+		if lim > 0 {
+			if mod := stor.Len() % lim; mod != 0 {
+				for i := 0; i < lim-mod; i++ {
+					stor.WriteByte(0)
+				}
+			}
+		}
+		binary.Write(&hdr, binary.BigEndian, f.Tag())
+		binary.Write(&hdr, binary.BigEndian, f.Type())
+		binary.Write(&hdr, binary.BigEndian, int32(stor.Len()))
+		binary.Write(&hdr, binary.BigEndian, f.Len())
+		stor.Write(f.Bytes())
+	}
+
+	for i := range fields {
+		if fields[i].Skip() {
+			continue
+		}
+		writeField(fields[i])
+		count++
+	}
+	if tag > 0 {
+		count++
+		binary.Write(&idx, binary.BigEndian, uint32(tag))
+		binary.Write(&idx, binary.BigEndian, uint32(fieldBinary))
+		binary.Write(&idx, binary.BigEndian, int32(stor.Len()))
+		binary.Write(&idx, binary.BigEndian, int32(rpmEntryLen))
+
+		binary.Write(&stor, binary.BigEndian, uint32(tag))
+		binary.Write(&stor, binary.BigEndian, uint32(fieldBinary))
+		binary.Write(&stor, binary.BigEndian, int32(-hdr.Len()-rpmEntryLen))
+		binary.Write(&stor, binary.BigEndian, int32(rpmEntryLen))
+	}
+
+	if _, err := w.Write(rpmHeader); err != nil {
+		return err
+	}
+	// binary.Write(w, binary.BigEndian, uint32(rpmHeader))
+	binary.Write(w, binary.BigEndian, uint32(0))
+	binary.Write(w, binary.BigEndian, count)
+	binary.Write(w, binary.BigEndian, int32(stor.Len()))
+
+	n, err := io.Copy(w, io.MultiReader(&idx, &hdr, &stor))
+	if m := n % 8; m != 0 && pad {
+		w.Write(make([]byte, 8-m))
+	}
+	return err
 }
 
 type fieldType uint32

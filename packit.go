@@ -1,6 +1,7 @@
 package packit
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -8,15 +9,36 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/midbel/tape/ar"
 )
 
 const (
 	defaultEtcDir = "etc/"
 	defaultDocDir = "usr/share/doc"
-	defaultHost   = "localhost.localdomain"
-	defaultUser   = "root"
-	defaultGroup  = "root"
+	defaultBinDir = "usr/bin"
 )
+
+const (
+	defaultHost  = "localhost.localdomain"
+	defaultUser  = "root"
+	defaultGroup = "root"
+)
+
+// type Package interface {
+// 	PackageName() string
+// 	Build(w io.Writer) error
+//  Convert() (Package, error)
+//  Info() (*Makefile, error)
+// }
+
+type Signature struct {
+	Payload int64
+	Size    int64
+	Sha1    string
+	Sha256  string
+	MD5     string
+}
 
 type Builder interface {
 	PackageName() string
@@ -32,6 +54,34 @@ type Makefile struct {
 	Postinst *Script `toml:"post-install"`
 	Prerm    *Script `toml:"pre-remove"`
 	Postrm   *Script `toml:"post-remove"`
+}
+
+func Open(file string) error {
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	magic := make([]byte, 64)
+	if _, err := r.Read(magic); err != nil {
+		return err
+	}
+	var open func(r io.Reader) error
+	if bytes.HasPrefix(magic, ar.Magic) {
+		open = openDEB
+	} else if bytes.HasPrefix(magic, rpmMagic) {
+		open = openRPM
+	} else {
+		return fmt.Errorf("unrecognized package type")
+	}
+	if open == nil {
+		return fmt.Errorf("not yet implemented")
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return open(r)
 }
 
 func Prepare(m *Makefile, format string) (Builder, error) {
