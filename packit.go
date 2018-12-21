@@ -25,12 +25,11 @@ const (
 	defaultGroup = "root"
 )
 
-// type Package interface {
-// 	PackageName() string
-// 	Build(w io.Writer) error
-//  Convert() (Package, error)
-//  Info() (*Makefile, error)
-// }
+type Package interface {
+	PackageName() string
+	Build(w io.Writer) error
+	Metadata() *Makefile
+}
 
 type Signature struct {
 	Payload int64
@@ -56,35 +55,35 @@ type Makefile struct {
 	Postrm   *Script `toml:"post-remove"`
 }
 
-func Open(file string) error {
+func Open(file string) (Package, error) {
 	r, err := os.Open(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer r.Close()
 
 	magic := make([]byte, 64)
 	if _, err := r.Read(magic); err != nil {
-		return err
+		return nil, err
 	}
-	var open func(r io.Reader) error
+	var open func(r io.Reader) (Package, error)
 	if bytes.HasPrefix(magic, ar.Magic) {
 		open = openDEB
 	} else if bytes.HasPrefix(magic, rpmMagic) {
 		open = openRPM
 	} else {
-		return fmt.Errorf("unrecognized package type")
+		return nil, fmt.Errorf("unrecognized package type")
 	}
 	if open == nil {
-		return fmt.Errorf("not yet implemented")
+		return nil, fmt.Errorf("not yet implemented")
 	}
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
-		return err
+		return nil, err
 	}
 	return open(r)
 }
 
-func Prepare(m *Makefile, format string) (Builder, error) {
+func Prepare(m *Makefile, format string) (Package, error) {
 	switch format {
 	case "deb", "":
 		return &DEB{m}, nil

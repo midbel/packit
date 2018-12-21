@@ -85,11 +85,39 @@ func main() {
 }
 
 func runShow(cmd *cli.Command, args []string) error {
+	const meta = `{{.File}}
+{{with .Control}}
+- name   : {{.Package}}
+- version: {{.Version}}
+- vendor : {{.Vendor}}
+- section: {{.Section}}
+- home   : {{.Home}}
+- license: {{.License}}
+- summary: {{.Summary}}
+
+{{.Desc}}
+{{end}}`
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
+	t, err := template.New("desc").Parse(meta)
+	if err != nil {
+		return err
+	}
 	for _, a := range cmd.Flag.Args() {
-		if err := packit.Open(a); err != nil {
+		p, err := packit.Open(a)
+		if err != nil {
+			return err
+		}
+		mf := p.Metadata()
+		c := struct {
+			File    string
+			Control *packit.Control
+		}{
+			File:    filepath.Base(a),
+			Control: mf.Control,
+		}
+		if err := t.Execute(os.Stdout, c); err != nil {
 			return err
 		}
 	}

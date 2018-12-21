@@ -100,22 +100,58 @@ func (r rpmHeaderEntry) Size() int64 {
 	return int64(z)
 }
 
-func openRPM(r io.Reader) error {
+func openRPM(r io.Reader) (Package, error) {
+	var (
+		pkg RPM
+		err error
+	)
 	// step 1: read lead: check major/minor version
-	if err := readLead(r); err != nil {
-		return err
+	if err = readLead(r); err != nil {
+		return nil, err
 	}
 	// step 2: read signature
-	if _, err := readSignature(r); err != nil {
-		return err
+	if _, err = readSignature(r); err != nil {
+		return nil, err
 	}
 	// step 3: read metadata
-	h1x := sha1.New()
-	if _, err := readHeader(io.TeeReader(r, h1x)); err != nil {
-		return err
+	if pkg.Makefile, err = readHeader(r); err != nil {
+		return nil, err
 	}
 	// step 4: payload??? ignore for now
-	return nil
+	return &pkg, nil
+}
+
+func readHeader(r io.Reader) (*Makefile, error) {
+	var c Control
+	f := func(tag int32, v interface{}) error {
+		switch tag {
+		case rpmTagPackage:
+			c.Package = v.(string)
+		case rpmTagVersion:
+			c.Version = v.(string)
+		case rpmTagRelease:
+			c.Release = v.(string)
+		case rpmTagSummary:
+			c.Summary = v.(string)
+		case rpmTagDesc:
+			c.Desc = v.(string)
+		case rpmTagVendor:
+			c.Vendor = v.(string)
+		case rpmTagLicense:
+			c.License = v.(string)
+		case rpmTagGroup:
+			c.Section = v.(string)
+		case rpmTagURL:
+			c.Home = v.(string)
+		default:
+		}
+		return nil
+	}
+	if err := readFields(r, false, f); err != nil {
+		return nil, err
+	}
+	m := Makefile{Control: &c}
+	return &m, nil
 }
 
 func readSignature(r io.Reader) (*Signature, error) {
@@ -143,17 +179,9 @@ func readSignature(r io.Reader) (*Signature, error) {
 	return &s, readFields(r, true, f)
 }
 
-func readHeader(r io.Reader) (*Makefile, error) {
-	var m Makefile
-	f := func(tag int32, v interface{}) error {
-		return nil
-	}
-	return &m, readFields(r, false, f)
-}
-
-func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) error {
-	if f == nil {
-		f = func(_ int32, _ interface{}) error { return nil }
+func readFields(r io.Reader, padding bool, fn func(int32, interface{}) error) error {
+	if fn == nil {
+		fn = func(_ int32, _ interface{}) error { return nil }
 	}
 	var e rpmHeaderEntry
 	if err := binary.Read(r, binary.BigEndian, &e); err != nil {
@@ -195,7 +223,10 @@ func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) err
 		if err != nil {
 			return err
 		}
-		if err := f(e.Tag, v); err != nil {
+		if v == nil {
+			continue
+		}
+		if err := fn(e.Tag, v); err != nil {
 			return err
 		}
 	}
@@ -304,6 +335,10 @@ func readLead(r io.Reader) error {
 
 func (r *RPM) PackageName() string {
 	return r.Control.PackageName() + "." + rpmArch(r.Control.Arch) + ".rpm"
+}
+
+func (r *RPM) Metadata() *Makefile {
+	return r.Makefile
 }
 
 func (r *RPM) Build(w io.Writer) error {

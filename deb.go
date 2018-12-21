@@ -62,7 +62,11 @@ type DEB struct {
 	*Makefile
 }
 
-func openDEB(r io.Reader) error {
+func openDEB(r io.Reader) (Package, error) {
+	return nil, nil
+}
+
+func (d *DEB) Metadata() *Makefile {
 	return nil
 }
 
