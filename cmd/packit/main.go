@@ -14,7 +14,7 @@ import (
 
 var commands = []*cli.Command{
 	{
-		Usage: "build [-d] <config.toml,...>",
+		Usage: "build [-d datadir] [-k pkg-type] <config.toml,...>",
 		Alias: []string{"make"},
 		Short: "build package(s) from configuration file",
 		Run:   runBuild,
@@ -22,18 +22,23 @@ var commands = []*cli.Command{
 	{
 		Usage: "convert <package> <package>",
 		Short: "convert a source package into a destination package format",
-		Run:   nil,
+		Run:   runConvert,
 	},
 	{
 		Usage: "show <package>",
 		Alias: []string{"info"},
 		Short: "show package metadata",
-		Run:   nil,
+		Run:   runShow,
 	},
 	{
 		Usage: "verify <package,...>",
 		Alias: []string{"check"},
 		Short: "check the integrity of the given package(s)",
+		Run:   runVerify,
+	},
+	{
+		Usage: "install <package,...>",
+		Short: "install package on the system",
 		Run:   nil,
 	},
 }
@@ -77,6 +82,26 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runShow(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	for _, a := range cmd.Flag.Args() {
+		if err := packit.Open(a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runConvert(cmd *cli.Command, args []string) error {
+	return nil
+}
+
+func runVerify(cmd *cli.Command, args []string) error {
+	return nil
 }
 
 func runBuild(cmd *cli.Command, args []string) error {

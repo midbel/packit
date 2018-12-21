@@ -160,7 +160,7 @@ func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) err
 		return err
 	}
 	magic := binary.BigEndian.Uint32(rpmHeader) >> 8
-	if e.Magic >> 8 != magic {
+	if e.Magic>>8 != magic {
 		return fmt.Errorf("invalid RPM header: %06x", e.Magic)
 	}
 	if v := e.Magic & 0xFF; byte(v) != rpmHeader[3] {
@@ -173,8 +173,8 @@ func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) err
 		}
 	}
 	size := e.Len
-	if m := (e.Len+rpmEntryLen+(e.Count*rpmEntryLen))%8; padding && m > 0 {
-		size += 8-m
+	if m := (e.Len + rpmEntryLen + (e.Count * rpmEntryLen)) % 8; padding && m > 0 {
+		size += 8 - m
 	}
 	xs := make([]byte, int(size))
 	if _, err := io.ReadFull(r, xs); err != nil {
@@ -188,8 +188,8 @@ func readFields(r io.Reader, padding bool, f func(int32, interface{}) error) err
 			return err
 		}
 		n := stor.Len()
-		if j := i+1; j < len(es) {
-			n = int(es[j].Offset-es[i].Offset)
+		if j := i + 1; j < len(es) {
+			n = int(es[j].Offset - es[i].Offset)
 		}
 		v, err := e.Decode(io.LimitReader(stor, int64(n)))
 		if err != nil {
@@ -218,7 +218,7 @@ type rpmEntry struct {
 
 func (e rpmEntry) Decode(r io.Reader) (interface{}, error) {
 	var (
-		v interface{}
+		v   interface{}
 		err error
 	)
 	switch e.Type {
@@ -271,7 +271,7 @@ func nullSplit(bs []byte, ateof bool) (int, []byte, error) {
 		return 0, nil, nil
 	} else {
 		xs := make([]byte, ix)
-		return copy(xs, bs)+1, xs, nil
+		return copy(xs, bs) + 1, xs, nil
 	}
 }
 
