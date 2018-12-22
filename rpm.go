@@ -125,6 +125,10 @@ func readHeader(r io.Reader) (*Makefile, error) {
 	var c Control
 	fn := func(tag int32, v interface{}) error {
 		switch tag {
+		case rpmTagSize:
+			c.Size = v.(int64)
+		case rpmTagBuildTime:
+			c.Date = time.Unix(v.(int64), 0)
 		case rpmTagPackage:
 			c.Package = v.(string)
 		case rpmTagVersion:
@@ -143,6 +147,14 @@ func readHeader(r io.Reader) (*Makefile, error) {
 			c.Section = v.(string)
 		case rpmTagURL:
 			c.Home = v.(string)
+		case rpmTagArch:
+			switch x := v.(string); x {
+			case "x86_64":
+				c.Arch = Arch64
+			case "i386":
+				c.Arch = Arch32
+			default:
+			}
 		default:
 		}
 		return nil

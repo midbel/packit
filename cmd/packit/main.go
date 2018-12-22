@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -87,33 +88,45 @@ func main() {
 func runShow(cmd *cli.Command, args []string) error {
 	const meta = `{{.File}}
 {{with .Control}}
-- name   : {{.Package}}
-- version: {{.Version}}
-- vendor : {{.Vendor}}
-- section: {{.Section}}
-- home   : {{.Home}}
-- license: {{.License}}
-- summary: {{.Summary}}
+- name        : {{.Package}}
+- version     : {{.Version}}
+- size        : {{.Size}}
+- architecture: {{.Arch | arch}}
+- build-date  : {{.Date | datetime}}
+- vendor      : {{.Vendor}}
+- section     : {{.Section}}
+- home        : {{.Home}}
+- license     : {{.License}}
+- summary     : {{.Summary}}
 
-{{.Desc}}
+{{.Desc}}{{end}}
+{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
 {{end}}`
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	t, err := template.New("desc").Parse(meta)
+	fs := template.FuncMap{
+		"arch":     packit.ArchString,
+		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
+	}
+	t, err := template.New("desc").Funcs(fs).Parse(meta)
 	if err != nil {
 		return err
 	}
-	for _, a := range cmd.Flag.Args() {
+	for i, a := range cmd.Flag.Args() {
 		p, err := packit.Open(a)
 		if err != nil {
 			return err
 		}
 		mf := p.Metadata()
 		c := struct {
+			Index   int
+			Total   int
 			File    string
 			Control *packit.Control
 		}{
+			Index:   i,
+			Total:   cmd.Flag.NArg(),
 			File:    filepath.Base(a),
 			Control: mf.Control,
 		}

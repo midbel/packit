@@ -25,6 +25,12 @@ const (
 	defaultGroup = "root"
 )
 
+const (
+	Arch32  = 32
+	Arch64  = 64
+	ArchAll = 0
+)
+
 type Package interface {
 	PackageName() string
 	Build(w io.Writer) error
@@ -168,7 +174,8 @@ type Control struct {
 	Compiler    string   `toml:"compiler"`
 	*Maintainer `toml:"maintainer"`
 
-	Size int64 `toml:"-"`
+	Date time.Time `toml:"-"`
+	Size int64     `toml:"-"`
 }
 
 func (c Control) PackageName() string {
