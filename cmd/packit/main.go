@@ -39,7 +39,7 @@ var commands = []*cli.Command{
 		Run:   runVerify,
 	},
 	{
-		Usage: "history [-m maintainer] [-c count] [-f from] [-t to] <package,...>",
+		Usage: "history [-c count] [-f from] [-t to] <package,...>",
 		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
 		Run:   runLog,
@@ -113,14 +113,24 @@ func runLog(cmd *cli.Command, args []string) error {
   {{ .Changes | join }}
 {{end}}{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
 {{end}}`
-	// fd := cmd.Flag.String("f", "", "from date")
-	// td := cmd.Flag.String("t", "", "to date")
-	// who := cmd.Flag.String("m", "", "maintainer")
+	dtstart := cmd.Flag.String("f", "", "from date")
+	dtend := cmd.Flag.String("t", "", "to date")
+	count := cmd.Flag.Int("c", 0, "count")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
+	var (
+		fd, td time.Time
+		err    error
+	)
+	if fd, err = time.Parse("2006-01-02", *dtstart); err != nil && *dtstart != "" {
+		return err
+	}
+	if td, err = time.Parse("2006-01-02", *dtend); err != nil && *dtend != "" {
+		return err
+	}
 	fs := template.FuncMap{
-		"join": func(s []string) string { return strings.Join(s, "\n  ") },
+		"join":     func(s []string) string { return strings.Join(s, "\n  ") },
 		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
 	}
 	t, err := template.New("desc").Funcs(fs).Parse(meta)
@@ -132,16 +142,45 @@ func runLog(cmd *cli.Command, args []string) error {
 		if len(mf.Changes) == 0 {
 			return nil
 		}
+		var cs []*packit.Change
+		switch {
+		case fd.IsZero() && td.IsZero():
+			cs = mf.Changes
+		case fd.IsZero() && !td.IsZero():
+			for _, c := range mf.Changes {
+				if c.When.After(td) {
+					continue
+				}
+				cs = append(cs, c)
+			}
+		case td.IsZero() && !fd.IsZero():
+			for _, c := range mf.Changes {
+				if c.When.Before(fd) {
+					continue
+				}
+				cs = append(cs, c)
+			}
+		default:
+			for _, c := range mf.Changes {
+				if c.When.Before(fd) || c.When.After(td) {
+					continue
+				}
+				cs = append(cs, c)
+			}
+		}
+		if *count > 0 && len(cs) >= *count {
+			cs = cs[:*count]
+		}
 		c := struct {
 			Index   int
 			Total   int
 			File    string
 			Changes []*packit.Change
 		}{
-			Index:   i+1,
+			Index:   i + 1,
 			Total:   n,
 			File:    mf.PackageName(),
-			Changes: mf.Changes,
+			Changes: cs,
 		}
 		return t.Execute(os.Stdout, c)
 	})
@@ -183,7 +222,7 @@ func runShow(cmd *cli.Command, args []string) error {
 			File    string
 			Control *packit.Control
 		}{
-			Index:   i+1,
+			Index:   i + 1,
 			Total:   n,
 			File:    mf.PackageName(),
 			Control: mf.Control,
