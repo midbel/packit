@@ -38,6 +38,12 @@ var commands = []*cli.Command{
 		Run:   runVerify,
 	},
 	{
+		Usage: "changelog [-m maintainer] [-c count] [-f from] [-t to] <package,...>",
+		Alias: []string{"log"},
+		Short: "dump changelog of given package",
+		Run:   nil,
+	},
+	{
 		Usage: "install <package,...>",
 		Short: "install package on the system",
 		Run:   nil,
@@ -83,6 +89,10 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runLog(cmd *cli.Command, args []string) error {
+	return cmd.Flag.Parse(args)
 }
 
 func runShow(cmd *cli.Command, args []string) error {
