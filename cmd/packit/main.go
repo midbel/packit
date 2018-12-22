@@ -109,7 +109,7 @@ func showMakefile(pkgs []string, show func(i int, mf *packit.Makefile) error) er
 func runLog(cmd *cli.Command, args []string) error {
 	const meta = `{{.File}}
 {{range .Changes}}
-{{ .When | datetime }}
+{{ .When | datetime }} ({{ if .Maintainer}}{{ .Maintainer.Name }}{{else}}unknown{{end}})
   {{ .Changes | join }}
 {{end}}{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
 {{end}}`
@@ -131,7 +131,7 @@ func runLog(cmd *cli.Command, args []string) error {
 	}
 	fs := template.FuncMap{
 		"join":     func(s []string) string { return strings.Join(s, "\n  ") },
-		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
+		"datetime": func(t time.Time) string { return t.Format("2006-01-02") },
 	}
 	t, err := template.New("desc").Funcs(fs).Parse(meta)
 	if err != nil {

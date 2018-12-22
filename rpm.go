@@ -180,7 +180,6 @@ func readHeader(r io.Reader) (*Makefile, error) {
 	var cs []*Change
 	if len(ctimes) == len(changes) && len(changes) > 0 {
 		for i := 0; i < len(changes); i++ {
-			// var m Maintainer
 			c := Change{
 				When:    time.Unix(ctimes[i], 0),
 				Changes: strings.Split(changes[i], "\n"),
