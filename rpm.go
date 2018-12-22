@@ -516,6 +516,7 @@ func (r *RPM) controlToFields() []rpmField {
 	if n := len(r.Changes); n > 0 {
 		ts, cs, ls := make([]int64, n), make([]string, n), make([]string, n)
 		m := r.Control.Maintainer
+		sort.Slice(r.Changes, func(i, j int) bool { return r.Changes[i].When.After(r.Changes[j].When) })
 		for i := range r.Changes {
 			ts[i] = r.Changes[i].When.Unix()
 			if r.Changes[i].Maintainer == nil {
