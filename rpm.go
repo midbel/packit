@@ -122,13 +122,28 @@ func openRPM(r io.Reader) (Package, error) {
 }
 
 func readHeader(r io.Reader) (*Makefile, error) {
-	var c Control
+	var (
+		c       Control
+		ctimes  []int64
+		cnames  []string
+		changes []string
+	)
 	fn := func(tag int32, v interface{}) error {
 		switch tag {
+		case rpmTagChangeText:
+			changes = v.([]string)
+		case rpmTagChangeTime:
+			ctimes = v.([]int64)
+		case rpmTagChangeName:
+			cnames = v.([]string)
 		case rpmTagSize:
-			c.Size = v.(int64)
+			if xs, ok := v.([]int64); ok && len(xs) == 1 {
+				c.Size = xs[0]
+			}
 		case rpmTagBuildTime:
-			c.Date = time.Unix(v.(int64), 0)
+			if xs, ok := v.([]int64); ok && len(xs) == 1 {
+				c.Date = time.Unix(xs[0], 0)
+			}
 		case rpmTagPackage:
 			c.Package = v.(string)
 		case rpmTagVersion:
@@ -162,7 +177,18 @@ func readHeader(r io.Reader) (*Makefile, error) {
 	if err := readFields(r, false, fn); err != nil {
 		return nil, err
 	}
-	return &Makefile{Control: &c}, nil
+	var cs []*Change
+	if len(ctimes) == len(changes) && len(changes) > 0 {
+		for i := 0; i < len(changes); i++ {
+			// var m Maintainer
+			c := Change{
+				When:    time.Unix(ctimes[i], 0),
+				Changes: strings.Split(changes[i], "\n"),
+			}
+			cs = append(cs, &c)
+		}
+	}
+	return &Makefile{Control: &c, Changes: cs}, nil
 }
 
 func readSignature(r io.Reader) (*Signature, error) {
@@ -180,9 +206,13 @@ func readSignature(r io.Reader) (*Signature, error) {
 				s.MD5 = hex.EncodeToString(xs)
 			}
 		case rpmSigLength:
-			s.Size = v.(int64)
+			if xs, ok := v.([]int64); ok && len(xs) == 1 {
+				s.Size = xs[0]
+			}
 		case rpmSigPayload:
-			s.Payload = v.(int64)
+			if xs, ok := v.([]int64); ok && len(xs) == 1 {
+				s.Payload = xs[0]
+			}
 		default:
 		}
 		return nil
@@ -274,8 +304,15 @@ func (e rpmEntry) Decode(r io.Reader) (interface{}, error) {
 		var i int16
 		err, v = binary.Read(r, binary.BigEndian, &i), int64(i)
 	case fieldInt32:
-		var i int32
-		err, v = binary.Read(r, binary.BigEndian, &i), int64(i)
+		vs := make([]int64, e.Len)
+		for i := 0; i < len(vs); i++ {
+			var j int32
+			if err = binary.Read(r, binary.BigEndian, &j); err != nil {
+				break
+			}
+			vs[i] = int64(j)
+		}
+		v = vs
 	case fieldInt64:
 		var i int64
 		err, v = binary.Read(r, binary.BigEndian, &i), i

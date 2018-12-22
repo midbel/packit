@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -38,10 +39,10 @@ var commands = []*cli.Command{
 		Run:   runVerify,
 	},
 	{
-		Usage: "changelog [-m maintainer] [-c count] [-f from] [-t to] <package,...>",
-		Alias: []string{"log"},
+		Usage: "history [-m maintainer] [-c count] [-f from] [-t to] <package,...>",
+		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
-		Run:   nil,
+		Run:   runLog,
 	},
 	{
 		Usage: "install <package,...>",
@@ -91,8 +92,59 @@ func main() {
 	}
 }
 
+func showMakefile(pkgs []string, show func(i int, mf *packit.Makefile) error) error {
+	for i, a := range pkgs {
+		p, err := packit.Open(a)
+		if err != nil {
+			return err
+		}
+		mf := p.Metadata()
+		if err := show(i, mf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func runLog(cmd *cli.Command, args []string) error {
-	return cmd.Flag.Parse(args)
+	const meta = `{{.File}}
+{{range .Changes}}
+{{ .When | datetime }}
+  {{ .Changes | join }}
+{{end}}{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
+{{end}}`
+	// fd := cmd.Flag.String("f", "", "from date")
+	// td := cmd.Flag.String("t", "", "to date")
+	// who := cmd.Flag.String("m", "", "maintainer")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	fs := template.FuncMap{
+		"join": func(s []string) string { return strings.Join(s, "\n  ") },
+		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
+	}
+	t, err := template.New("desc").Funcs(fs).Parse(meta)
+	if err != nil {
+		return err
+	}
+	n := cmd.Flag.NArg()
+	return showMakefile(cmd.Flag.Args(), func(i int, mf *packit.Makefile) error {
+		if len(mf.Changes) == 0 {
+			return nil
+		}
+		c := struct {
+			Index   int
+			Total   int
+			File    string
+			Changes []*packit.Change
+		}{
+			Index:   i+1,
+			Total:   n,
+			File:    mf.PackageName(),
+			Changes: mf.Changes,
+		}
+		return t.Execute(os.Stdout, c)
+	})
 }
 
 func runShow(cmd *cli.Command, args []string) error {
@@ -123,28 +175,21 @@ func runShow(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	for i, a := range cmd.Flag.Args() {
-		p, err := packit.Open(a)
-		if err != nil {
-			return err
-		}
-		mf := p.Metadata()
+	n := cmd.Flag.NArg()
+	return showMakefile(cmd.Flag.Args(), func(i int, mf *packit.Makefile) error {
 		c := struct {
 			Index   int
 			Total   int
 			File    string
 			Control *packit.Control
 		}{
-			Index:   i,
-			Total:   cmd.Flag.NArg(),
-			File:    filepath.Base(a),
+			Index:   i+1,
+			Total:   n,
+			File:    mf.PackageName(),
 			Control: mf.Control,
 		}
-		if err := t.Execute(os.Stdout, c); err != nil {
-			return err
-		}
-	}
-	return nil
+		return t.Execute(os.Stdout, c)
+	})
 }
 
 func runConvert(cmd *cli.Command, args []string) error {
