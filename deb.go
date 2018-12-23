@@ -63,6 +63,71 @@ type DEB struct {
 }
 
 func openDEB(r io.Reader) (Package, error) {
+	a, err := ar.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	if err := readBinaryFile(a); err != nil {
+		return nil, err
+	}
+	mf, err := readControlTar(a)
+	if err != nil {
+		return nil, err
+	}
+	return &DEB{Makefile: mf}, nil
+}
+
+func readBinaryFile(r *ar.Reader) error {
+	h, err := r.Next()
+	if err != nil {
+		return err
+	}
+	if h.Filename != debBinaryFile {
+		return fmt.Errorf("malformed deb package: want %s, got %s", debBinaryFile, h.Filename)
+	}
+	bs := make([]byte, len(debVersion))
+	if _, err := io.ReadFull(r, bs); err != nil {
+		return err
+	}
+	if debVersion != string(bs) {
+		return fmt.Errorf("unsupported deb version %s", bytes.TrimSpace(bs))
+	}
+	return nil
+}
+
+func readControlTar(r *ar.Reader) (*Makefile, error) {
+	h, err := r.Next()
+	if err != nil {
+		return nil, err
+	}
+	if h.Filename != debControlTar {
+		return nil, fmt.Errorf("malformed deb package: want %s ,got: %s", debControlTar, h.Filename)
+	}
+	z, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	t := tar.NewReader(z)
+	for {
+		h, err := t.Next()
+		if err != nil {
+			return nil, err
+		}
+		switch h.Name {
+		case debControlFile:
+			err = parseControl(t, func(k string, v interface{}) error {
+				return nil
+			})
+		case debSumFile:
+		case debConfFile:
+		case debPreinst, debPostinst, debPrerem, debPostrem:
+		default:
+			err = fmt.Errorf("unknown file in %s: %s", debControlTar, h.Name)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
 	return nil, nil
 }
 
@@ -343,34 +408,6 @@ func (d *DEB) writeDebian(a *ar.Writer) error {
 	return err
 }
 
-type blank struct {
-	io.Writer
-	last byte
-}
-
-func cleanBlank(w io.Writer) io.Writer {
-	return &blank{Writer: w}
-}
-
-func (b *blank) Write(bs []byte) (int, error) {
-	var (
-		xs     []byte
-		offset int
-	)
-	if b.last != 0 {
-		xs = make([]byte, len(bs)+1)
-		xs[0], offset = b.last, 1
-	} else {
-		xs = make([]byte, len(bs))
-	}
-	copy(xs[offset:], bs)
-
-	xs = bytes.Replace(xs, []byte{0x0a, 0x0a}, []byte{0x0a}, -1)
-	b.last = bs[len(bs)-1]
-	_, err := b.Writer.Write(xs[offset:])
-	return len(bs), err
-}
-
 func debArch(a uint8) string {
 	switch a {
 	case 32:
@@ -420,4 +457,8 @@ func tarIntermediateDirectories(w *tar.Writer, n string, done map[string]struct{
 		}
 	}
 	return done, nil
+}
+
+func parseControl(r io.Reader, fn func(k string, v interface{}) error) error {
+	return nil
 }
