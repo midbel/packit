@@ -119,7 +119,10 @@ type Maintainer struct {
 	Email string `toml:"email"`
 }
 
-func (m Maintainer) String() string {
+func (m *Maintainer) String() string {
+	if m == nil {
+		return "<unknown>"
+	}
 	return fmt.Sprintf("%s <%s>", m.Name, m.Email)
 }
 

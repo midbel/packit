@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -114,10 +115,42 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 			return nil, err
 		}
 		switch h.Name {
-		case debControlFile:
-			err = parseControl(t, func(k string, v interface{}) error {
+		case debControlFile, "./" + debControlFile:
+			var body bytes.Buffer
+			if _, err := io.CopyN(&body, t, h.Size); err != nil {
+				return nil, err
+			}
+			var c Control
+			err = parseControl(&body, func(k, v string) error {
+				switch strings.ToLower(k) {
+				case "package":
+					c.Package = v
+				case "version":
+					c.Version = v
+				case "license":
+					c.License = v
+				case "section":
+					c.Section = v
+				case "priority":
+					c.Priority = v
+				case "architecture":
+				case "vendor":
+					c.Vendor = v
+				case "maintainer":
+				case "homepage":
+					c.Home = v
+				case "depends":
+				case "installed-size":
+					c.Size, _ = strconv.ParseInt(v, 0, 64)
+				case "build-using":
+					c.Compiler = v
+				case "description":
+					ps := strings.SplitN(v, "\n", 2)
+					c.Summary, c.Desc = ps[0], ps[1]
+				}
 				return nil
 			})
+			return &Makefile{Control: &c}, nil
 		case debSumFile:
 		case debConfFile:
 		case debPreinst, debPostinst, debPrerem, debPostrem:
@@ -132,7 +165,7 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 }
 
 func (d *DEB) Metadata() *Makefile {
-	return nil
+	return d.Makefile
 }
 
 func (d *DEB) PackageName() string {
@@ -459,6 +492,75 @@ func tarIntermediateDirectories(w *tar.Writer, n string, done map[string]struct{
 	return done, nil
 }
 
-func parseControl(r io.Reader, fn func(k string, v interface{}) error) error {
+func parseControl(rs io.RuneScanner, fn func(k, v string) error) error {
+	for {
+		k, err := parseKey(rs)
+		if err != nil {
+			return err
+		}
+		v, err := parseValue(rs)
+		if err != nil {
+			return err
+		}
+		if k == "" || v == "" {
+			break
+		}
+		if err := fn(strings.TrimSpace(k), strings.TrimSpace(v)); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func parseKey(rs io.RuneScanner) (string, error) {
+	var k bytes.Buffer
+	for {
+		r, _, err := rs.ReadRune()
+		if err == io.EOF || r == 0 {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if r == ':' {
+			break
+		}
+		k.WriteRune(r)
+	}
+	return k.String(), nil
+}
+
+func parseValue(rs io.RuneScanner) (string, error) {
+	var (
+		p rune
+		v bytes.Buffer
+	)
+	for {
+		r, _, err := rs.ReadRune()
+		if err == io.EOF || r == 0 {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if r == '\n' {
+			r, _, err := rs.ReadRune()
+			if err == io.EOF || r == 0 {
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+			if !(r == ' ' || r == '\t') {
+				rs.UnreadRune()
+				break
+			}
+		}
+		if r == '.' && p == '\n' {
+			continue
+		}
+		v.WriteRune(r)
+		p = r
+	}
+	return v.String(), nil
 }
