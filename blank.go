@@ -10,6 +10,10 @@ type blank struct {
 	last byte
 }
 
+func Clean(w io.Writer) io.Writer {
+	return cleanBlank(w)
+}
+
 func cleanBlank(w io.Writer) io.Writer {
 	return &blank{Writer: w}
 }

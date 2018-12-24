@@ -8,11 +8,12 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -96,6 +97,10 @@ func readBinaryFile(r *ar.Reader) error {
 	return nil
 }
 
+func readDataTar(r *ar.Reader) error {
+	return nil
+}
+
 func readControlTar(r *ar.Reader) (*Makefile, error) {
 	h, err := r.Next()
 	if err != nil {
@@ -137,12 +142,19 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 				case "priority":
 					c.Priority = v
 				case "architecture":
+					switch v {
+					case "amd64":
+						c.Arch = Arch64
+					case "i386":
+						c.Arch = Arch32
+					}
 				case "vendor":
 					c.Vendor = v
 				case "maintainer":
 				case "homepage":
 					c.Home = v
 				case "depends":
+					c.Depends = strings.Split(v, ", ")
 				case "installed-size":
 					c.Size, _ = strconv.ParseInt(v, 0, 64)
 				case "build-using":
@@ -155,8 +167,17 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 			})
 			return &Makefile{Control: &c}, nil
 		case debSumFile, "./" + debSumFile:
+			if _, err := io.CopyN(ioutil.Discard, t, h.Size); err != nil {
+				return nil, err
+			}
 		case debConfFile, "./" + debConfFile:
+			if _, err := io.CopyN(ioutil.Discard, t, h.Size); err != nil {
+				return nil, err
+			}
 		case debPreinst, debPostinst, debPrerem, debPostrem:
+			if _, err := io.CopyN(ioutil.Discard, t, h.Size); err != nil {
+				return nil, err
+			}
 		default:
 			err = fmt.Errorf("unknown file in %s: %s", debControlTar, h.Name)
 		}
@@ -172,7 +193,7 @@ func (d *DEB) Metadata() *Makefile {
 }
 
 func (d *DEB) PackageName() string {
-	return d.Control.PackageName() + ".deb"
+	return d.Control.PackageName() + "_" + debArch(d.Control.Arch) + ".deb"
 }
 
 func (d *DEB) Build(w io.Writer) error {
@@ -495,75 +516,76 @@ func tarIntermediateDirectories(w *tar.Writer, n string, done map[string]struct{
 	return done, nil
 }
 
+
 func parseControl(rs io.RuneScanner, fn func(k, v string) error) error {
-	for {
-		k, err := parseKey(rs)
+  for {
+    k, err := parseKey(rs)
+    if err != nil {
+      return err
+    }
+    v, err := parseValue(rs)
 		if err != nil {
 			return err
 		}
-		v, err := parseValue(rs)
-		if err != nil {
-			return err
-		}
-		if k == "" || v == "" {
-			break
-		}
+    if k == "" || v == "" {
+      break
+    }
 		if err := fn(strings.TrimSpace(k), strings.TrimSpace(v)); err != nil {
 			return err
 		}
-	}
+  }
 	return nil
 }
 
 func parseKey(rs io.RuneScanner) (string, error) {
-	var k bytes.Buffer
-	for {
-		r, _, err := rs.ReadRune()
-		if err == io.EOF || r == 0 {
-			return "", nil
-		}
-		if err != nil {
-			return "", err
-		}
-		if r == ':' {
-			break
-		}
-		k.WriteRune(r)
-	}
-	return k.String(), nil
+  var k bytes.Buffer
+  for {
+    r, _, err := rs.ReadRune()
+    if err == io.EOF || r == 0 {
+      return "", nil
+    }
+    if err != nil {
+      return "", err
+    }
+    if r == ':' {
+      break
+    }
+    k.WriteRune(r)
+  }
+  return k.String(), nil
 }
 
 func parseValue(rs io.RuneScanner) (string, error) {
-	var (
-		p rune
-		v bytes.Buffer
-	)
-	for {
-		r, _, err := rs.ReadRune()
-		if err == io.EOF || r == 0 {
-			return "", nil
-		}
-		if err != nil {
-			return "", err
-		}
-		if r == '\n' {
-			r, _, err := rs.ReadRune()
-			if err == io.EOF || r == 0 {
-				break
-			}
-			if err != nil {
-				return "", err
-			}
-			if !(r == ' ' || r == '\t') {
-				rs.UnreadRune()
-				break
-			}
-		}
-		if r == '.' && p == '\n' {
-			continue
-		}
-		v.WriteRune(r)
-		p = r
-	}
-	return v.String(), nil
+  var (
+    p rune
+    v bytes.Buffer
+  )
+  for {
+    r, _, err := rs.ReadRune()
+    if err == io.EOF || r == 0 {
+      return "", nil
+    }
+    if err != nil {
+      return "", err
+    }
+    if r == '\n' {
+      r, _, err := rs.ReadRune()
+      if err == io.EOF || r == 0 {
+        break
+      }
+      if err != nil {
+        return "", err
+      }
+      if !(r == ' ' || r == '\t') {
+        rs.UnreadRune()
+        break
+      }
+    }
+    if r == '.' && p == '\n' {
+      continue
+    }
+    v.WriteRune(r)
+    p = r
+  }
+  return v.String(), nil
 }
