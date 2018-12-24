@@ -253,11 +253,11 @@ func showSummary(pkgs []string) error {
 }
 
 func runConvert(cmd *cli.Command, args []string) error {
-	return nil
+	return cmd.Flag.Parse(args)
 }
 
 func runVerify(cmd *cli.Command, args []string) error {
-	return nil
+	return cmd.Flag.Parse(args)
 }
 
 func runBuild(cmd *cli.Command, args []string) error {

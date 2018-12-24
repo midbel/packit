@@ -76,6 +76,11 @@ func openDEB(r io.Reader) (Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	if fs, err := readDataTar(a); err != nil {
+		return nil, err
+	} else {
+		mf.Files = fs
+	}
 	return &DEB{Makefile: mf}, nil
 }
 
@@ -97,8 +102,42 @@ func readBinaryFile(r *ar.Reader) error {
 	return nil
 }
 
-func readDataTar(r *ar.Reader) error {
-	return nil
+func readDataTar(r *ar.Reader) ([]*File, error) {
+	h, err := r.Next()
+	if err != nil {
+		return nil, err
+	}
+	if h.Filename != debDataTar {
+		return nil, fmt.Errorf("malformed deb package: want %s ,got: %s", debDataTar, h.Filename)
+	}
+	z, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	t := tar.NewReader(z)
+	var files []*File
+	for {
+		h, err := t.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
+		f := File{
+			Name: h.Name,
+			Size: h.Size,
+			Perm: int(h.Mode),
+		}
+		files = append(files, &f)
+		if _, err := io.CopyN(ioutil.Discard, t, h.Size); err != nil {
+			return nil, err
+		}
+	}
+	return files, nil
 }
 
 func readControlTar(r *ar.Reader) (*Makefile, error) {
@@ -117,6 +156,9 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 	for {
 		h, err := t.Next()
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return nil, err
 		}
 		if h.Typeflag != tar.TypeReg {
