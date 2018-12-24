@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/tabwriter"
 	"text/template"
 	"time"
 
@@ -27,7 +29,7 @@ var commands = []*cli.Command{
 		Run:   runConvert,
 	},
 	{
-		Usage: "show <package>",
+		Usage: "show [-l] <package>",
 		Alias: []string{"info"},
 		Short: "show package metadata",
 		Run:   runShow,
@@ -187,6 +189,18 @@ func runLog(cmd *cli.Command, args []string) error {
 }
 
 func runShow(cmd *cli.Command, args []string) error {
+	long := cmd.Flag.Bool("l", false, "show full package description")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	if args := cmd.Flag.Args(); *long {
+		return showMetadata(args)
+	} else {
+		return showSummary(args)
+	}
+}
+
+func showMetadata(pkgs []string) error {
 	const meta = `{{.File}}
 {{with .Control}}
 - name        : {{.Package}}
@@ -203,9 +217,6 @@ func runShow(cmd *cli.Command, args []string) error {
 {{.Desc}}{{end}}
 {{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
 {{end}}`
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
 	fs := template.FuncMap{
 		"arch":     packit.ArchString,
 		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
@@ -214,8 +225,8 @@ func runShow(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	n := cmd.Flag.NArg()
-	return showMakefile(cmd.Flag.Args(), func(i int, mf *packit.Makefile) error {
+	n := len(pkgs)
+	return showMakefile(pkgs, func(i int, mf *packit.Makefile) error {
 		c := struct {
 			Index   int
 			Total   int
@@ -228,6 +239,16 @@ func runShow(cmd *cli.Command, args []string) error {
 			Control: mf.Control,
 		}
 		return t.Execute(os.Stdout, c)
+	})
+}
+
+func showSummary(pkgs []string) error {
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+
+	return showMakefile(pkgs, func(_ int, mf *packit.Makefile) error {
+		fmt.Fprintf(w, "%s\t%s\n", mf.PackageName(), mf.Control.Summary)
+		return nil
 	})
 }
 

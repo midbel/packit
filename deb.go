@@ -114,6 +114,9 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 		if err != nil {
 			return nil, err
 		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
 		switch h.Name {
 		case debControlFile, "./" + debControlFile:
 			var body bytes.Buffer
@@ -151,8 +154,8 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 				return nil
 			})
 			return &Makefile{Control: &c}, nil
-		case debSumFile:
-		case debConfFile:
+		case debSumFile, "./" + debSumFile:
+		case debConfFile, "./" + debConfFile:
 		case debPreinst, debPostinst, debPrerem, debPostrem:
 		default:
 			err = fmt.Errorf("unknown file in %s: %s", debControlTar, h.Name)
