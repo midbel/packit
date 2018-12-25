@@ -206,12 +206,13 @@ func showMetadata(pkgs []string) error {
 - name        : {{.Package}}
 - version     : {{.Version}}
 - size        : {{.Size}}
+- maintainer  : {{.Maintainer}}
 - architecture: {{.Arch | arch}}
 - build-date  : {{.Date | datetime}}
-- vendor      : {{.Vendor}}
+- vendor      : {{if .Vendor}}{{.Vendor}}{{else}}-{{end}}
 - section     : {{.Section}}
-- home        : {{.Home}}
-- license     : {{.License}}
+- home        : {{if.Home}}{{.Home}}{{else}}-{{end}}
+- license     : {{if .License}}{{.License}}{{else}}-{{end}}
 - summary     : {{.Summary}}
 
 {{.Desc}}{{end}}

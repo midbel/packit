@@ -3,6 +3,7 @@ package packit
 import (
 	"bytes"
 	"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/midbel/tape/ar"
 )
+
+var UnsupportedPayloadFormat = errors.New("unsupported payload format")
 
 const (
 	defaultEtcDir = "etc/"
@@ -132,11 +135,11 @@ func parseMaintainer(s string) *Maintainer {
 	ps = ps[1:]
 
 	var m Maintainer
-	if len(ps) == 1 {
-		m.Name = ps[0]
+	if len(ps) >= 1 {
+		m.Name = strings.TrimSpace(ps[0])
 	}
-	if len(ps) == 2 {
-		m.Email = ps[1]
+	if len(ps) >= 2 {
+		m.Email = strings.TrimSpace(ps[1])
 	}
 	return &m
 }
