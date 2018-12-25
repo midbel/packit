@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -117,6 +118,27 @@ type Change struct {
 type Maintainer struct {
 	Name  string `toml:"name"`
 	Email string `toml:"email"`
+}
+
+func parseMaintainer(s string) *Maintainer {
+	re, err := regexp.Compile("(.+) <(.+)>((?: -)? (.+))?")
+	if err != nil {
+		return nil
+	}
+	ps := re.FindStringSubmatch(s)
+	if len(ps) == 0 {
+		return nil
+	}
+	ps = ps[1:]
+
+	var m Maintainer
+	if len(ps) == 1 {
+		m.Name = ps[0]
+	}
+	if len(ps) == 2 {
+		m.Email = ps[1]
+	}
+	return &m
 }
 
 func (m *Maintainer) String() string {
