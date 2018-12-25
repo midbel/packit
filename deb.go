@@ -12,10 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
+	"unicode"
 
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
@@ -130,6 +131,10 @@ func readDataTar(r *ar.Reader) ([]*File, error) {
 		if h.Typeflag != tar.TypeReg {
 			continue
 		}
+		switch filepath.Base(h.Name) {
+		case "changelog.gz":
+		default:
+		}
 		f := File{
 			Name: h.Name,
 			Size: h.Size,
@@ -198,7 +203,7 @@ func readControlTar(r *ar.Reader) (*Makefile, error) {
 					if err != nil {
 						return err
 					}
-					c.Date  = d
+					c.Date = d
 				case "vendor":
 					c.Vendor = v
 				case "maintainer":
@@ -422,9 +427,9 @@ func (d *DEB) writeControl(w io.Writer) error {
 
 func (d *DEB) writeControlFile(w *tar.Writer) error {
 	fs := template.FuncMap{
-		"join":   strings.Join,
-		"arch":   debArch,
-		"indent": debIndent,
+		"join":     strings.Join,
+		"arch":     debArch,
+		"indent":   debIndent,
 		"datetime": func(t time.Time) string { return t.Format(debDateFormat) },
 	}
 	var body bytes.Buffer
@@ -575,76 +580,90 @@ func tarIntermediateDirectories(w *tar.Writer, n string, done map[string]struct{
 	return done, nil
 }
 
-
 func parseControl(rs io.RuneScanner, fn func(k, v string) error) error {
-  for {
-    k, err := parseKey(rs)
-    if err != nil {
-      return err
-    }
-    v, err := parseValue(rs)
+	for {
+		if r, _, _ := rs.ReadRune(); r != '\n' {
+			rs.UnreadRune()
+		}
+		k, err := parseKey(rs)
 		if err != nil {
 			return err
 		}
-    if k == "" || v == "" {
-      break
-    }
+		v, err := parseValue(rs)
+		if err != nil {
+			return err
+		}
+		if k == "" || v == "" {
+			break
+		}
 		if err := fn(strings.TrimSpace(k), strings.TrimSpace(v)); err != nil {
 			return err
 		}
-  }
+	}
 	return nil
 }
 
 func parseKey(rs io.RuneScanner) (string, error) {
-  var k bytes.Buffer
-  for {
-    r, _, err := rs.ReadRune()
-    if err == io.EOF || r == 0 {
-      return "", nil
-    }
-    if err != nil {
-      return "", err
-    }
-    if r == ':' {
-      break
-    }
-    k.WriteRune(r)
-  }
-  return k.String(), nil
+	if r, _, _ := rs.ReadRune(); r == '#' {
+		for r, _, _ := rs.ReadRune(); r != '\n'; r, _, _ = rs.ReadRune() {
+		}
+		return parseKey(rs)
+	} else if r == '-' {
+		return "", fmt.Errorf("invalid syntax")
+	} else {
+		rs.UnreadRune()
+	}
+	var k bytes.Buffer
+	for {
+		r, _, err := rs.ReadRune()
+		if err == io.EOF || r == 0 {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if r == ':' {
+			break
+		}
+		if !(unicode.IsLetter(r) || r == '-') {
+			return "", fmt.Errorf("invalid syntax")
+		}
+		k.WriteRune(r)
+	}
+	return k.String(), nil
 }
 
 func parseValue(rs io.RuneScanner) (string, error) {
-  var (
-    p rune
-    v bytes.Buffer
-  )
-  for {
-    r, _, err := rs.ReadRune()
-    if err == io.EOF || r == 0 {
-      return "", nil
-    }
-    if err != nil {
-      return "", err
-    }
-    if r == '\n' {
-      r, _, err := rs.ReadRune()
-      if err == io.EOF || r == 0 {
-        break
-      }
-      if err != nil {
-        return "", err
-      }
-      if !(r == ' ' || r == '\t') {
-        rs.UnreadRune()
-        break
-      }
-    }
-    if r == '.' && p == '\n' {
-      continue
-    }
-    v.WriteRune(r)
-    p = r
-  }
-  return v.String(), nil
+	var (
+		p rune
+		v bytes.Buffer
+	)
+	for {
+		r, _, err := rs.ReadRune()
+		if err == io.EOF || r == 0 {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if r == '\n' {
+			r, _, err := rs.ReadRune()
+			if err == io.EOF || r == 0 {
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+			if !(r == ' ' || r == '\t') {
+				rs.UnreadRune()
+				break
+			}
+		}
+		if r == '.' && p == '\n' {
+			continue
+		}
+		v.WriteRune(r)
+		p = r
+	}
+	return v.String(), nil
 }

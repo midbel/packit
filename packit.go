@@ -2,8 +2,8 @@ package packit
 
 import (
 	"bytes"
-	"fmt"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
