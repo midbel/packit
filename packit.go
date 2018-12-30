@@ -113,7 +113,9 @@ func Prepare(m *Makefile, format string) (Package, error) {
 
 type Change struct {
 	When        time.Time `toml:"date"`
+	Body        string    `toml:"description"`
 	Version     string    `toml:'version'`
+	Distrib     []string  `toml:"distrib"`
 	Changes     []string  `toml:"changes"`
 	*Maintainer `toml:"maintainer"`
 }
