@@ -10,9 +10,9 @@ import (
 	"github.com/midbel/packit"
 )
 
-const debChangelog = `{{range .changes}}  {{$.Package}} ({{.Version}}) {{.Distrib | join " "}}; urgency=low
+const debChangelog = `{{range .Changes}}  {{$.Package}} ({{.Version}}) {{.Distrib}}; urgency=low
 
-{{range .changes}}   * {{.}}
+{{range .Changes}}   * {{.}}
 {{end}}
   -- {{.Maintainer.Name}} <{{.Maintainer.Email}}> {{.When | datetime}}
 {{end}}`

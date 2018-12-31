@@ -254,6 +254,6 @@ func indent(dsc string) string {
 	return body.String()
 }
 
-func bytesize(i int) int {
+func bytesize(i int64) int64 {
 	return i >> 10
 }
