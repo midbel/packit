@@ -24,9 +24,9 @@ const (
 )
 
 const (
-	defaultHost  = "localhost.localdomain"
-	defaultUser  = "root"
-	defaultGroup = "root"
+	DefaultHost  = "localhost.localdomain"
+	DefaultUser  = "root"
+	DefaultGroup = "root"
 )
 
 const (
@@ -70,6 +70,14 @@ func (m *Makefile) String() string {
 		return m.Control.Package
 	}
 	return "makefile"
+}
+
+func Hostname() string {
+	h, err := os.Hostname()
+	if err == nil {
+		return h
+	}
+	return DefaultHost
 }
 
 func Open(file string) (Package, error) {

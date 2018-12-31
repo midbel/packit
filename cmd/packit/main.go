@@ -12,8 +12,6 @@ import (
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
-	"github.com/midbel/toml"
-	"golang.org/x/sync/errgroup"
 )
 
 var commands = []*cli.Command{
@@ -259,51 +257,4 @@ func runConvert(cmd *cli.Command, args []string) error {
 
 func runVerify(cmd *cli.Command, args []string) error {
 	return cmd.Flag.Parse(args)
-}
-
-func runBuild(cmd *cli.Command, args []string) error {
-	format := cmd.Flag.String("k", "", "package format")
-	datadir := cmd.Flag.String("d", os.TempDir(), "datadir")
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(*datadir, 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	var group errgroup.Group
-	for _, a := range cmd.Flag.Args() {
-		if s, err := os.Stat(a); err != nil {
-			continue
-		} else {
-			if !s.Mode().IsRegular() {
-				return fmt.Errorf("%s: not a makefile", a)
-			}
-		}
-		a := a
-		group.Go(func() error {
-			r, err := os.Open(a)
-			if err != nil {
-				return err
-			}
-			defer r.Close()
-
-			var mf packit.Makefile
-			if err := toml.NewDecoder(r).Decode(&mf); err != nil {
-				return err
-			}
-			b, err := packit.Prepare(&mf, *format)
-			if err != nil {
-				return err
-			}
-			w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
-			if err != nil {
-				return err
-			}
-			defer w.Close()
-			return b.Build(w)
-		})
-	}
-	return group.Wait()
 }

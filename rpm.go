@@ -525,7 +525,7 @@ func (r *RPM) writeLead(w io.Writer) error {
 func (r *RPM) controlToFields() []rpmField {
 	host, err := os.Hostname()
 	if err != nil || host == "" {
-		host = defaultHost
+		host = DefaultHost
 	}
 	when := time.Now().UTC().Truncate(time.Minute)
 	var fs []rpmField
@@ -582,7 +582,7 @@ func (r *RPM) filesToFields() []rpmField {
 			d = "/" + d
 		}
 		dirs[i], bases[i] = d, n
-		users[i], groups[i] = defaultUser, defaultGroup
+		users[i], groups[i] = DefaultUser, DefaultGroup
 		sizes[i], digests[i] = strconv.FormatInt(r.Files[i].Size, 10), r.Files[i].Sum
 
 		r.Size += r.Files[i].Size
