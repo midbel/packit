@@ -1,16 +1,16 @@
 package main
 
 import (
-  "fmt"
-  "os"
-  "path/filepath"
+	"fmt"
+	"os"
+	"path/filepath"
 
-  "golang.org/x/sync/errgroup"
-  "github.com/midbel/cli"
-  "github.com/midbel/toml"
-  "github.com/midbel/packit"
-  "github.com/midbel/packit/deb"
-  "github.com/midbel/packit/rpm"
+	"github.com/midbel/cli"
+	"github.com/midbel/packit"
+	"github.com/midbel/packit/deb"
+	"github.com/midbel/packit/rpm"
+	"github.com/midbel/toml"
+	"golang.org/x/sync/errgroup"
 )
 
 func runBuild(cmd *cli.Command, args []string) error {
@@ -36,13 +36,13 @@ func runBuild(cmd *cli.Command, args []string) error {
 		a := a
 		group.Go(func() error {
 			b, err := prepare(a, *format)
-      if err != nil {
-        return err
-      }
-      w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
-      if err != nil {
-        return err
-      }
+			if err != nil {
+				return err
+			}
+			w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
+			if err != nil {
+				return err
+			}
 			defer w.Close()
 			return b.Build(w)
 		})
@@ -51,21 +51,21 @@ func runBuild(cmd *cli.Command, args []string) error {
 }
 
 func prepare(file, format string) (packit.Builder, error) {
-  r, err := os.Open(file)
-  if err != nil {
-    return nil, err
-  }
-  defer r.Close()
-  var mf packit.Makefile
-  if err := toml.NewDecoder(r).Decode(&mf); err != nil {
-    return nil, err
-  }
-  switch format {
-  case "deb", "":
-    return deb.Build(&mf)
-  case "rpm":
-    return rpm.Build(&mf)
-  default:
-    return nil, fmt.Errorf("unsupported package type")
-  }
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	var mf packit.Makefile
+	if err := toml.NewDecoder(r).Decode(&mf); err != nil {
+		return nil, err
+	}
+	switch format {
+	case "deb", "":
+		return deb.Build(&mf)
+	case "rpm":
+		return rpm.Build(&mf)
+	default:
+		return nil, fmt.Errorf("unsupported package type")
+	}
 }

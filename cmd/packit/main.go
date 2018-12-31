@@ -93,16 +93,6 @@ func main() {
 }
 
 func showMakefile(pkgs []string, show func(i int, mf *packit.Makefile) error) error {
-	for i, a := range pkgs {
-		p, err := packit.Open(a)
-		if err != nil {
-			return err
-		}
-		mf := p.Metadata()
-		if err := show(i, mf); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -186,17 +176,17 @@ func runLog(cmd *cli.Command, args []string) error {
 	})
 }
 
-func runShow(cmd *cli.Command, args []string) error {
-	long := cmd.Flag.Bool("l", false, "show full package description")
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-	if args := cmd.Flag.Args(); *long {
-		return showMetadata(args)
-	} else {
-		return showSummary(args)
-	}
-}
+// func runShow(cmd *cli.Command, args []string) error {
+// 	long := cmd.Flag.Bool("l", false, "show full package description")
+// 	if err := cmd.Flag.Parse(args); err != nil {
+// 		return err
+// 	}
+// 	if args := cmd.Flag.Args(); *long {
+// 		return showMetadata(args)
+// 	} else {
+// 		return showSummary(args)
+// 	}
+// }
 
 func showMetadata(pkgs []string) error {
 	const meta = `{{.File}}

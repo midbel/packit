@@ -2,9 +2,12 @@ package deb
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/tape/ar"
 )
 
 const (
@@ -36,7 +39,25 @@ func Build(mf *packit.Makefile) (packit.Builder, error) {
 }
 
 func Open(file string) (packit.Package, error) {
-	return nil, nil
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	r, err := ar.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	if err := readDebian(r); err != nil {
+		return nil, err
+	}
+	p := pkg{name: filepath.Base(file)}
+	if err := readControl(r, &p); err != nil {
+		return nil, err
+	}
+	if err := readData(r, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 func Arch(a uint8) string {

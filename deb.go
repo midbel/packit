@@ -68,26 +68,6 @@ type DEB struct {
 	*Makefile
 }
 
-func openDEB(r io.Reader) (Package, error) {
-	a, err := ar.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-	if err := readBinaryFile(a); err != nil {
-		return nil, err
-	}
-	mf, err := readControlTar(a)
-	if err != nil {
-		return nil, err
-	}
-	// if fs, err := readDataTar(a); err != nil {
-	// 	return nil, err
-	// } else {
-	// 	mf.Files = fs
-	// }
-	return &DEB{Makefile: mf}, nil
-}
-
 func readBinaryFile(r *ar.Reader) error {
 	h, err := r.Next()
 	if err != nil {

@@ -100,27 +100,6 @@ func (r rpmHeaderEntry) Size() int64 {
 	return int64(z)
 }
 
-func openRPM(r io.Reader) (Package, error) {
-	var (
-		p   RPM
-		err error
-	)
-	// step 1: read lead: check major/minor version
-	if err = readLead(r); err != nil {
-		return nil, err
-	}
-	// step 2: read signature
-	if _, err = readSignature(r); err != nil {
-		return nil, err
-	}
-	// step 3: read metadata
-	if p.Makefile, err = readHeader(r); err != nil {
-		return nil, err
-	}
-	// step 4: payload??? ignore for now
-	return &p, nil
-}
-
 func readHeader(r io.Reader) (*Makefile, error) {
 	var (
 		c       Control

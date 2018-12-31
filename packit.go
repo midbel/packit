@@ -1,7 +1,6 @@
 package packit
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -11,8 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/midbel/tape/ar"
 )
 
 var UnsupportedPayloadFormat = errors.New("unsupported payload format")
@@ -35,18 +32,19 @@ const (
 	ArchAll = 0
 )
 
-type Package interface {
-	PackageName() string
-	Build(w io.Writer) error
-	Metadata() *Makefile
-}
-
 type Signature struct {
 	Payload int64
 	Size    int64
 	Sha1    string
 	Sha256  string
 	MD5     string
+}
+
+type Package interface {
+	PackageName() string
+	About() Control
+	Filenames() ([]string, error)
+	Valid() error
 }
 
 type Builder interface {
@@ -72,51 +70,23 @@ func (m *Makefile) String() string {
 	return "makefile"
 }
 
+func ArchString(a uint8) string {
+	switch a {
+	case Arch32:
+		return "i386"
+	case Arch64:
+		return "x86_64"
+	default:
+		return "noarch"
+	}
+}
+
 func Hostname() string {
 	h, err := os.Hostname()
 	if err == nil {
 		return h
 	}
 	return DefaultHost
-}
-
-func Open(file string) (Package, error) {
-	r, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	magic := make([]byte, 64)
-	if _, err := r.Read(magic); err != nil {
-		return nil, err
-	}
-	var readPackage func(r io.Reader) (Package, error)
-	if bytes.HasPrefix(magic, ar.Magic) {
-		readPackage = openDEB
-	} else if bytes.HasPrefix(magic, rpmMagic) {
-		readPackage = openRPM
-	} else {
-		return nil, fmt.Errorf("unrecognized package type")
-	}
-	if readPackage == nil {
-		return nil, fmt.Errorf("not yet implemented")
-	}
-	if _, err := r.Seek(0, io.SeekStart); err != nil {
-		return nil, err
-	}
-	return readPackage(r)
-}
-
-func Prepare(m *Makefile, format string) (Package, error) {
-	switch format {
-	case "deb", "":
-		return &DEB{m}, nil
-	case "rpm":
-		return &RPM{m}, nil
-	default:
-		return nil, fmt.Errorf("unsupported package type %q", format)
-	}
 }
 
 type Change struct {

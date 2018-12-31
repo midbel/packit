@@ -1,19 +1,19 @@
 package rpm
 
 import (
-  "bytes"
-  "encoding/binary"
-  "io"
-  "fmt"
-  "time"
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"time"
 
-  "github.com/midbel/packit"
+	"github.com/midbel/packit"
 )
 
 func Arch(a uint8) string {
 	switch a {
-  default:
-    return "unknown"
+	default:
+		return "unknown"
 	case packit.Arch32:
 		return "i386"
 	case packit.Arch64:
@@ -51,7 +51,7 @@ const (
 	rpmBinary   = 0
 	rpmSigType  = 5
 	rpmEntryLen = 16
-  rpmLeadLen  = 96
+	rpmLeadLen  = 96
 )
 
 const (
