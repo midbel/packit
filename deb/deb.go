@@ -43,6 +43,8 @@ func Open(file string) (packit.Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
+
 	r, err := ar.NewReader(f)
 	if err != nil {
 		return nil, err

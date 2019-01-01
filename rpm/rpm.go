@@ -1,6 +1,9 @@
 package rpm
 
 import (
+	// "crypto/md5"
+	// "crypto/sha256"
+	// "crypto/sha1"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -37,7 +40,26 @@ func Build(mf *packit.Makefile) (packit.Builder, error) {
 }
 
 func Open(file string) (packit.Package, error) {
-	return nil, nil
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var p pkg
+	if err := readLead(r, &p); err != nil {
+		return nil, err
+	}
+	if err := readSignature(r, &p); err != nil {
+		return nil, err
+	}
+	if err := readHeader(r, &p); err != nil {
+		return nil, err
+	}
+	if err := readData(r, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 var (
