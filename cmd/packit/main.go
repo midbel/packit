@@ -91,77 +91,8 @@ func main() {
 	}
 }
 
-func showMakefile(pkgs []string, show func(i int, mf *packit.Makefile) error) error {
-	return nil
-}
-
 func runLog(cmd *cli.Command, args []string) error {
 	return nil
-}
-
-// func runShow(cmd *cli.Command, args []string) error {
-// 	long := cmd.Flag.Bool("l", false, "show full package description")
-// 	if err := cmd.Flag.Parse(args); err != nil {
-// 		return err
-// 	}
-// 	if args := cmd.Flag.Args(); *long {
-// 		return showMetadata(args)
-// 	} else {
-// 		return showSummary(args)
-// 	}
-// }
-
-func showMetadata(pkgs []string) error {
-	const meta = `{{.File}}
-{{with .Control}}
-- name        : {{.Package}}
-- version     : {{.Version}}
-- size        : {{.Size}}
-- maintainer  : {{.Maintainer}}
-- architecture: {{.Arch | arch}}
-- build-date  : {{.Date | datetime}}
-- vendor      : {{if .Vendor}}{{.Vendor}}{{else}}-{{end}}
-- section     : {{.Section}}
-- home        : {{if.Home}}{{.Home}}{{else}}-{{end}}
-- license     : {{if .License}}{{.License}}{{else}}-{{end}}
-- summary     : {{.Summary}}
-
-{{.Desc}}{{end}}
-{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
-{{end}}`
-	fs := template.FuncMap{
-		"arch":     packit.ArchString,
-		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
-	}
-	t, err := template.New("desc").Funcs(fs).Parse(meta)
-	if err != nil {
-		return err
-	}
-	n := len(pkgs)
-	return showMakefile(pkgs, func(i int, mf *packit.Makefile) error {
-		c := struct {
-			Index   int
-			Total   int
-			File    string
-			Control *packit.Control
-		}{
-			Index:   i + 1,
-			Total:   n,
-			File:    mf.PackageName(),
-			Control: mf.Control,
-		}
-		return t.Execute(os.Stdout, c)
-	})
-}
-
-func showSummary(pkgs []string) error {
-	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
-	defer w.Flush()
-
-	return showMakefile(pkgs, func(_ int, mf *packit.Makefile) error {
-		fmt.Fprintf(w, "%s\t%s\n", mf.PackageName(), mf.Control.Summary)
-		return nil
-	})
 }
 
 func runConvert(cmd *cli.Command, args []string) error {

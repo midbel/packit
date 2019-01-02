@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"text/tabwriter"
+	"text/template"
+	"time"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -35,7 +37,46 @@ func showAvailable(ns []string) error {
 }
 
 func showDescription(ns []string) error {
-	return nil
+	const meta = `{{.Control.Package}}
+{{with .Control}}
+- name        : {{.Package}}
+- version     : {{.Version}}
+- size        : {{.Size}}
+- maintainer  : {{.Maintainer}}
+- architecture: {{.Arch | arch}}
+- build-date  : {{.Date | datetime}}
+- vendor      : {{if .Vendor}}{{.Vendor}}{{else}}-{{end}}
+- section     : {{.Section}}
+- home        : {{if.Home}}{{.Home}}{{else}}-{{end}}
+- license     : {{if .License}}{{.License}}{{else}}-{{end}}
+- summary     : {{.Summary}}
+
+{{.Desc}}{{end}}
+{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
+{{end}}`
+	fs := template.FuncMap{
+		"arch":     packit.ArchString,
+		"datetime": func(t time.Time) string { return t.Format("Mon, 02 Jan 2006 15:04:05 -0700") },
+	}
+	t, err := template.New("desc").Funcs(fs).Parse(meta)
+	if err != nil {
+		return err
+	}
+	n := len(ns)
+	var i int
+	return showPackages(ns, func(p packit.Package) error {
+		i++
+		c := struct {
+			Index   int
+			Total   int
+			Control packit.Control
+		}{
+			Index:   i,
+			Total:   n,
+			Control: p.About(),
+		}
+		return t.Execute(os.Stdout, c)
+	})
 }
 
 func showPackages(ns []string, fn func(packit.Package) error) error {
