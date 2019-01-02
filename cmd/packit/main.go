@@ -15,6 +15,11 @@ import (
 
 var commands = []*cli.Command{
 	{
+		Usage: "search <package>",
+		Short: "search for a given package in a database (dpkg, rppmdb, packit)",
+		Run: runSearch,
+	},
+	{
 		Usage: "build [-d datadir] [-k pkg-type] <config.toml,...>",
 		Alias: []string{"make"},
 		Short: "build package(s) from configuration file",

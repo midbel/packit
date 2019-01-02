@@ -56,6 +56,21 @@ func Dump(c *packit.Control, w io.Writer) error {
 	return t.Execute(rw.Clean(w), c)
 }
 
+func ParseMulti(r io.Reader) ([]*packit.Control, error) {
+	var cs []*packit.Control
+	for {
+		c, err := Parse(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil && err != ErrUnknown {
+			return nil, err
+		}
+		cs = append(cs, c)
+	}
+	return cs, nil
+}
+
 func Parse(r io.Reader) (*packit.Control, error) {
 	var rs io.RuneScanner
 	if x, ok := r.(io.RuneScanner); ok {
