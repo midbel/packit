@@ -96,6 +96,8 @@ func Parse(r io.Reader) (*packit.Control, error) {
 		switch strings.ToLower(k) {
 		default:
 			// return ErrUnknown
+		case "source":
+			c.Source = v
 		case "status":
 			c.Status = v
 		case "package":

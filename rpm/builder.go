@@ -34,7 +34,7 @@ func (b *builder) PackageName() string {
 	if b.control == nil {
 		return "packit.rpm"
 	}
-	return b.control.PackageName() + ".rpm"
+	return b.control.PackageName() + "." + Arch(b.control.Arch) + ".rpm"
 }
 
 func (b *builder) Build(w io.Writer) error {

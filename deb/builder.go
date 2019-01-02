@@ -33,7 +33,7 @@ func (b *builder) PackageName() string {
 	if b.control == nil {
 		return "packit.deb"
 	}
-	return b.control.PackageName() + ".deb"
+	return b.control.PackageName() + "_" + Arch(b.control.Arch) + ".deb"
 }
 
 func (b *builder) Build(w io.Writer) error {

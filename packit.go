@@ -150,6 +150,7 @@ type Control struct {
 	*Maintainer `toml:"maintainer"`
 
 	Status string    `toml:"-"`
+	Source string    `toml:"-"`
 	Date   time.Time `toml:"-"`
 	Size   int64     `toml:"-"`
 }
