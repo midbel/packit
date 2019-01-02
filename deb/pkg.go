@@ -61,6 +61,9 @@ func (p *pkg) Valid() error {
 		if err != nil {
 			return err
 		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
 		digest := md5.New()
 		if _, err := io.CopyN(digest, r, h.Size); err != nil {
 			return err

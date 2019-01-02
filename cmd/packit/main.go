@@ -94,7 +94,3 @@ func runLog(cmd *cli.Command, args []string) error {
 func runConvert(cmd *cli.Command, args []string) error {
 	return cmd.Flag.Parse(args)
 }
-
-func runVerify(cmd *cli.Command, args []string) error {
-	return cmd.Flag.Parse(args)
-}

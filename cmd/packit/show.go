@@ -82,6 +82,25 @@ func showDescription(ns []string) error {
 	})
 }
 
+func runVerify(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
+		var status string
+		c := p.About()
+		if err := p.Valid(); err != nil {
+			status = err.Error()
+		} else {
+			status = "OK"
+		}
+		fmt.Fprintf(w, "%s\t%s (%s)\t%s\n", p.PackageType(), p.PackageName(), c.Version, status)
+		return nil
+	})
+}
+
 func showPackages(ns []string, fn func(packit.Package) error) error {
 	if fn == nil {
 		return nil
