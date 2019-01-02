@@ -15,7 +15,8 @@ import (
 
 var commands = []*cli.Command{
 	{
-		Usage: "search <package>",
+		Usage: "search [-k type] [-a arch] <package>",
+		Alias: []string{"find", "list"},
 		Short: "search for a given package in a database (dpkg, rppmdb, packit)",
 		Run:   runSearch,
 	},

@@ -207,7 +207,7 @@ func parseKey(rs io.RuneScanner) (string, error) {
 		if r == colon {
 			break
 		}
-		if !(unicode.IsLetter(r) || r == hyphen) {
+		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == hyphen) {
 			return "", ErrSyntax
 		}
 		k.WriteRune(r)

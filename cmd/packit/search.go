@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/midbel/cli"
+	"github.com/midbel/packit"
 	"github.com/midbel/packit/deb/control"
 )
 
@@ -15,9 +16,8 @@ const (
 	dpkgBase = "/var/lib/dpkg"
 )
 
-var dpkgStatus = filepath.Join(dpkgBase, "status")
-
 func runSearch(cmd *cli.Command, args []string) error {
+	arch := cmd.Flag.Int("a", -1, "architecture")
 	kind := cmd.Flag.String("k", "", "package type")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -25,14 +25,14 @@ func runSearch(cmd *cli.Command, args []string) error {
 	switch *kind {
 	case "", "rpm":
 		return fmt.Errorf("%s not yet supported", *kind)
-	case "deb":
-		return searchDebPackage(cmd.Flag.Arg(0))
+	case "deb", "dpkg":
+		return searchDebPackage(cmd.Flag.Arg(0), *arch)
 	}
 	return nil
 }
 
-func searchDebPackage(n string) error {
-	r, err := os.Open(dpkgStatus)
+func searchDebPackage(n string, a int) error {
+	r, err := os.Open(filepath.Join(dpkgBase, "status"))
 	if err != nil {
 		return err
 	}
@@ -48,8 +48,10 @@ func searchDebPackage(n string) error {
 		if !strings.Contains(c.Package, n) {
 			continue
 		}
-		fmt.Printf("%#v\n", c)
-		fmt.Fprintf(w, "%s\t%s\t%s\n", c.Package, c.Version, c.Summary)
+		if a >= 0 && c.Arch != uint8(a) {
+			continue
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Package, c.Version, packit.ArchString(c.Arch), c.Summary)
 	}
 	return nil
 }
