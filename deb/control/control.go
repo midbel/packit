@@ -58,17 +58,30 @@ func Dump(c *packit.Control, w io.Writer) error {
 
 func ParseMulti(r io.Reader) ([]*packit.Control, error) {
 	var cs []*packit.Control
-	for {
-		c, err := Parse(r)
+
+	s := bufio.NewScanner(r)
+	s.Split(func(bs []byte, ateof bool) (int, []byte, error) {
+		if ateof {
+			return len(bs), bs, bufio.ErrFinalToken
+		}
+		if ix := bytes.Index(bs, []byte{0x0a, 0x0a}); ix < 0 {
+			return 0, nil, nil
+		} else {
+			vs := make([]byte, ix)
+			return copy(vs, bs) + 2, vs, nil
+		}
+	})
+	for s.Scan() {
+		c, err := Parse(bytes.NewReader(s.Bytes()))
 		if err == io.EOF {
 			break
 		}
-		if err != nil && err != ErrUnknown {
+		if err != nil {
 			return nil, err
 		}
 		cs = append(cs, c)
 	}
-	return cs, nil
+	return cs, s.Err()
 }
 
 func Parse(r io.Reader) (*packit.Control, error) {
@@ -82,7 +95,9 @@ func Parse(r io.Reader) (*packit.Control, error) {
 	return &c, parseControl(rs, func(k, v string) error {
 		switch strings.ToLower(k) {
 		default:
-			return ErrUnknown
+			// return ErrUnknown
+		case "status":
+			c.Status = v
 		case "package":
 			c.Package = v
 		case "version":

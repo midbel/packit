@@ -109,11 +109,11 @@ func (p *pkg) Resources() ([]packit.Resource, error) {
 		if h.Typeflag != tar.TypeReg {
 			continue
 		}
-		e := packit.Resource {
-			Name: h.Name,
+		e := packit.Resource{
+			Name:    h.Name,
 			ModTime: h.ModTime,
-			Size: h.Size,
-			Perm: h.Mode,
+			Size:    h.Size,
+			Perm:    h.Mode,
 		}
 		rs = append(rs, e)
 		if _, err := io.CopyN(ioutil.Discard, r, h.Size); err != nil {

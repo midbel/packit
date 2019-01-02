@@ -149,8 +149,9 @@ type Control struct {
 	Compiler    string   `toml:"compiler"`
 	*Maintainer `toml:"maintainer"`
 
-	Date time.Time `toml:"-"`
-	Size int64     `toml:"-"`
+	Status string    `toml:"-"`
+	Date   time.Time `toml:"-"`
+	Size   int64     `toml:"-"`
 }
 
 func (c Control) PackageName() string {
