@@ -3,15 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 	"text/template"
 	"time"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
-	"github.com/midbel/packit/deb"
-	"github.com/midbel/packit/rpm"
 )
 
 func runShow(cmd *cli.Command, args []string) error {
@@ -99,31 +96,4 @@ func runVerify(cmd *cli.Command, args []string) error {
 		fmt.Fprintf(w, "%s\t%s (%s)\t%s\n", p.PackageType(), p.PackageName(), c.Version, status)
 		return nil
 	})
-}
-
-func showPackages(ns []string, fn func(packit.Package) error) error {
-	if fn == nil {
-		return nil
-	}
-	for _, n := range ns {
-		var (
-			pkg packit.Package
-			err error
-		)
-		switch e := filepath.Ext(n); e {
-		case ".deb":
-			pkg, err = deb.Open(n)
-		case ".rpm":
-			pkg, err = rpm.Open(n)
-		default:
-			return fmt.Errorf("unsupported packet type %s", e)
-		}
-		if err != nil {
-			return err
-		}
-		if err := fn(pkg); err != nil {
-			return err
-		}
-	}
-	return nil
 }

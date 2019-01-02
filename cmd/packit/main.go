@@ -1,12 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"text/template"
 
 	"github.com/midbel/cli"
+	"github.com/midbel/packit"
+	"github.com/midbel/packit/deb"
+	"github.com/midbel/packit/rpm"
 )
 
 var commands = []*cli.Command{
@@ -38,6 +42,11 @@ var commands = []*cli.Command{
 		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
 		Run:   runLog,
+	},
+	{
+		Usage: "extract [-d datadir] [-p] <package...>",
+		Short: "extract files from package payload in given directory",
+		Run:   runExtract,
 	},
 	{
 		Usage: "install <package,...>",
@@ -91,6 +100,44 @@ func runLog(cmd *cli.Command, args []string) error {
 	return nil
 }
 
+func runExtract(cmd *cli.Command, args []string) error {
+	datadir := cmd.Flag.String("d", os.TempDir(), "datadir")
+	preserve := cmd.Flag.Bool("p", false, "preserve")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
+		return p.Extract(filepath.Join(*datadir, p.PackageName()), *preserve)
+	})
+}
+
 func runConvert(cmd *cli.Command, args []string) error {
 	return cmd.Flag.Parse(args)
+}
+
+func showPackages(ns []string, fn func(packit.Package) error) error {
+	if fn == nil {
+		return nil
+	}
+	for _, n := range ns {
+		var (
+			pkg packit.Package
+			err error
+		)
+		switch e := filepath.Ext(n); e {
+		case ".deb":
+			pkg, err = deb.Open(n)
+		case ".rpm":
+			pkg, err = rpm.Open(n)
+		default:
+			return fmt.Errorf("unsupported packet type %s", e)
+		}
+		if err != nil {
+			return err
+		}
+		if err := fn(pkg); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -86,6 +88,40 @@ func (p *pkg) Filenames() ([]string, error) {
 		vs[i] = rs[i].Name
 	}
 	return vs, nil
+}
+
+func (p *pkg) Extract(datadir string, preserve bool) error {
+	if err := os.MkdirAll(datadir, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	r := cpio.NewReader(p.data)
+	for {
+		h, err := r.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		dir, _ := filepath.Split(h.Filename)
+		if err := os.MkdirAll(filepath.Join(datadir, dir), 0755); err != nil {
+			return err
+		}
+		w, err := os.Create(filepath.Join(datadir, h.Filename))
+		if err != nil {
+			return err
+		}
+		if _, err := io.CopyN(w, r, h.Length); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func readMeta(r io.Reader) (*packit.Control, error) {

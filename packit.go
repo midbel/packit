@@ -38,6 +38,7 @@ type Package interface {
 	Filenames() ([]string, error)
 	Resources() ([]Resource, error)
 	Valid() error
+	Extract(string, bool) error
 }
 
 type Builder interface {

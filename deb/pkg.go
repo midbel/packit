@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -33,7 +34,7 @@ func (p *pkg) PackageType() string {
 }
 
 func (p *pkg) PackageName() string {
-	return p.name
+	return strings.TrimSuffix(p.name, ".deb")
 }
 
 func (p *pkg) Valid() error {
@@ -105,6 +106,9 @@ func (p *pkg) Resources() ([]packit.Resource, error) {
 		if err != nil {
 			return nil, err
 		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
 		e := packit.Resource{
 			Name:    h.Name,
 			ModTime: h.ModTime,
@@ -129,6 +133,43 @@ func (p *pkg) Filenames() ([]string, error) {
 		vs[i] = rs[i].Name
 	}
 	return vs, nil
+}
+
+func (p *pkg) Extract(datadir string, preserve bool) error {
+	if err := os.MkdirAll(datadir, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	r := tar.NewReader(p.data)
+	for {
+		h, err := r.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if h.Typeflag != tar.TypeReg {
+			continue
+		}
+		dir, _ := filepath.Split(h.Name)
+		if err := os.MkdirAll(filepath.Join(datadir, dir), 0755); err != nil {
+			return err
+		}
+		w, err := os.Create(filepath.Join(datadir, h.Name))
+		if err != nil {
+			return err
+		}
+		if _, err := io.CopyN(w, r, h.Size); err != nil {
+			return err
+		}
+		if err := w.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func readDebian(r tape.Reader) error {
