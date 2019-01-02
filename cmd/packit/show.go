@@ -39,6 +39,7 @@ func showAvailable(ns []string) error {
 func showDescription(ns []string) error {
 	const meta = `{{.Control.Package}}
 {{with .Control}}
+- type        : {{$.Type}}
 - name        : {{.Package}}
 - version     : {{.Version}}
 - size        : {{.Size}}
@@ -67,10 +68,12 @@ func showDescription(ns []string) error {
 	return showPackages(ns, func(p packit.Package) error {
 		i++
 		c := struct {
+			Type    string
 			Index   int
 			Total   int
 			Control packit.Control
 		}{
+			Type:    p.PackageType(),
 			Index:   i,
 			Total:   n,
 			Control: p.About(),

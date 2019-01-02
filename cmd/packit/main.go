@@ -1,16 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"text/tabwriter"
 	"text/template"
-	"time"
 
 	"github.com/midbel/cli"
-	"github.com/midbel/packit"
 )
 
 var commands = []*cli.Command{
