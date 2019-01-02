@@ -38,7 +38,7 @@ var commands = []*cli.Command{
 		Run:   runVerify,
 	},
 	{
-		Usage: "history [-c count] [-f from] [-t to] <package,...>",
+		Usage: "history [-v version] [-c count] [-f from] [-t to] <package,...>",
 		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
 		Run:   runLog,
@@ -103,11 +103,24 @@ func runLog(cmd *cli.Command, args []string) error {
 func runExtract(cmd *cli.Command, args []string) error {
 	datadir := cmd.Flag.String("d", os.TempDir(), "datadir")
 	preserve := cmd.Flag.Bool("p", false, "preserve")
+	cleandir := cmd.Flag.Bool("r", false, "clean")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
 	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
-		return p.Extract(filepath.Join(*datadir, p.PackageName()), *preserve)
+		dir := filepath.Join(*datadir, p.PackageName())
+		if *cleandir {
+			if err := os.RemoveAll(dir); err != nil {
+				return err
+			}
+		}
+		if err := p.Extract(dir, *preserve); err != nil {
+			if *cleandir {
+				os.RemoveAll(dir)
+			}
+			return err
+		}
+		return nil
 	})
 }
 

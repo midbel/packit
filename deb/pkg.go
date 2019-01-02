@@ -109,11 +109,11 @@ func (p *pkg) Resources() ([]packit.Resource, error) {
 		if h.Typeflag != tar.TypeReg {
 			continue
 		}
-		e := packit.Resource{
-			Name:    h.Name,
+		e := packit.Resource {
+			Name: h.Name,
 			ModTime: h.ModTime,
-			Size:    h.Size,
-			Perm:    h.Mode,
+			Size: h.Size,
+			Perm: h.Mode,
 		}
 		rs = append(rs, e)
 		if _, err := io.CopyN(ioutil.Discard, r, h.Size); err != nil {
@@ -158,7 +158,8 @@ func (p *pkg) Extract(datadir string, preserve bool) error {
 		if err := os.MkdirAll(filepath.Join(datadir, dir), 0755); err != nil {
 			return err
 		}
-		w, err := os.Create(filepath.Join(datadir, h.Name))
+		name := filepath.Join(datadir, h.Name)
+		w, err := os.Create(name)
 		if err != nil {
 			return err
 		}
@@ -167,6 +168,17 @@ func (p *pkg) Extract(datadir string, preserve bool) error {
 		}
 		if err := w.Close(); err != nil {
 			return err
+		}
+		if preserve {
+			if err := os.Chmod(name, os.FileMode(h.Mode)); err != nil {
+				return err
+			}
+			if err := os.Chown(name, h.Uid, h.Gid); err != nil {
+				return err
+			}
+			if err := os.Chtimes(name, h.ModTime, h.ModTime); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
