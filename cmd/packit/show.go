@@ -29,7 +29,7 @@ func showAvailable(ns []string) error {
 	defer w.Flush()
 	return showPackages(ns, func(p packit.Package) error {
 		c := p.About()
-		fmt.Fprintf(w, "%s\t%s\n", p.PackageName(), c.Summary)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.PackageType(), p.PackageName(), c.Version, c.Summary)
 		return nil
 	})
 }

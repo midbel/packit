@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 	"text/template"
 	"time"
@@ -97,83 +96,7 @@ func showMakefile(pkgs []string, show func(i int, mf *packit.Makefile) error) er
 }
 
 func runLog(cmd *cli.Command, args []string) error {
-	const meta = `{{.File}}
-{{range .Changes}}
-{{ .When | datetime }} ({{ if .Maintainer}}{{ .Maintainer.Name }}{{else}}unknown{{end}})
-  {{ .Changes | join }}
-{{end}}{{if gt .Total 1 }}{{if lt .Index .Total}}---{{end}}
-{{end}}`
-	dtstart := cmd.Flag.String("f", "", "from date")
-	dtend := cmd.Flag.String("t", "", "to date")
-	count := cmd.Flag.Int("c", 0, "count")
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-	var (
-		fd, td time.Time
-		err    error
-	)
-	if fd, err = time.Parse("2006-01-02", *dtstart); err != nil && *dtstart != "" {
-		return err
-	}
-	if td, err = time.Parse("2006-01-02", *dtend); err != nil && *dtend != "" {
-		return err
-	}
-	fs := template.FuncMap{
-		"join":     func(s []string) string { return strings.Join(s, "\n  ") },
-		"datetime": func(t time.Time) string { return t.Format("2006-01-02") },
-	}
-	t, err := template.New("desc").Funcs(fs).Parse(meta)
-	if err != nil {
-		return err
-	}
-	n := cmd.Flag.NArg()
-	return showMakefile(cmd.Flag.Args(), func(i int, mf *packit.Makefile) error {
-		if len(mf.Changes) == 0 {
-			return nil
-		}
-		var cs []*packit.Change
-		switch {
-		case fd.IsZero() && td.IsZero():
-			cs = mf.Changes
-		case fd.IsZero() && !td.IsZero():
-			for _, c := range mf.Changes {
-				if c.When.After(td) {
-					continue
-				}
-				cs = append(cs, c)
-			}
-		case td.IsZero() && !fd.IsZero():
-			for _, c := range mf.Changes {
-				if c.When.Before(fd) {
-					continue
-				}
-				cs = append(cs, c)
-			}
-		default:
-			for _, c := range mf.Changes {
-				if c.When.Before(fd) || c.When.After(td) {
-					continue
-				}
-				cs = append(cs, c)
-			}
-		}
-		if *count > 0 && len(cs) >= *count {
-			cs = cs[:*count]
-		}
-		c := struct {
-			Index   int
-			Total   int
-			File    string
-			Changes []*packit.Change
-		}{
-			Index:   i + 1,
-			Total:   n,
-			File:    mf.PackageName(),
-			Changes: cs,
-		}
-		return t.Execute(os.Stdout, c)
-	})
+	return nil
 }
 
 // func runShow(cmd *cli.Command, args []string) error {
