@@ -28,6 +28,10 @@ type pkg struct {
 	data *bytes.Reader
 }
 
+func (p *pkg) PackageType() string {
+	return "deb"
+}
+
 func (p *pkg) PackageName() string {
 	return p.name
 }

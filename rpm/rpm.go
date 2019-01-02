@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/midbel/packit"
@@ -42,21 +43,21 @@ func Build(mf *packit.Makefile) (packit.Builder, error) {
 func Open(file string) (packit.Package, error) {
 	r, err := os.Open(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer r.Close()
 
 	var p pkg
-	if err := readLead(r, &p); err != nil {
+	if p.name, err = readLead(r); err != nil {
 		return nil, err
 	}
-	if err := readSignature(r, &p); err != nil {
+	if p.sig, err = readSignature(r); err != nil {
 		return nil, err
 	}
-	if err := readHeader(r, &p); err != nil {
+	if p.control, err = readMeta(r); err != nil {
 		return nil, err
 	}
-	if err := readData(r, &p); err != nil {
+	if err = readData(r, &p); err != nil {
 		return nil, err
 	}
 	return &p, nil

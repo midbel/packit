@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -32,16 +31,9 @@ const (
 	ArchAll = 0
 )
 
-type Signature struct {
-	Payload int64
-	Size    int64
-	Sha1    string
-	Sha256  string
-	MD5     string
-}
-
 type Package interface {
 	PackageName() string
+	PackageType() string
 	About() Control
 	Filenames() ([]string, error)
 	Valid() error
@@ -61,13 +53,6 @@ type Makefile struct {
 	Postinst *Script `toml:"post-install"`
 	Prerm    *Script `toml:"pre-remove"`
 	Postrm   *Script `toml:"post-remove"`
-}
-
-func (m *Makefile) String() string {
-	if m.Control != nil {
-		return m.Control.Package
-	}
-	return "makefile"
 }
 
 func ArchString(a uint8) string {
@@ -101,27 +86,6 @@ type Change struct {
 type Maintainer struct {
 	Name  string `toml:"name"`
 	Email string `toml:"email"`
-}
-
-func parseMaintainer(s string) *Maintainer {
-	re, err := regexp.Compile("(.+) <(.+)>((?: -)? (.+))?")
-	if err != nil {
-		return nil
-	}
-	ps := re.FindStringSubmatch(s)
-	if len(ps) == 0 {
-		return nil
-	}
-	ps = ps[1:]
-
-	var m Maintainer
-	if len(ps) >= 1 {
-		m.Name = strings.TrimSpace(ps[0])
-	}
-	if len(ps) >= 2 {
-		m.Email = strings.TrimSpace(ps[1])
-	}
-	return &m
 }
 
 func (m *Maintainer) String() string {
