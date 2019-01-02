@@ -88,12 +88,12 @@ func (p *pkg) About() packit.Control {
 	return c
 }
 
-func (p *pkg) Filenames() ([]string, error) {
+func (p *pkg) Resources() ([]packit.Resource, error) {
 	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	r := tar.NewReader(p.data)
-	var ns []string
+	var rs []packit.Resource
 	for {
 		h, err := r.Next()
 		if err == io.EOF {
@@ -102,12 +102,30 @@ func (p *pkg) Filenames() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		ns = append(ns, h.Name)
+		e := packit.Resource{
+			Name:    h.Name,
+			ModTime: h.ModTime,
+			Size:    h.Size,
+			Perm:    h.Mode,
+		}
+		rs = append(rs, e)
 		if _, err := io.CopyN(ioutil.Discard, r, h.Size); err != nil {
 			return nil, err
 		}
 	}
-	return ns, nil
+	return rs, nil
+}
+
+func (p *pkg) Filenames() ([]string, error) {
+	rs, err := p.Resources()
+	if err != nil {
+		return nil, err
+	}
+	vs := make([]string, len(rs))
+	for i := 0; i < len(rs); i++ {
+		vs[i] = rs[i].Name
+	}
+	return vs, nil
 }
 
 func readDebian(r tape.Reader) error {

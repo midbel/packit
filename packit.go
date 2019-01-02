@@ -36,6 +36,7 @@ type Package interface {
 	PackageType() string
 	About() Control
 	Filenames() ([]string, error)
+	Resources() ([]Resource, error)
 	Valid() error
 }
 
@@ -153,6 +154,13 @@ type Control struct {
 
 func (c Control) PackageName() string {
 	return fmt.Sprintf("%s-%s", c.Package, c.Version)
+}
+
+type Resource struct {
+	Name    string
+	Size    int64
+	Perm    int64
+	ModTime time.Time
 }
 
 type File struct {

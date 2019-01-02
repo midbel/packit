@@ -48,27 +48,42 @@ func (p *pkg) About() packit.Control {
 	return *p.control
 }
 
-func (p *pkg) Filenames() ([]string, error) {
-	if p.data == nil {
-		return nil, nil
-	}
+func (p *pkg) Resources() ([]packit.Resource, error) {
 	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	rs := cpio.NewReader(p.data)
-	var vs []string
+	r := cpio.NewReader(p.data)
+	var rs []packit.Resource
 	for {
-		h, err := rs.Next()
+		h, err := r.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-		vs = append(vs, h.Filename)
-		if _, err := io.CopyN(ioutil.Discard, rs, h.Length); err != nil {
+		e := packit.Resource{
+			Name:    h.Filename,
+			Size:    h.Length,
+			ModTime: h.ModTime,
+			Perm:    h.Mode,
+		}
+		rs = append(rs, e)
+		if _, err := io.CopyN(ioutil.Discard, r, h.Length); err != nil {
 			return nil, err
 		}
+	}
+	return rs, nil
+}
+
+func (p *pkg) Filenames() ([]string, error) {
+	rs, err := p.Resources()
+	if err != nil {
+		return nil, err
+	}
+	vs := make([]string, len(rs))
+	for i := 0; i < len(rs); i++ {
+		vs[i] = rs[i].Name
 	}
 	return vs, nil
 }
