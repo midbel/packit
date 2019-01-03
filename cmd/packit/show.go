@@ -34,7 +34,7 @@ func showAvailable(ns []string) error {
 }
 
 func showDescription(ns []string) error {
-	const meta = `{{.Control.Package}}
+	const meta = `{{.Control.PackageName}}
 {{with .Control}}
 - type        : {{$.Type}}
 - name        : {{.Package}}
