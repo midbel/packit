@@ -20,6 +20,7 @@ const (
 )
 
 const (
+	DefaultOS    = "linux"
 	DefaultHost  = "localhost.localdomain"
 	DefaultUser  = "root"
 	DefaultGroup = "root"

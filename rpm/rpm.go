@@ -63,7 +63,7 @@ func Open(file string) (packit.Package, error) {
 	if p.control, err = readMeta(io.TeeReader(rw, sh1)); err != nil {
 		return nil, err
 	}
-	if s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
+	if s.Sha1 != "" && s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
 		return nil, invalidSignature("header", "sha1")
 	}
 	if p.data, err = readData(rw, ""); err != nil {
@@ -74,18 +74,18 @@ func Open(file string) (packit.Package, error) {
 		if z := p.data.Size(); int64(z) != s.Payload {
 			return nil, fmt.Errorf("invalid payload size (expected %d, got %d)", s.Payload, z)
 		}
-		if s.MD5 != hex.EncodeToString(md.Sum(nil)) {
-			return nil, invalidSignature("package", "md5")
+		if s.MD5 != "" && s.MD5 != hex.EncodeToString(md.Sum(nil)) {
+			return nil, invalidSignature(p.name, "package", "md5")
 		}
-		if s.Sha256 != hex.EncodeToString(sh2.Sum(nil)) {
-			return nil, invalidSignature("package", "sha256")
+		if s.Sha256 != "" && s.Sha256 != hex.EncodeToString(sh2.Sum(nil)) {
+			return nil, invalidSignature(p.name, "package", "sha256")
 		}
 	}
 	return &p, nil
 }
 
-func invalidSignature(w, t string) error {
-	return fmt.Errorf("%s: invalid signature (%s)", w, t)
+func invalidSignature(n, w, t string) error {
+	return fmt.Errorf("%s (%s): invalid signature (%s)", n, w, t)
 }
 
 var (
