@@ -51,6 +51,9 @@ func (p *pkg) About() packit.Control {
 }
 
 func (p *pkg) Resources() ([]packit.Resource, error) {
+	if p.data == nil {
+		return packit.ErrUnsupportedPayloadFormat
+	}
 	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
@@ -91,6 +94,9 @@ func (p *pkg) Filenames() ([]string, error) {
 }
 
 func (p *pkg) Extract(datadir string, preserve bool) error {
+	if p.data == nil {
+		return packit.ErrUnsupportedPayloadFormat
+	}
 	if err := os.MkdirAll(datadir, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}

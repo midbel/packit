@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var UnsupportedPayloadFormat = errors.New("unsupported payload format")
+var ErrUnsupportedPayloadFormat = errors.New("unsupported payload format")
 
 const (
 	defaultEtcDir = "etc/"
