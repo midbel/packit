@@ -48,7 +48,7 @@ func dumpEntry(w io.Writer) func(e rpmEntry, r io.Reader) error {
 		if e.Type == fieldBinary {
 			v = hex.EncodeToString(v.([]byte))
 		}
-		fmt.Fprintf(w, "%d\t%s\t%d\t\t%v\n", e.Tag, e.Type.String(), e.Len, v)
+		fmt.Fprintf(w, "%d\t%s\t%d\t%v\n", e.Tag, e.Type.String(), e.Len, v)
 		return nil
 	}
 }
