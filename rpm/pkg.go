@@ -3,6 +3,7 @@ package rpm
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -20,7 +21,6 @@ import (
 type pkg struct {
 	name string
 
-	sig     *signature
 	control *packit.Control
 
 	data *bytes.Reader
@@ -52,7 +52,7 @@ func (p *pkg) About() packit.Control {
 
 func (p *pkg) Resources() ([]packit.Resource, error) {
 	if p.data == nil {
-		return packit.ErrUnsupportedPayloadFormat
+		return nil, packit.ErrUnsupportedPayloadFormat
 	}
 	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
 		return nil, err
@@ -167,6 +167,9 @@ func readMeta(r io.Reader) (*packit.Control, error) {
 			case "i386":
 				c.Arch = packit.Arch32
 			}
+		case rpmTagPayload:
+		case rpmTagCompressor:
+		case rpmTagPayloadFlags:
 		}
 		return nil
 	})
@@ -199,8 +202,25 @@ func readSignature(r io.Reader) (*signature, error) {
 	})
 }
 
-func readData(r io.Reader, p *pkg) error {
-	return nil
+func readData(r io.Reader, format string) (*bytes.Reader, error) {
+	var (
+		z io.Reader
+		err error
+	)
+	switch format {
+	case rpmPayloadCompressor, "":
+		z, err = gzip.NewReader(r)
+	default:
+		return nil, packit.ErrUnsupportedPayloadFormat
+	}
+	if err != nil {
+		return nil, err
+	}
+	xs, err := ioutil.ReadAll(z)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(xs), nil
 }
 
 func readLead(r io.Reader) (string, error) {

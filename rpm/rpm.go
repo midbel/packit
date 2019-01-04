@@ -1,11 +1,12 @@
 package rpm
 
 import (
-	// "crypto/md5"
-	// "crypto/sha256"
-	// "crypto/sha1"
+	"crypto/md5"
+	"crypto/sha256"
+	"crypto/sha1"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -47,20 +48,44 @@ func Open(file string) (packit.Package, error) {
 	}
 	defer r.Close()
 
-	var p pkg
+	var (
+		p pkg
+		s *signature
+	)
 	if p.name, err = readLead(r); err != nil {
 		return nil, err
 	}
-	if p.sig, err = readSignature(r); err != nil {
+	if s, err = readSignature(r); err != nil {
 		return nil, err
 	}
-	if p.control, err = readMeta(r); err != nil {
+	md, sh1, sh2 := md5.New(), sha1.New(), sha256.New()
+	rw := io.TeeReader(r, io.MultiWriter(md, sh2))
+	if p.control, err = readMeta(io.TeeReader(rw, sh1)); err != nil {
 		return nil, err
 	}
-	if err = readData(r, &p); err != nil {
-		return nil, err
+	if s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
+		return nil, invalidSignature("header", "sha1")
+	}
+	if p.data, err = readData(rw, ""); err != nil {
+		if err != packit.ErrUnsupportedPayloadFormat {
+			return nil, err
+		}
+	} else {
+		if z := p.data.Size(); int64(z) != s.Payload {
+			return nil, fmt.Errorf("invalid payload size (expected %d, got %d)", s.Payload, z)
+		}
+		if s.MD5 != hex.EncodeToString(md.Sum(nil)) {
+			return nil, invalidSignature("package", "md5")
+		}
+		if s.Sha256 != hex.EncodeToString(sh2.Sum(nil)) {
+			return nil, invalidSignature("package", "sha256")
+		}
 	}
 	return &p, nil
+}
+
+func invalidSignature(w, t string) error {
+	return fmt.Errorf("%s: invalid signature (%s)", w, t)
 }
 
 var (
