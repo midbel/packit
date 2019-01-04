@@ -153,11 +153,44 @@ const (
 	rpmTagPayload      = 1124
 	rpmTagCompressor   = 1125
 	rpmTagPayloadFlags = 1126
+	rpmTagFileTimes    = 1034
 	rpmTagOwners       = 1039
 	rpmTagGroups       = 1040
 )
+const (
+	rpmTagFilenames    = 5000
+	rpmTagBugURL       = 5012
+	rpmTagEncoding     = 5068
+)
 
 type fieldType uint32
+
+func (f fieldType) String() string {
+	switch f {
+	default:
+		return "unknown"
+	case fieldNull:
+		return "char"
+	case fieldChar:
+		return "char"
+	case fieldInt8:
+		return "int8"
+	case fieldInt16:
+		return "int16"
+	case fieldInt32:
+		return "int32"
+	case fieldInt64:
+		return "int64"
+	case fieldString:
+		return "string"
+	case fieldBinary:
+		return "binary"
+	case fieldStrArray:
+		return "strarray"
+	case fieldI18NString:
+		return "i18n"
+	}
+}
 
 const (
 	fieldNull fieldType = iota

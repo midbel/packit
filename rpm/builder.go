@@ -216,28 +216,36 @@ func (b *builder) filesToFields() []rpmField {
 	var fs []rpmField
 
 	z := len(b.files)
+	files := make([]string, z)
 	dirs, bases := make([]string, z), make([]string, z)
 	users, groups := make([]string, z), make([]string, z)
-	sizes, digests := make([]string, z), make([]string, z)
+	sizes, digests, times := make([]string, z), make([]string, z), make([]int64, z)
 	for i := range b.files {
 		d, n := filepath.Split(b.files[i].String())
 		if !strings.HasPrefix(d, "/") {
 			d = "/" + d
 		}
+		files[i] = b.files[i].String()
+		if !strings.HasPrefix(files[i], "/") {
+			files[i] = "/" + files[i]
+		}
 		dirs[i], bases[i] = d, n
 		users[i], groups[i] = packit.DefaultUser, packit.DefaultGroup
 		sizes[i], digests[i] = strconv.FormatInt(b.files[i].Size, 10), b.files[i].Sum
+		times[i] = b.when.Unix()
 
 		b.control.Size += b.files[i].Size
 	}
 
 	fs = append(fs, number{tag: rpmTagSize, kind: fieldInt32, Value: b.control.Size})
+	fs = append(fs, strarray{tag: rpmTagFilenames, Values: files})
 	fs = append(fs, strarray{tag: rpmTagBasenames, Values: bases})
 	fs = append(fs, strarray{tag: rpmTagDirnames, Values: dirs})
 	fs = append(fs, strarray{tag: rpmTagOwners, Values: users})
 	fs = append(fs, strarray{tag: rpmTagGroups, Values: groups})
 	fs = append(fs, strarray{tag: rpmTagDigests, Values: digests})
 	fs = append(fs, strarray{tag: rpmTagSizes, Values: sizes})
+	fs = append(fs, numarray{tag:  rpmTagFileTimes, kind: fieldInt32, Value: times})
 
 	return fs
 }
