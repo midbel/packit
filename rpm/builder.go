@@ -202,7 +202,10 @@ func (b *builder) controlToFields() []rpmField {
 			} else {
 				cs[i] = b.changes[i].Maintainer.String()
 			}
-			ls[i] = strings.Join(b.changes[i].Changes, "\n")
+			if b.changes[i].Version != "" {
+				cs[i] = cs[i] + " - " + b.changes[i].Version
+			}
+			ls[i] = b.changes[i].Body
 		}
 		fs = append(fs, numarray{tag: rpmTagChangeTime, kind: fieldInt32, Value: ts})
 		fs = append(fs, strarray{tag: rpmTagChangeName, Values: cs})

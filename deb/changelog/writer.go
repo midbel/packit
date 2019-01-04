@@ -1,7 +1,10 @@
 package changelog
 
 import (
+	"bufio"
+	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"strings"
 	"text/template"
@@ -10,11 +13,22 @@ import (
 	"github.com/midbel/packit"
 )
 
-const debChangelog = `{{range .Changes}}  {{$.Package}} ({{.Version}}) {{.Distrib}}; urgency=low
+// const debChangelog = `{{range .Changes}}  {{$.Package}} ({{.Version}}) {{.Distrib}}; urgency=low
+//
+// {{range .Changes}}   * {{.}}
+// {{end}}
+//   -- {{.Maintainer.Name}} <{{.Maintainer.Email}}> {{.When | datetime}}
+// {{end}}`
+const debChangelog = `{{range .Changes}}{{$.Package}} ({{.Version}}) {{.Distrib | join }}; urgency=low
 
-{{range .Changes}}   * {{.}}
+{{if .Body}}{{.Body | indent}}{{end}}
+{{range .Changes}}{{if .Body}}  [{{.Maintainer.Name | title}}]
+{{.Body | indent}}{{end}}
+
 {{end}}
-  -- {{.Maintainer.Name}} <{{.Maintainer.Email}}> {{.When | datetime}}
+
+ -- {{.Maintainer.Name | title}} <{{.Maintainer.Email}}>  {{.When | datetime}}
+
 {{end}}`
 
 const debDateFormat = "Mon, 02 Jan 2006 15:04:05 -0700"
@@ -29,7 +43,9 @@ func DumpCompressed(name string, cs []*packit.Change, w io.Writer) error {
 
 func Dump(name string, cs []*packit.Change, w io.Writer) error {
 	fmap := template.FuncMap{
-		"join": strings.Join,
+		"title":  strings.Title,
+		"join":   joinDistrib,
+		"indent": indentBody,
 		"datetime": func(t time.Time) string {
 			if t.IsZero() {
 				t = time.Now()
@@ -49,4 +65,38 @@ func Dump(name string, cs []*packit.Change, w io.Writer) error {
 		Changes: cs,
 	}
 	return t.Execute(w, c)
+}
+
+func indentBody(text string) string {
+	const (
+		star  = "  * "
+		space = "    "
+	)
+
+	np := true
+	prefix := star
+
+	text = strings.TrimSpace(text)
+	s := bufio.NewScanner(strings.NewReader(text))
+	var body bytes.Buffer
+	for s.Scan() {
+		t := strings.TrimSpace(s.Text())
+		if len(t) == 0 {
+			fmt.Fprintln(&body, space)
+			np, prefix = true, star
+			continue
+		}
+		fmt.Fprintln(&body, prefix+t)
+		if np {
+			np, prefix = false, space
+		}
+	}
+	return body.String()
+}
+
+func joinDistrib(ds []string) string {
+	if len(ds) == 0 {
+		return packit.DefaultDistrib
+	}
+	return strings.Join(ds, " ")
 }

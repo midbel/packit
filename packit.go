@@ -20,10 +20,11 @@ const (
 )
 
 const (
-	DefaultOS    = "linux"
-	DefaultHost  = "localhost.localdomain"
-	DefaultUser  = "root"
-	DefaultGroup = "root"
+	DefaultDistrib = "unstable"
+	DefaultOS      = "linux"
+	DefaultHost    = "localhost.localdomain"
+	DefaultUser    = "root"
+	DefaultGroup   = "root"
 )
 
 const (
@@ -77,21 +78,21 @@ func Hostname() string {
 	return DefaultHost
 }
 
-type Change2 struct {
-	When        time.Time `toml:"date"`
-	Body        string    `toml:"description"`
-	Version     string    `toml:'version'`
-	Distrib     []string  `toml:"distrib"`
-	Changes     []Change2 `toml:"changes"`
-	*Maintainer `toml:"maintainer"`
-}
+// type Change2 struct {
+// 	When        time.Time `toml:"date"`
+// 	Body        string    `toml:"description"`
+// 	Version     string    `toml:'version'`
+// 	Distrib     []string  `toml:"distrib"`
+// 	Changes     []Change2 `toml:"changes"`
+// 	*Maintainer `toml:"maintainer"`
+// }
 
 type Change struct {
 	When        time.Time `toml:"date"`
 	Body        string    `toml:"description"`
 	Version     string    `toml:'version'`
 	Distrib     []string  `toml:"distrib"`
-	Changes     []string  `toml:"changes"`
+	Changes     []Change  `toml:"changes"`
 	*Maintainer `toml:"maintainer"`
 }
 
