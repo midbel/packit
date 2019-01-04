@@ -1,10 +1,10 @@
 package rpm
 
 import (
-	"crypto/md5"
-	"crypto/sha256"
-	"crypto/sha1"
 	"bytes"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -64,7 +64,7 @@ func Open(file string) (packit.Package, error) {
 		return nil, err
 	}
 	if s.Sha1 != "" && s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
-		return nil, invalidSignature("header", "sha1")
+		return nil, invalidSignature(p.name, "header", "sha1")
 	}
 	if p.data, err = readData(rw, ""); err != nil {
 		if err != packit.ErrUnsupportedPayloadFormat {
@@ -142,25 +142,31 @@ const (
 	rpmTagURL          = 1020
 	rpmTagOS           = 1021
 	rpmTagArch         = 1022
-	rpmTagSizes        = 1028
-	rpmTagModes        = 1030
-	rpmTagDigests      = 1035
+	rpmTagFileSizes    = 1028
+	rpmTagFileModes    = 1030
+	rpmTagFileDevs     = 1033
+	rpmTagFileTimes    = 1034
+	rpmTagFileDigests  = 1035
+	rpmTagFileLinks    = 1036
+	rpmTagFileFlags    = 1037
+	rpmTagOwners       = 1039
+	rpmTagGroups       = 1040
 	rpmTagChangeTime   = 1080
 	rpmTagChangeName   = 1081
 	rpmTagChangeText   = 1082
-	rpmTagBasenames    = 1117 // deprecated: not used in order to pass rpmlint without crashing
-	rpmTagDirnames     = 1118 // deprecated: not used in order to pass rpmlint without crashing
+	rpmTagFileInodes   = 1096
+	rpmTagFileLangs    = 1097
+	rpmTagDirIndexes   = 1116
+	rpmTagBasenames    = 1117
+	rpmTagDirnames     = 1118
 	rpmTagPayload      = 1124
 	rpmTagCompressor   = 1125
 	rpmTagPayloadFlags = 1126
-	rpmTagFileTimes    = 1034
-	rpmTagOwners       = 1039
-	rpmTagGroups       = 1040
 )
 const (
-	rpmTagFilenames    = 5000
-	rpmTagBugURL       = 5012
-	rpmTagEncoding     = 5068
+	rpmTagFilenames = 5000
+	rpmTagBugURL    = 5012
+	rpmTagEncoding  = 5068
 )
 
 type fieldType uint32

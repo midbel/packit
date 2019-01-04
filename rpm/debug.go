@@ -1,17 +1,17 @@
 package rpm
 
 import (
-  // "crypto/md5"
-  // "crypto/sha1"
-  // "crypto/sha256"
-  "bytes"
-  "encoding/binary"
-  "encoding/hex"
-  "fmt"
-  "os"
-  "io"
-  "sort"
-  "text/tabwriter"
+	// "crypto/md5"
+	// "crypto/sha1"
+	// "crypto/sha256"
+	"bytes"
+	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
+	"sort"
+	"text/tabwriter"
 )
 
 func Debug(file string, w io.Writer) error {
@@ -21,40 +21,40 @@ func Debug(file string, w io.Writer) error {
 	}
 	defer r.Close()
 
-  ws := tabwriter.NewWriter(w , 12, 2, 2, ' ', 0)
-  f := dumpEntry(ws)
+	ws := tabwriter.NewWriter(w, 12, 2, 2, ' ', 0)
+	f := dumpEntry(ws)
 
-  if _, err := readLead(r); err != nil {
-    return err
-  }
-  if err := debugEntries(r, true, f); err != nil {
-    return err
-  }
-  ws.Flush()
-  fmt.Fprintln(w)
-  if err := debugEntries(r, false, f); err != nil {
-    return err
-  }
-  ws.Flush()
-  return nil
+	if _, err := readLead(r); err != nil {
+		return err
+	}
+	if err := debugEntries(r, true, f); err != nil {
+		return err
+	}
+	ws.Flush()
+	fmt.Fprintln(w)
+	if err := debugEntries(r, false, f); err != nil {
+		return err
+	}
+	ws.Flush()
+	return nil
 }
 
 func dumpEntry(w io.Writer) func(e rpmEntry, r io.Reader) error {
-  return func(e rpmEntry, r io.Reader) error {
-    v, err := e.Decode(r)
-    if err != nil {
-      return err
-    }
-    if e.Type == fieldBinary {
-      v = hex.EncodeToString(v.([]byte))
-    }
-    fmt.Fprintf(w, "%d\t%s\t%d\t\t%v\n", e.Tag, e.Type.String(), e.Len, v)
-    return nil
-  }
+	return func(e rpmEntry, r io.Reader) error {
+		v, err := e.Decode(r)
+		if err != nil {
+			return err
+		}
+		if e.Type == fieldBinary {
+			v = hex.EncodeToString(v.([]byte))
+		}
+		fmt.Fprintf(w, "%d\t%s\t%d\t\t%v\n", e.Tag, e.Type.String(), e.Len, v)
+		return nil
+	}
 }
 
 func debugEntries(r io.Reader, padding bool, fn func(e rpmEntry, r io.Reader) error) error {
-  e := struct {
+	e := struct {
 		Magic uint32
 		Spare uint32
 		Count int32
@@ -87,7 +87,7 @@ func debugEntries(r io.Reader, padding bool, fn func(e rpmEntry, r io.Reader) er
 	}
 	stor := bytes.NewReader(xs)
 	sort.Slice(es, func(i, j int) bool { return es[i].Offset < es[j].Offset })
-  for i := 0; i < len(es); i++ {
+	for i := 0; i < len(es); i++ {
 		e := es[i]
 		if _, err := stor.Seek(int64(e.Offset), io.SeekStart); err != nil {
 			return err

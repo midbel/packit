@@ -77,6 +77,15 @@ func Hostname() string {
 	return DefaultHost
 }
 
+type Change2 struct {
+	When        time.Time `toml:"date"`
+	Body        string    `toml:"description"`
+	Version     string    `toml:'version'`
+	Distrib     []string  `toml:"distrib"`
+	Changes     []Change2 `toml:"changes"`
+	*Maintainer `toml:"maintainer"`
+}
+
 type Change struct {
 	When        time.Time `toml:"date"`
 	Body        string    `toml:"description"`
@@ -170,6 +179,7 @@ type Resource struct {
 type File struct {
 	Src      string `toml:"source"`
 	Dst      string `toml:"destination"`
+	Lang     string `toml:"lang"`
 	Name     string `toml:"filename"`
 	Compress bool   `toml:"compress"`
 	Perm     int    `toml:"mode"`

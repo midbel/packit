@@ -204,7 +204,7 @@ func readSignature(r io.Reader) (*signature, error) {
 
 func readData(r io.Reader, format string) (*bytes.Reader, error) {
 	var (
-		z io.Reader
+		z   io.Reader
 		err error
 	)
 	switch format {
