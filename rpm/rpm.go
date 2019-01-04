@@ -148,8 +148,8 @@ const (
 	rpmTagChangeTime   = 1080
 	rpmTagChangeName   = 1081
 	rpmTagChangeText   = 1082
-	rpmTagBasenames    = 1117
-	rpmTagDirnames     = 1118
+	rpmTagBasenames    = 1117 // deprecated: not used in order to pass rpmlint without crashing
+	rpmTagDirnames     = 1118 // deprecated: not used in order to pass rpmlint without crashing
 	rpmTagPayload      = 1124
 	rpmTagCompressor   = 1125
 	rpmTagPayloadFlags = 1126
