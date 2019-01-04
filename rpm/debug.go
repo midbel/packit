@@ -22,20 +22,20 @@ func Debug(file string, w io.Writer) error {
 	defer r.Close()
 
   ws := tabwriter.NewWriter(w , 12, 2, 2, ' ', 0)
-  defer ws.Flush()
   f := dumpEntry(ws)
 
-	name, err := readLead(r)
-  if err != nil {
+  if _, err := readLead(r); err != nil {
     return err
   }
-  fmt.Fprintf(w, "dumping headers for %s\n", name)
   if err := debugEntries(r, true, f); err != nil {
     return err
   }
+  ws.Flush()
+  fmt.Fprintln(w)
   if err := debugEntries(r, false, f); err != nil {
     return err
   }
+  ws.Flush()
   return nil
 }
 
