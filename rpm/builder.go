@@ -233,6 +233,8 @@ func (b *builder) filesToFields() []rpmField {
 		d, n := filepath.Split(files[i])
 		dirs = append(dirs, createListDirs(d, done)...)
 		bases[i], indexes[i], modes[i] = n, int64(done[d]), int64(b.files[i].Perm)
+		inodes[i] = int64(i) + b.when.Unix()
+		flags[i] = int64(fileFlags(b.files[i]))
 		users[i], groups[i] = packit.DefaultUser, packit.DefaultGroup
 		sizes[i], digests[i] = int64(b.files[i].Size), b.files[i].Sum
 		langs[i] = b.files[i].Lang

@@ -88,6 +88,33 @@ func invalidSignature(n, w, t string) error {
 	return fmt.Errorf("%s (%s): invalid signature (%s)", n, w, t)
 }
 
+const (
+	rpmFileConf         = 1 << 0
+	rpmFileDoc          = 1 << 1
+	rpmFileAllowMissing = 1 << 3
+	rpmFileNoReplace    = 1 << 4
+	rpmFileGhost        = 1 << 6
+	rpmFileLicense      = 1 << 7
+	rpmFileReadme       = 1 << 8
+)
+
+func fileFlags(file *packit.File) int32 {
+	var f int32
+	if file.Conf {
+		f |= rpmFileConf
+	}
+	if file.Doc {
+		f |= rpmFileDoc
+	}
+	if file.License {
+		f |= rpmFileLicense
+	}
+	if file.Readme {
+		f |= rpmFileReadme
+	}
+	return f
+}
+
 var (
 	rpmMagic  = []byte{0xed, 0xab, 0xee, 0xdb}
 	rpmHeader = []byte{0x8e, 0xad, 0xe8, 0x01}
@@ -162,6 +189,7 @@ const (
 	rpmTagPayload      = 1124
 	rpmTagCompressor   = 1125
 	rpmTagPayloadFlags = 1126
+	rpmTagFileClass    = 1141
 )
 const (
 	rpmTagFilenames = 5000

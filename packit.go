@@ -179,11 +179,15 @@ type Resource struct {
 type File struct {
 	Src      string `toml:"source"`
 	Dst      string `toml:"destination"`
-	Lang     string `toml:"lang"`
 	Name     string `toml:"filename"`
 	Compress bool   `toml:"compress"`
 	Perm     int    `toml:"mode"`
-	Conf     bool   `toml:"conf"`
+
+	Conf    bool   `toml:"conf"`
+	Doc     bool   `toml:"doc"`
+	License bool   `toml:"license"`
+	Readme  bool   `toml:"readme"`
+	Lang    string `toml:"lang"`
 
 	Sum  string `toml:"-"`
 	Size int64  `toml:"-"`
