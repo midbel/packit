@@ -107,10 +107,10 @@ func fileFlags(file *packit.File) int32 {
 		f |= rpmFileDoc
 	}
 	if file.License {
-		f |= rpmFileLicense
+		return rpmFileLicense
 	}
 	if file.Readme {
-		f |= rpmFileReadme
+		return rpmFileReadme
 	}
 	return f
 }
