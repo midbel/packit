@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/rw"
 )
 
 // const debChangelog = `{{range .Changes}}  {{$.Package}} ({{.Version}}) {{.Distrib}}; urgency=low
@@ -24,9 +25,7 @@ const debChangelog = `{{range .Changes}}{{$.Package}} ({{.Version}}) {{.Distrib 
 {{if .Body}}{{.Body | indent}}{{end}}
 {{range .Changes}}{{if .Body}}  [{{.Maintainer.Name | title}}]
 {{.Body | indent}}{{end}}
-
-{{end}}
- -- {{.Maintainer.Name | title}} <{{.Maintainer.Email}}>  {{.When | datetime}}
+{{end}} -- {{.Maintainer.Name | title}} <{{.Maintainer.Email}}>  {{.When | datetime}}
 
 {{end}}`
 
@@ -67,6 +66,31 @@ func Dump(name string, cs []*packit.Change, w io.Writer) error {
 }
 
 func indentBody(text string) string {
+  s := bufio.NewScanner(strings.NewReader(text))
+  s.Split(splitText)
+
+	var body bytes.Buffer
+  for s.Scan() {
+		t := rw.WrapDefault(s.Text())
+		io.WriteString(&body, indentPart(t))
+  }
+	return body.String()
+}
+
+func splitText(bs []byte, ateof bool) (int, []byte, error) {
+  if ateof {
+    return len(bs), bs, bufio.ErrFinalToken
+  }
+  ix := bytes.Index(bs, []byte{0x0a, 0x0a})
+  if ix < 0 {
+    return 0, nil, nil
+  }
+  vs := make([]byte, ix)
+  copy(vs, bs)
+  return ix+2, vs, nil
+}
+
+func indentPart(text string) string {
   const (
     star = "  * "
     space = "    "
