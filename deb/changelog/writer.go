@@ -1,8 +1,8 @@
 package changelog
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -41,8 +41,8 @@ func DumpCompressed(name string, cs []*packit.Change, w io.Writer) error {
 
 func Dump(name string, cs []*packit.Change, w io.Writer) error {
 	fmap := template.FuncMap{
-		"title": strings.Title,
-		"join": joinDistrib,
+		"title":  strings.Title,
+		"join":   joinDistrib,
 		"indent": indentBody,
 		"datetime": func(t time.Time) string {
 			if t.IsZero() {
@@ -66,55 +66,55 @@ func Dump(name string, cs []*packit.Change, w io.Writer) error {
 }
 
 func indentBody(text string) string {
-  s := bufio.NewScanner(strings.NewReader(text))
-  s.Split(splitText)
+	s := bufio.NewScanner(strings.NewReader(text))
+	s.Split(splitText)
 
 	var body bytes.Buffer
-  for s.Scan() {
+	for s.Scan() {
 		t := rw.WrapDefault(s.Text())
 		io.WriteString(&body, indentPart(t))
-  }
+	}
 	return body.String()
 }
 
 func splitText(bs []byte, ateof bool) (int, []byte, error) {
-  if ateof {
-    return len(bs), bs, bufio.ErrFinalToken
-  }
-  ix := bytes.Index(bs, []byte{0x0a, 0x0a})
-  if ix < 0 {
-    return 0, nil, nil
-  }
-  vs := make([]byte, ix)
-  copy(vs, bs)
-  return ix+2, vs, nil
+	if ateof {
+		return len(bs), bs, bufio.ErrFinalToken
+	}
+	ix := bytes.Index(bs, []byte{0x0a, 0x0a})
+	if ix < 0 {
+		return 0, nil, nil
+	}
+	vs := make([]byte, ix)
+	copy(vs, bs)
+	return ix + 2, vs, nil
 }
 
 func indentPart(text string) string {
-  const (
-    star = "  * "
-    space = "    "
-  )
+	const (
+		star  = "  * "
+		space = "    "
+	)
 
-  np := true
-  prefix := star
+	np := true
+	prefix := star
 
 	text = strings.TrimSpace(text)
-  s := bufio.NewScanner(strings.NewReader(text))
-  var body bytes.Buffer
-  for s.Scan() {
-    t := strings.TrimSpace(s.Text())
-    if len(t) == 0 {
-      fmt.Fprintln(&body, space)
+	s := bufio.NewScanner(strings.NewReader(text))
+	var body bytes.Buffer
+	for s.Scan() {
+		t := strings.TrimSpace(s.Text())
+		if len(t) == 0 {
+			fmt.Fprintln(&body, space)
 			np, prefix = true, star
-      continue
-    }
-    fmt.Fprintln(&body, prefix+t)
-    if np {
-      np, prefix = false, space
-    }
-  }
-  return body.String()
+			continue
+		}
+		fmt.Fprintln(&body, prefix+t)
+		if np {
+			np, prefix = false, space
+		}
+	}
+	return body.String()
 }
 
 func joinDistrib(ds []string) string {
