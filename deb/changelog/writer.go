@@ -1,8 +1,8 @@
 package changelog
 
 import (
-	"bufio"
 	"bytes"
+	"bufio"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -26,7 +26,6 @@ const debChangelog = `{{range .Changes}}{{$.Package}} ({{.Version}}) {{.Distrib 
 {{.Body | indent}}{{end}}
 
 {{end}}
-
  -- {{.Maintainer.Name | title}} <{{.Maintainer.Email}}>  {{.When | datetime}}
 
 {{end}}`
@@ -43,8 +42,8 @@ func DumpCompressed(name string, cs []*packit.Change, w io.Writer) error {
 
 func Dump(name string, cs []*packit.Change, w io.Writer) error {
 	fmap := template.FuncMap{
-		"title":  strings.Title,
-		"join":   joinDistrib,
+		"title": strings.Title,
+		"join": joinDistrib,
 		"indent": indentBody,
 		"datetime": func(t time.Time) string {
 			if t.IsZero() {
@@ -68,30 +67,30 @@ func Dump(name string, cs []*packit.Change, w io.Writer) error {
 }
 
 func indentBody(text string) string {
-	const (
-		star  = "  * "
-		space = "    "
-	)
+  const (
+    star = "  * "
+    space = "    "
+  )
 
-	np := true
-	prefix := star
+  np := true
+  prefix := star
 
 	text = strings.TrimSpace(text)
-	s := bufio.NewScanner(strings.NewReader(text))
-	var body bytes.Buffer
-	for s.Scan() {
-		t := strings.TrimSpace(s.Text())
-		if len(t) == 0 {
-			fmt.Fprintln(&body, space)
+  s := bufio.NewScanner(strings.NewReader(text))
+  var body bytes.Buffer
+  for s.Scan() {
+    t := strings.TrimSpace(s.Text())
+    if len(t) == 0 {
+      fmt.Fprintln(&body, space)
 			np, prefix = true, star
-			continue
-		}
-		fmt.Fprintln(&body, prefix+t)
-		if np {
-			np, prefix = false, space
-		}
-	}
-	return body.String()
+      continue
+    }
+    fmt.Fprintln(&body, prefix+t)
+    if np {
+      np, prefix = false, space
+    }
+  }
+  return body.String()
 }
 
 func joinDistrib(ds []string) string {
