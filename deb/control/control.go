@@ -25,13 +25,13 @@ const debDateFormat = "Mon, 02 Jan 2006 15:04:05 -0700"
 const debControl = `
 Package: {{.Package}}
 Version: {{.Version}}
-License: {{.License}}
+{{if .License}}License: {{.License}}{{end}}
 Section: {{.Section}}
 Priority: {{.Priority}}
 Date: {{.Date | datetime}}
 Architecture: {{arch .Arch}}
-Vendor: {{.Vendor}}
-Maintainer: {{.Name}} <{{.Email}}>
+{{if .Vendor}}Vendor: {{.Vendor}}{{end}}
+{{if.Maintainer}}Maintainer: {{.Name}} <{{.Email}}>{{end}}
 Homepage: {{.Home}}
 {{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
 {{if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}

@@ -61,6 +61,11 @@ var commands = []*cli.Command{
 		Short: "install package on the system",
 		Run:   nil,
 	},
+	{
+		Usage: "repack [-d datadir] [-k type] <package>",
+		Short: "create a package from files installed on local system",
+		Run:   runPack,
+	},
 }
 
 func init() {

@@ -13,6 +13,8 @@ import (
 
 var ErrUnsupportedPayloadFormat = errors.New("unsupported payload format")
 
+var ErrSkip = errors.New("skip")
+
 const (
 	defaultEtcDir = "etc/"
 	defaultDocDir = "usr/share/doc"
@@ -175,6 +177,24 @@ type File struct {
 
 	Sum  string `toml:"-"`
 	Size int64  `toml:"-"`
+}
+
+func LocalFile(p string) (*File, error) {
+	i, err := os.Stat(p)
+	if err != nil {
+		return nil, err
+	}
+	if i.Name() == "." || i.IsDir() {
+		return nil, ErrSkip
+	}
+	f := File{
+		Src:  p,
+		Dst:  p,
+		Name: filepath.Base(p),
+		Perm: int(i.Mode()),
+		Conf: IsConfFile(p),
+	}
+	return &f, nil
 }
 
 func (f File) String() string {

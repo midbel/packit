@@ -202,7 +202,7 @@ func (b *builder) writeControl(w io.Writer) error {
 			}
 			cs = append(cs, n)
 		}
-		ds = append(ds, fmt.Sprintf("%s %s", f.Sum, f.String()))
+		ds = append(ds, fmt.Sprintf("%s %s", f.Sum, strings.TrimPrefix(f.String(), "/")))
 		b.control.Size += f.Size
 	}
 	wt := tar.NewWriter(w)

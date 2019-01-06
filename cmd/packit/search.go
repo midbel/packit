@@ -14,6 +14,7 @@ import (
 
 const (
 	dpkgBase = "/var/lib/dpkg"
+	dpkgInfo = "/var/lib/dpkg/info"
 )
 
 func runSearch(cmd *cli.Command, args []string) error {
