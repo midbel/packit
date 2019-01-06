@@ -127,7 +127,7 @@ func (b *builder) writeData(w io.Writer) error {
 			return err
 		}
 		h := tar.Header{
-			Name:     i.String(),
+			Name:     strings.TrimPrefix(i.String(), "/"),
 			Mode:     i.Mode(),
 			Size:     size,
 			ModTime:  b.when,
@@ -284,6 +284,9 @@ func makeIntermediateDirectories(w *tar.Writer, n string, done map[string]struct
 	ds := strings.Split(filepath.Dir(n), "/")
 	for i := 0; i < len(ds); i++ {
 		n := ds[i]
+		if n == "/" || n == "" {
+			continue
+		}
 		if i > 0 {
 			n = filepath.Join(strings.Join(ds[:i], "/"), n)
 		}
@@ -292,7 +295,7 @@ func makeIntermediateDirectories(w *tar.Writer, n string, done map[string]struct
 		}
 		done[n] = struct{}{}
 		h := tar.Header{
-			Name:     n + "/",
+			Name:     strings.TrimPrefix(n+"/", "/"),
 			ModTime:  time.Now(),
 			Mode:     0755,
 			Gid:      0,

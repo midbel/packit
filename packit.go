@@ -142,6 +142,7 @@ type Control struct {
 	Home        string   `toml:"homepage"`
 	Depends     []string `toml:"depends"`
 	Suggests    []string `toml:"suggests"`
+	Provides    []string `toml:"provides"`
 	Compiler    string   `toml:"compiler"`
 	*Maintainer `toml:"maintainer"`
 

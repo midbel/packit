@@ -35,6 +35,7 @@ Architecture: {{arch .Arch}}
 Homepage: {{.Home}}
 {{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
 {{if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}
+{{if .Provides}}Provides: {{join .Provides ", "}}{{end}}
 Installed-Size: {{.Size | bytesize}}
 Build-Using: {{.Compiler}}
 Description: {{if .Summary }}{{.Summary}}{{else}}summary missing{{end}}
@@ -133,6 +134,8 @@ func Parse(r io.Reader) (*packit.Control, error) {
 			c.Home = v
 		case "depends":
 			c.Depends = strings.Split(v, ", ")
+		case "provides":
+			c.Provides = strings.Split(v, ", ")
 		case "installed-size":
 			s, err := strconv.ParseInt(v, 0, 64)
 			if err != nil {
