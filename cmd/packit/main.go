@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -105,13 +106,16 @@ func main() {
 
 func runLog(cmd *cli.Command, args []string) error {
 	const history = `
-Date        : {{.When}}
+Package     : {{.Package -}}
+{{with .Change}}
+Date        : {{.When | datetime}}
 Version     : {{.Version}}
-Distribition: {{.Distrib}}
-Maintainer  : {{.Maintainer.Name}}
+Distribution: {{.Distrib | join}}
+Maintainer  : {{if .Maintainer}}{{.Maintainer.Name}}{{else}}unknown{{end}}
 Changes     :
-{{.Body}}
-	`
+{{.Body -}}
+{{end}}
+`
 	start := cmd.Flag.String("f", "", "")
 	end := cmd.Flag.String("t", "", "")
 	who := cmd.Flag.String("w", "", "")
@@ -128,16 +132,44 @@ Changes     :
 	if td, err = time.Parse("2006-01-02", *end); err != nil && *end != "" {
 		return err
 	}
-	t, err := template.New("changelog").Parse(history)
+	fs := template.FuncMap{
+		"datetime": func(t time.Time) string {
+			if t.IsZero() {
+				t = time.Now()
+			}
+			return t.Format("2006-01-02 15:04:05")
+		},
+		"join": func(vs []string) string {
+			if len(vs) == 0 {
+				return "-"
+			}
+			return strings.Join(vs, ", ")
+		},
+	}
+	t, err := template.New("changelog").Funcs(fs).Parse(strings.TrimSpace(history))
 	if err != nil {
 		return err
 	}
 	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
 		cs := p.History().Filter(*who, fd, td)
-		for _, c := range cs {
-			if err := t.Execute(os.Stdout, c); err != nil {
+		for i, c := range cs {
+			v := struct {
+				Package string
+				Change  packit.Change
+			}{
+				Package: p.PackageName(),
+				Change:  c,
+			}
+			if err := t.Execute(os.Stdout, v); err != nil {
 				return err
 			}
+			fmt.Fprintln(os.Stdout)
+			if i < len(cs)-1 {
+				fmt.Fprintln(os.Stdout, "--")
+			}
+		}
+		if len(cs) > 0 {
+			fmt.Fprintln(os.Stdout)
 		}
 		return nil
 	})

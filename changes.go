@@ -1,6 +1,7 @@
 package packit
 
 import (
+	"sort"
 	"strings"
 	"time"
 )
@@ -28,13 +29,14 @@ func (h History) Between(fd, td time.Time) []Change {
 func (h History) Filter(who string, fd, td time.Time) []Change {
 	var cs []Change
 	for _, c := range h {
-		m := (c.Maintainer != nil && who != "") && strings.Contains(c.Maintainer.Name, who)
-		f := !fd.IsZero() && c.When.After(fd) || c.When.Equal(fd)
-		t := !td.IsZero() && c.When.Before(td) || c.When.Equal(td)
+		m := who == "" || (c.Maintainer != nil && strings.Contains(c.Maintainer.Name, who))
+		f := fd.IsZero() || (c.When.After(fd) || c.When.Equal(fd))
+		t := td.IsZero() || (c.When.Before(td) || c.When.Equal(td))
 
 		if f && t && m {
 			cs = append(cs, c)
 		}
 	}
+	sort.Slice(cs, func(i, j int) bool { return cs[i].When.After(cs[j].When) })
 	return cs
 }

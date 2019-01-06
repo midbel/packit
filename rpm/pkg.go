@@ -22,6 +22,7 @@ type pkg struct {
 	name string
 
 	control *packit.Control
+	history packit.History
 
 	data *bytes.Reader
 }
@@ -51,7 +52,7 @@ func (p *pkg) About() packit.Control {
 }
 
 func (p *pkg) History() packit.History {
-	return nil
+	return p.history
 }
 
 func (p *pkg) Resources() ([]packit.Resource, error) {
@@ -134,10 +135,22 @@ func (p *pkg) Extract(datadir string, preserve bool) error {
 	return nil
 }
 
-func readMeta(r io.Reader) (*packit.Control, error) {
+func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
 	var c packit.Control
-	return &c, readHeader(r, false, func(tag int32, v interface{}) error {
+
+	var (
+		ctimes []int64
+		cnames []string
+		clogs  []string
+	)
+	err := readHeader(r, false, func(tag int32, v interface{}) error {
 		switch tag {
+		case rpmTagChangeTime:
+			ctimes = v.([]int64)
+		case rpmTagChangeName:
+			cnames = v.([]string)
+		case rpmTagChangeText:
+			clogs = v.([]string)
 		case rpmTagSize:
 			if xs, ok := v.([]int64); ok && len(xs) == 1 {
 				c.Size = xs[0]
@@ -177,6 +190,19 @@ func readMeta(r io.Reader) (*packit.Control, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	var cs []packit.Change
+	for i := 0; i < len(clogs); i++ {
+		c := packit.Change{
+			When:    time.Unix(ctimes[i], 0),
+			Body:    clogs[i],
+			Version: "unknown",
+		}
+		cs = append(cs, c)
+	}
+	return &c, packit.History(cs), nil
 }
 
 func readSignature(r io.Reader) (*signature, error) {

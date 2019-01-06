@@ -60,7 +60,7 @@ func Open(file string) (packit.Package, error) {
 	}
 	md, sh1, sh2 := md5.New(), sha1.New(), sha256.New()
 	rw := io.TeeReader(r, io.MultiWriter(md, sh2))
-	if p.control, err = readMeta(io.TeeReader(rw, sh1)); err != nil {
+	if p.control, p.history, err = readMeta(io.TeeReader(rw, sh1)); err != nil {
 		return nil, err
 	}
 	if s.Sha1 != "" && s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
@@ -169,28 +169,35 @@ const (
 	rpmTagURL          = 1020
 	rpmTagOS           = 1021
 	rpmTagArch         = 1022
-	rpmTagFileSizes    = 1028
-	rpmTagFileModes    = 1030
-	rpmTagFileDevs     = 1033
-	rpmTagFileTimes    = 1034
-	rpmTagFileDigests  = 1035
-	rpmTagFileLinks    = 1036
-	rpmTagFileFlags    = 1037
-	rpmTagOwners       = 1039
-	rpmTagGroups       = 1040
-	rpmTagChangeTime   = 1080
-	rpmTagChangeName   = 1081
-	rpmTagChangeText   = 1082
-	rpmTagFileInodes   = 1096
-	rpmTagFileLangs    = 1097
-	rpmTagDirIndexes   = 1116
-	rpmTagBasenames    = 1117
-	rpmTagDirnames     = 1118
 	rpmTagPayload      = 1124
 	rpmTagCompressor   = 1125
 	rpmTagPayloadFlags = 1126
 	rpmTagFileClass    = 1141
 )
+
+const (
+	rpmTagFileSizes   = 1028
+	rpmTagFileModes   = 1030
+	rpmTagFileDevs    = 1033
+	rpmTagFileTimes   = 1034
+	rpmTagFileDigests = 1035
+	rpmTagFileLinks   = 1036
+	rpmTagFileFlags   = 1037
+	rpmTagOwners      = 1039
+	rpmTagGroups      = 1040
+	rpmTagFileInodes  = 1096
+	rpmTagFileLangs   = 1097
+	rpmTagDirIndexes  = 1116
+	rpmTagBasenames   = 1117
+	rpmTagDirnames    = 1118
+)
+
+const (
+	rpmTagChangeTime = 1080
+	rpmTagChangeName = 1081
+	rpmTagChangeText = 1082
+)
+
 const (
 	rpmTagFilenames = 5000
 	rpmTagBugURL    = 5012
