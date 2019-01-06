@@ -37,6 +37,7 @@ type Package interface {
 	PackageName() string
 	PackageType() string
 	About() Control
+	History() History
 	Filenames() ([]string, error)
 	Resources() ([]Resource, error)
 	Valid() error
@@ -76,24 +77,6 @@ func Hostname() string {
 		return h
 	}
 	return DefaultHost
-}
-
-// type Change2 struct {
-// 	When        time.Time `toml:"date"`
-// 	Body        string    `toml:"description"`
-// 	Version     string    `toml:'version'`
-// 	Distrib     []string  `toml:"distrib"`
-// 	Changes     []Change2 `toml:"changes"`
-// 	*Maintainer `toml:"maintainer"`
-// }
-
-type Change struct {
-	When        time.Time `toml:"date"`
-	Body        string    `toml:"description"`
-	Version     string    `toml:'version'`
-	Distrib     []string  `toml:"distrib"`
-	Changes     []Change  `toml:"changes"`
-	*Maintainer `toml:"maintainer"`
 }
 
 type Maintainer struct {

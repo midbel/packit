@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -44,13 +45,13 @@ var commands = []*cli.Command{
 		Run:   runVerify,
 	},
 	{
-		Usage: "history [-v version] [-c count] [-f from] [-t to] <package,...>",
+		Usage: "history [-w who] [-c count] [-f from] [-t to] <package,...>",
 		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
 		Run:   runLog,
 	},
 	{
-		Usage: "extract [-d datadir] [-p] <package...>",
+		Usage: "extract [-r remove] [-d datadir] [-p] <package...>",
 		Short: "extract files from package payload in given directory",
 		Run:   runExtract,
 	},
@@ -103,6 +104,43 @@ func main() {
 }
 
 func runLog(cmd *cli.Command, args []string) error {
+	const history = `
+Date        : {{.When}}
+Version     : {{.Version}}
+Distribition: {{.Distrib}}
+Maintainer  : {{.Maintainer.Name}}
+Changes     :
+{{.Body}}
+	`
+	start := cmd.Flag.String("f", "", "")
+	end := cmd.Flag.String("t", "", "")
+	who := cmd.Flag.String("w", "", "")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	var (
+		fd, td time.Time
+		err    error
+	)
+	if fd, err = time.Parse("2006-01-02", *start); err != nil && *start != "" {
+		return err
+	}
+	if td, err = time.Parse("2006-01-02", *end); err != nil && *end != "" {
+		return err
+	}
+	t, err := template.New("changelog").Parse(history)
+	if err != nil {
+		return err
+	}
+	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
+		cs := p.History().Filter(*who, fd, td)
+		for _, c := range cs {
+			if err := t.Execute(os.Stdout, c); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	return nil
 }
 

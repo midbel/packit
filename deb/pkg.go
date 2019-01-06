@@ -37,6 +37,10 @@ func (p *pkg) PackageName() string {
 	return strings.TrimSuffix(p.name, ".deb")
 }
 
+func (p *pkg) History() packit.History {
+	return nil
+}
+
 func (p *pkg) Valid() error {
 	if _, err := p.md5sums.Seek(0, io.SeekStart); err != nil {
 		return err

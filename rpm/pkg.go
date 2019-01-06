@@ -50,6 +50,10 @@ func (p *pkg) About() packit.Control {
 	return *p.control
 }
 
+func (p *pkg) History() packit.History {
+	return nil
+}
+
 func (p *pkg) Resources() ([]packit.Resource, error) {
 	if p.data == nil {
 		return nil, packit.ErrUnsupportedPayloadFormat
