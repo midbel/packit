@@ -1,6 +1,7 @@
 package packit
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 )
 
 var ErrUnsupportedPayloadFormat = errors.New("unsupported payload format")
@@ -84,6 +86,78 @@ func Hostname() string {
 type Maintainer struct {
 	Name  string `toml:"name"`
 	Email string `toml:"email"`
+}
+
+func ParseMaintainer(s string) (*Maintainer, error) {
+	m, _, err := parseMaintainer(s, false)
+	return m, err
+}
+
+func ParseMaintainerVersion(s string) (*Maintainer, string, error) {
+	return parseMaintainer(s, true)
+}
+
+func parseMaintainer(s string, version bool) (*Maintainer, string, error) {
+	consume := func(r io.RuneScanner, char rune, chk func(rune) bool) (string, error) {
+		// if chk == nil {
+		// 	chk = func(_ rune) bool { return true }
+		// }
+		var str bytes.Buffer
+		for {
+			r, _, err := r.ReadRune()
+			if err == io.EOF || r == 0 || r == char {
+				break
+			}
+			if err != nil {
+				return "", err
+			}
+			if !chk(r) {
+				return "", fmt.Errorf("illegal token %c", r)
+			}
+			str.WriteRune(r)
+		}
+		return strings.TrimSpace(str.String()), nil
+	}
+	checkNameRunes := func(r rune) bool {
+		return unicode.IsLetter(r) || r == ' ' || r == '-'
+	}
+	checkEmailRunes := func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-' || r == '_' || r == '@'
+	}
+	checkVersionRunes := func(r rune) bool {
+		return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '-'
+	}
+
+	var (
+		m   Maintainer
+		v   string
+		err error
+	)
+	r := strings.NewReader(s)
+	if m.Name, err = consume(r, '<', checkNameRunes); err != nil {
+		return nil, "", fmt.Errorf("fail parsing maintainer name: %v", err)
+	}
+	if m.Email, err = consume(r, '>', checkEmailRunes); err != nil {
+		return nil, "", fmt.Errorf("fail parsing maintainer e-mail: %v", err)
+	}
+	if version {
+		for k, _, err := r.ReadRune(); k == ' ' || k == '-'; k, _, err = r.ReadRune() {
+			if err != nil || k == 0 {
+				return nil, "", fmt.Errorf("fail parsing version")
+			}
+		}
+		r.UnreadRune()
+		if v, err = consume(r, 0, checkVersionRunes); err != nil {
+			return nil, "", fmt.Errorf("fail parsing version: %v", err)
+		}
+	}
+	if m.Name == "" {
+		return nil, "", fmt.Errorf("missing maintainer name")
+	}
+	if m.Email == "" {
+		return nil, "", fmt.Errorf("missing maintainer e-mail")
+	}
+	return &m, v, err
 }
 
 func (m *Maintainer) String() string {

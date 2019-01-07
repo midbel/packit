@@ -129,7 +129,11 @@ func Parse(r io.Reader) (*packit.Control, error) {
 		case "vendor":
 			c.Vendor = v
 		case "maintainer":
-			// c.Maintainer = parseMaintainer(v)
+			m, err := packit.ParseMaintainer(v)
+			if err != nil {
+				return err
+			}
+			c.Maintainer = m
 		case "homepage":
 			c.Home = v
 		case "depends":

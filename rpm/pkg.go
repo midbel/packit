@@ -195,10 +195,15 @@ func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
 	}
 	var cs []packit.Change
 	for i := 0; i < len(clogs); i++ {
+		m, v, err := packit.ParseMaintainerVersion(cnames[i])
+		if err != nil {
+			return nil, nil, err
+		}
 		c := packit.Change{
-			When:    time.Unix(ctimes[i], 0),
-			Body:    clogs[i],
-			Version: "unknown",
+			When:       time.Unix(ctimes[i], 0),
+			Body:       clogs[i],
+			Version:    v,
+			Maintainer: m,
 		}
 		cs = append(cs, c)
 	}
