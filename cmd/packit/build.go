@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -133,12 +134,22 @@ func findPackage(n string) (*packit.Control, error) {
 	if err != nil {
 		return nil, err
 	}
+	var ctrl *packit.Control
 	for _, c := range cs {
 		if c.Package == n {
-			return c, nil
+			ctrl = c
+			break
 		}
 	}
-	return nil, fmt.Errorf("%s not found", n)
+	if ctrl == nil {
+		return nil, fmt.Errorf("%s not found", n)
+	}
+	sort.Strings(ctrl.Provides)
+	if ix := sort.SearchStrings(ctrl.Provides, n); (ix < len(ctrl.Provides) && ctrl.Provides[ix] != n) || ix >= len(ctrl.Provides) {
+		ctrl.Provides = append(ctrl.Provides, n)
+		sort.Strings(ctrl.Provides)
+	}
+	return ctrl, nil
 }
 
 func listFiles(n string) ([]*packit.File, error) {
