@@ -29,8 +29,8 @@ var commands = []*cli.Command{
 		Run:   runBuild,
 	},
 	{
-		Usage: "convert [-k type] <package>",
-		Short: "convert a source package into a destination package format",
+		Usage: "convert [-d datadir] [-k type] <package>",
+		Short: "convert a package into another package format",
 		Run:   runConvert,
 	},
 	{
@@ -40,13 +40,13 @@ var commands = []*cli.Command{
 		Run:   runShow,
 	},
 	{
-		Usage: "verify <package,...>",
+		Usage: "verify <package...>",
 		Alias: []string{"check"},
 		Short: "check the integrity of the given package(s)",
 		Run:   runVerify,
 	},
 	{
-		Usage: "history [-w who] [-c count] [-f from] [-t to] <package,...>",
+		Usage: "history [-w who] [-f from] [-t to] <package,...>",
 		Alias: []string{"log", "changelog"},
 		Short: "dump changelog of given package",
 		Run:   runLog,
@@ -57,7 +57,7 @@ var commands = []*cli.Command{
 		Run:   runExtract,
 	},
 	{
-		Usage: "install <package,...>",
+		Usage: "install <package...>",
 		Short: "install package on the system",
 		Run:   nil,
 	},
