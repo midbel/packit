@@ -62,7 +62,7 @@ var commands = []*cli.Command{
 		Run:   nil,
 	},
 	{
-		Usage: "repack [-d datadir] [-k type] <package>",
+		Usage: "repack [-m] [-d datadir] [-k type] <package>",
 		Short: "create a package from files installed on local system",
 		Run:   runPack,
 	},

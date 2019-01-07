@@ -56,22 +56,35 @@ func runBuild(cmd *cli.Command, args []string) error {
 func runPack(cmd *cli.Command, args []string) error {
 	datadir := cmd.Flag.String("d", os.TempDir(), "data directory")
 	format := cmd.Flag.String("k", "", "packet type")
+	merge := cmd.Flag.Bool("m", false, "merge given packages into an uniq package")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
+	if ns := cmd.Flag.Args(); *merge {
+		return mergePackages(ns[1:], ns[0], *datadir, *format)
+	} else {
+		return repackPackages(ns, *datadir, *format)
+	}
+}
+
+func mergePackages(pkgs []string, name, datadir, format string) error {
+	return nil
+}
+
+func repackPackages(pkgs []string, datadir, format string) error {
 	var group errgroup.Group
-	for _, a := range cmd.Flag.Args() {
+	for _, a := range pkgs {
 		a := a
 		group.Go(func() error {
 			mf, err := makefile(a)
 			if err != nil {
 				return err
 			}
-			b, err := buildPackage(mf, *format)
+			b, err := buildPackage(mf, format)
 			if err != nil {
 				return err
 			}
-			w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
+			w, err := os.Create(filepath.Join(datadir, b.PackageName()))
 			if err != nil {
 				return err
 			}
