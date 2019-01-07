@@ -55,6 +55,7 @@ func runBuild(cmd *cli.Command, args []string) error {
 }
 
 func runConvert(cmd *cli.Command, args []string) error {
+	who := cmd.Flag.String("m", "", "maintainer")
 	datadir := cmd.Flag.String("d", os.TempDir(), "data directory")
 	format := cmd.Flag.String("k", "", "package format")
 	if err := cmd.Flag.Parse(args); err != nil {
@@ -98,6 +99,17 @@ func runConvert(cmd *cli.Command, args []string) error {
 			return nil
 		})
 		c := p.About()
+		switch *who {
+		case "", "-":
+		case "default":
+			c.Maintainer = &packit.DefaultMaintainer
+		default:
+			m, err := packit.ParseMaintainer(*who)
+			if err != nil {
+				return err
+			}
+			c.Maintainer = m
+		}
 		mf.Control = &c
 		for _, c := range p.History() {
 			mf.Changes = append(mf.Changes, &c)

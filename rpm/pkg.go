@@ -169,6 +169,10 @@ func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
 			c.Summary = v.(string)
 		case rpmTagDesc:
 			c.Desc = v.(string)
+		case rpmTagPackager:
+			if m, err := packit.ParseMaintainer(v.(string)); err == nil {
+				c.Maintainer = m
+			}
 		case rpmTagVendor:
 			c.Vendor = v.(string)
 		case rpmTagLicense:

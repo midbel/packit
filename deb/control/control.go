@@ -27,17 +27,17 @@ Package: {{.Package}}
 Version: {{.Version}}
 {{if .License}}License: {{.License}}{{end}}
 Section: {{.Section}}
-Priority: {{.Priority}}
+Priority: {{if .Priority}}{{.Priority}}{{else}}optional{{end}}
 Date: {{.Date | datetime}}
 Architecture: {{arch .Arch}}
 {{if .Vendor}}Vendor: {{.Vendor}}{{end}}
 {{if.Maintainer}}Maintainer: {{.Name}} <{{.Email}}>{{end}}
-Homepage: {{.Home}}
+{{if .Home}}Homepage: {{.Home}}{{end}}
 {{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
 {{if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}
 {{if .Provides}}Provides: {{join .Provides ", "}}{{end}}
 Installed-Size: {{.Size | bytesize}}
-Build-Using: {{.Compiler}}
+{{if .Compiler}}Build-Using: {{.Compiler}}{{end}}
 Description: {{if .Summary }}{{.Summary}}{{else}}summary missing{{end}}
 {{if .Desc }}{{indent .Desc}}{{end}}
 `

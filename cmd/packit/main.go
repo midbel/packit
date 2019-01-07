@@ -29,7 +29,7 @@ var commands = []*cli.Command{
 		Run:   runBuild,
 	},
 	{
-		Usage: "convert [-d datadir] [-k type] <package>",
+		Usage: "convert [-m maintainer] [-d datadir] [-k type] <package>",
 		Short: "convert a package into another package format",
 		Run:   runConvert,
 	},

@@ -37,6 +37,15 @@ const (
 	ArchAll = 0
 )
 
+var DefaultMaintainer Maintainer
+
+func init() {
+	DefaultMaintainer = Maintainer {
+		Name: os.Getenv("PACKIT_MAINTAINER_NAME"),
+		Email: os.Getenv("PACKIT_MAINTAINER_EMAIL"),
+	}
+}
+
 type Package interface {
 	PackageName() string
 	PackageType() string
@@ -86,6 +95,13 @@ func Hostname() string {
 type Maintainer struct {
 	Name  string `toml:"name"`
 	Email string `toml:"email"`
+}
+
+func (m *Maintainer) String() string {
+	if m == nil || m.Name == "" || m.Email == "" {
+		return "nobody <unknown>"
+	}
+	return fmt.Sprintf("%s <%s>", m.Name, m.Email)
 }
 
 func ParseMaintainer(s string) (*Maintainer, error) {
@@ -158,13 +174,6 @@ func parseMaintainer(s string, version bool) (*Maintainer, string, error) {
 		return nil, "", fmt.Errorf("missing maintainer e-mail")
 	}
 	return &m, v, err
-}
-
-func (m *Maintainer) String() string {
-	if m == nil {
-		return "<unknown>"
-	}
-	return fmt.Sprintf("%s <%s>", m.Name, m.Email)
 }
 
 type code string
