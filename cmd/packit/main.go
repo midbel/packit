@@ -29,7 +29,7 @@ var commands = []*cli.Command{
 		Run:   runBuild,
 	},
 	{
-		Usage: "convert <package> <package>",
+		Usage: "convert [-k type] <package>",
 		Short: "convert a source package into a destination package format",
 		Run:   runConvert,
 	},
@@ -203,10 +203,6 @@ func runExtract(cmd *cli.Command, args []string) error {
 		}
 		return nil
 	})
-}
-
-func runConvert(cmd *cli.Command, args []string) error {
-	return cmd.Flag.Parse(args)
 }
 
 func showPackages(ns []string, fn func(packit.Package) error) error {

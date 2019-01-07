@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -53,6 +54,69 @@ func runBuild(cmd *cli.Command, args []string) error {
 	return group.Wait()
 }
 
+func runConvert(cmd *cli.Command, args []string) error {
+	datadir := cmd.Flag.String("d", os.TempDir(), "data directory")
+	format := cmd.Flag.String("k", "", "package format")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	switch *format {
+	case "", "deb", "rpm":
+	default:
+		return fmt.Errorf("unsupported packet type %s", *format)
+	}
+	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
+		if p.PackageType() == *format {
+			return nil
+		}
+		workdir := filepath.Join(os.TempDir(), p.PackageType(), p.PackageName())
+		if err := os.RemoveAll(workdir); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(workdir, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
+		if err := p.Extract(workdir, false); err != nil {
+			return err
+		}
+		var mf packit.Makefile
+		filepath.Walk(workdir, func(p string, i os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if i.IsDir() {
+				return nil
+			}
+			f := packit.File{
+				Src:  p,
+				Dst:  strings.TrimPrefix(p, workdir),
+				Name: filepath.Base(p),
+				Perm: int(i.Mode()),
+				Conf: packit.IsConfFile(p),
+			}
+			mf.Files = append(mf.Files, &f)
+			return nil
+		})
+		c := p.About()
+		mf.Control = &c
+		for _, c := range p.History() {
+			mf.Changes = append(mf.Changes, &c)
+		}
+
+		b, err := buildPackage(&mf, *format)
+		if err != nil {
+			return err
+		}
+		w, err := os.Create(filepath.Join(*datadir, b.PackageName()))
+		if err != nil {
+			return err
+		}
+		defer w.Close()
+
+		return b.Build(w)
+	})
+}
+
 func runPack(cmd *cli.Command, args []string) error {
 	datadir := cmd.Flag.String("d", os.TempDir(), "data directory")
 	format := cmd.Flag.String("k", "", "packet type")
@@ -68,7 +132,7 @@ func runPack(cmd *cli.Command, args []string) error {
 }
 
 func mergePackages(pkgs []string, name, datadir, format string) error {
-	return nil
+	return fmt.Errorf("merge not yet implemented")
 }
 
 func repackPackages(pkgs []string, datadir, format string) error {
