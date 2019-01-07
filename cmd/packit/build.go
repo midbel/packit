@@ -66,6 +66,18 @@ func runConvert(cmd *cli.Command, args []string) error {
 	default:
 		return fmt.Errorf("unsupported packet type %s", *format)
 	}
+	var maintainer *packit.Maintainer
+	switch *who {
+	case "", "-":
+	case "default":
+		maintainer = &packit.DefaultMaintainer
+	default:
+		m, err := packit.ParseMaintainer(*who)
+		if err != nil {
+			return err
+		}
+		maintainer = m
+	}
 	return showPackages(cmd.Flag.Args(), func(p packit.Package) error {
 		if p.PackageType() == *format {
 			return nil
@@ -99,16 +111,8 @@ func runConvert(cmd *cli.Command, args []string) error {
 			return nil
 		})
 		c := p.About()
-		switch *who {
-		case "", "-":
-		case "default":
-			c.Maintainer = &packit.DefaultMaintainer
-		default:
-			m, err := packit.ParseMaintainer(*who)
-			if err != nil {
-				return err
-			}
-			c.Maintainer = m
+		if maintainer != nil {
+			c.Maintainer = maintainer
 		}
 		mf.Control = &c
 		for _, c := range p.History() {
