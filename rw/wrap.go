@@ -1,6 +1,7 @@
 package rw
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"strings"
@@ -10,6 +11,28 @@ const (
 	MinLineLength = 72
 	MaxLineLength = 80
 )
+
+func CleanString(text string) string {
+	s := bufio.NewScanner(strings.NewReader(text))
+	var str bytes.Buffer
+	for s.Scan() {
+		if t := s.Text(); len(t) > 0 {
+			io.WriteString(&str, t+"\n")
+		}
+	}
+	if err := s.Err(); err != nil {
+		return text
+	}
+	return strings.TrimSuffix(str.String(), "\n")
+}
+
+func CleanAndWrapDefault(text string) string {
+	return WrapDefault(CleanString(text))
+}
+
+func CleanAndWrap(text string, min, max int) string {
+	return Wrap(CleanString(text), min, max)
+}
 
 func WrapDefault(text string) string {
 	return Wrap(text, MinLineLength, MaxLineLength)
