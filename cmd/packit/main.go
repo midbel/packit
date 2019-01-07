@@ -223,10 +223,10 @@ func showPackages(ns []string, fn func(packit.Package) error) error {
 			return fmt.Errorf("unsupported packet type %s", e)
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("fail to read %s: %s", n, err)
 		}
 		if err := fn(pkg); err != nil {
-			return err
+			return fmt.Errorf("%s: %s", pkg.PackageName(), err)
 		}
 	}
 	return nil

@@ -237,6 +237,7 @@ type Control struct {
 	Compiler    string   `toml:"compiler"`
 	*Maintainer `toml:"maintainer"`
 
+	Format string    `toml:"-"`
 	Status string    `toml:"-"`
 	Source string    `toml:"-"`
 	Date   time.Time `toml:"-"`

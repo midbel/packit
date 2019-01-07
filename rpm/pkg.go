@@ -136,7 +136,11 @@ func (p *pkg) Extract(datadir string, preserve bool) error {
 }
 
 func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
-	var c packit.Control
+	var (
+		c   packit.Control
+		pay string // payload format, should be cpio
+		com string // payload compressor, should be gz, xz,...
+	)
 
 	var (
 		ctimes []int64
@@ -189,7 +193,9 @@ func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
 				c.Arch = packit.Arch32
 			}
 		case rpmTagPayload:
+			pay = v.(string)
 		case rpmTagCompressor:
+			com = v.(string)
 		case rpmTagPayloadFlags:
 		}
 		return nil
@@ -199,23 +205,26 @@ func readMeta(r io.Reader) (*packit.Control, packit.History, error) {
 	}
 	var cs []packit.Change
 	for i := 0; i < len(clogs); i++ {
-		m, v, err := packit.ParseMaintainerVersion(cnames[i])
-		if err != nil {
-			return nil, nil, err
-		}
 		c := packit.Change{
-			When:       time.Unix(ctimes[i], 0),
-			Body:       clogs[i],
-			Version:    v,
-			Maintainer: m,
+			When: time.Unix(ctimes[i], 0),
+			Body: clogs[i],
+		}
+		if m, v, err := packit.ParseMaintainerVersion(cnames[i]); err == nil {
+			c.Version, c.Maintainer = v, m
 		}
 		cs = append(cs, c)
+	}
+	if pay != "" && com != "" {
+		c.Format = fmt.Sprintf("%s.%s", pay, com)
 	}
 	return &c, packit.History(cs), nil
 }
 
 func readSignature(r io.Reader) (*signature, error) {
-	var s signature
+	s := signature{
+		Payload: -1,
+		Size:    -1,
+	}
 	return &s, readHeader(r, true, func(tag int32, v interface{}) error {
 		switch tag {
 		case rpmSigSha1:
@@ -247,10 +256,12 @@ func readData(r io.Reader, format string) (*bytes.Reader, error) {
 		err error
 	)
 	switch format {
-	case rpmPayloadCompressor, "":
+	case "cpio.gz", "cpio.gzip", "":
 		z, err = gzip.NewReader(r)
-	default:
+	case "cpio.xz":
 		return nil, packit.ErrUnsupportedPayloadFormat
+	default:
+		return nil, packit.ErrMalformedPackage
 	}
 	if err != nil {
 		return nil, err

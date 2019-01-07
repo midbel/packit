@@ -59,20 +59,24 @@ func Open(file string) (packit.Package, error) {
 		return nil, err
 	}
 	md, sh1, sh2 := md5.New(), sha1.New(), sha256.New()
-	rw := io.TeeReader(r, io.MultiWriter(md, sh2))
+	total := counter(0)
+	rw := io.TeeReader(r, io.MultiWriter(md, sh2, &total))
 	if p.control, p.history, err = readMeta(io.TeeReader(rw, sh1)); err != nil {
 		return nil, err
 	}
 	if s.Sha1 != "" && s.Sha1 != hex.EncodeToString(sh1.Sum(nil)) {
 		return nil, invalidSignature(p.name, "header", "sha1")
 	}
-	if p.data, err = readData(rw, ""); err != nil {
+	if p.data, err = readData(rw, p.control.Format); err != nil {
 		if err != packit.ErrUnsupportedPayloadFormat {
 			return nil, err
 		}
 	} else {
-		if z := p.data.Size(); int64(z) != s.Payload {
+		if z := p.data.Size(); s.Payload >= 0 && int64(z) != s.Payload {
 			return nil, fmt.Errorf("invalid payload size (expected %d, got %d)", s.Payload, z)
+		}
+		if z := total.Size(); s.Size >= 0 && z != s.Size {
+			return nil, fmt.Errorf("invalid size (expected %d, got %d)", s.Size, z)
 		}
 		if s.MD5 != "" && s.MD5 != hex.EncodeToString(md.Sum(nil)) {
 			return nil, invalidSignature(p.name, "package", "md5")
@@ -86,6 +90,18 @@ func Open(file string) (packit.Package, error) {
 
 func invalidSignature(n, w, t string) error {
 	return fmt.Errorf("%s (%s): invalid signature (%s)", n, w, t)
+}
+
+type counter int64
+
+func (c *counter) Size() int64 {
+	return int64(*c)
+}
+
+func (c *counter) Write(bs []byte) (int, error) {
+	n := len(bs)
+	*c = counter(int64(*c) + int64(n))
+	return n, nil
 }
 
 const (
