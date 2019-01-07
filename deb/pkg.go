@@ -227,14 +227,23 @@ func readControl(r tape.Reader, p *pkg) error {
 	if err != nil {
 		return err
 	}
-	if h.Filename != debControlTar {
-		return fmt.Errorf("malformed deb package: want %s, got: %s", debControlTar, h.Filename)
+	if !strings.HasPrefix(filepath.Base(h.Filename), "control") {
+		return packit.ErrMalformedPackage
 	}
-	z, err := gzip.NewReader(r)
-	if err != nil {
-		return err
+	var rs io.Reader
+	switch e := filepath.Ext(h.Filename); e {
+	case packit.ExtGZ:
+		z, err := gzip.NewReader(r)
+		if err != nil {
+			return err
+		}
+		rs = z
+	case packit.ExtXZ:
+		return packit.ErrUnsupportedPayloadFormat
+	default:
+		return packit.ErrMalformedPackage
 	}
-	t := tar.NewReader(z)
+	t := tar.NewReader(rs)
 	for {
 		h, err := t.Next()
 		if err == io.EOF {
@@ -265,18 +274,21 @@ func readData(r tape.Reader, p *pkg) error {
 	if err != nil {
 		return err
 	}
+	if !strings.HasPrefix(filepath.Base(h.Filename), "data") {
+		return packit.ErrMalformedPackage
+	}
 	var rs io.Reader
 	switch e := filepath.Ext(h.Filename); e {
-	case ".gz":
+	case packit.ExtGZ:
 		z, err := gzip.NewReader(r)
 		if err != nil {
 			return err
 		}
 		rs = z
-	case ".xz":
-		return fmt.Errorf("not yet supported format %s", e)
+	case packit.ExtXZ:
+		return packit.ErrUnsupportedPayloadFormat
 	default:
-		return fmt.Errorf("unsupported format %s", e)
+		return packit.ErrMalformedPackage
 	}
 	bs, err := ioutil.ReadAll(rs)
 	if err == nil {

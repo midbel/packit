@@ -13,9 +13,17 @@ import (
 	"unicode"
 )
 
-var ErrUnsupportedPayloadFormat = errors.New("unsupported payload format")
+var (
+	ErrUnsupportedPayloadFormat = errors.New("unsupported payload format")
+	ErrMalformedPackage         = errors.New("malformed package")
+)
 
 var ErrSkip = errors.New("skip")
+
+const (
+	ExtGZ = ".gz"
+	ExtXZ = ".xz"
+)
 
 const (
 	defaultEtcDir = "etc/"
@@ -40,8 +48,8 @@ const (
 var DefaultMaintainer Maintainer
 
 func init() {
-	DefaultMaintainer = Maintainer {
-		Name: os.Getenv("PACKIT_MAINTAINER_NAME"),
+	DefaultMaintainer = Maintainer{
+		Name:  os.Getenv("PACKIT_MAINTAINER_NAME"),
 		Email: os.Getenv("PACKIT_MAINTAINER_EMAIL"),
 	}
 }
