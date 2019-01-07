@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/deb/changelog"
 	"github.com/midbel/packit/deb/control"
 	"github.com/midbel/tape"
 )
@@ -38,7 +39,22 @@ func (p *pkg) PackageName() string {
 }
 
 func (p *pkg) History() packit.History {
-	return nil
+	if _, err := p.data.Seek(0, io.SeekStart); err != nil {
+		return nil
+	}
+	var cs []packit.Change
+	r := tar.NewReader(p.data)
+	for {
+		h, err := r.Next()
+		if err != nil {
+			break
+		}
+		if filepath.Base(h.Name) == debChangeFile {
+			cs, err = changelog.Parse(io.LimitReader(r, h.Size))
+			break
+		}
+	}
+	return packit.History(cs)
 }
 
 func (p *pkg) Valid() error {

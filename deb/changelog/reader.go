@@ -1,6 +1,7 @@
 package changelog
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -20,6 +21,18 @@ const (
 	rsquare   = '>'
 	nl        = '\n'
 )
+
+func Parse(r io.Reader) ([]packit.Change, error) {
+	var rs io.RuneScanner
+	if x, ok := r.(io.RuneScanner); ok {
+		rs = x
+	} else {
+		rs = bufio.NewReader(r)
+	}
+	_ = rs
+	var cs []packit.Change
+	return cs, nil
+}
 
 func parseTrailer(rs io.RuneScanner, c *packit.Change) error {
 	if _, err := readUntil(rs, ' ', nil, nil); err != nil {
