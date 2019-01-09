@@ -85,7 +85,6 @@ The commands are:
 
 {{range .Commands}}{{printf "  %-9s %s" .String .Short}}
 {{end}}
-
 Use {{.Name}} [command] -h for more information about its usage.
 `
 

@@ -41,6 +41,10 @@ func Build(mf *packit.Makefile) (packit.Builder, error) {
 	return &b, nil
 }
 
+// func About(file string) (*packit.Control, error) {
+// 	return nil, nil
+// }
+
 func Open(file string) (packit.Package, error) {
 	r, err := os.Open(file)
 	if err != nil {

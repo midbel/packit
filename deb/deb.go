@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/deb/control"
+	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
 )
 
@@ -45,21 +47,43 @@ func Open(file string) (packit.Package, error) {
 	}
 	defer f.Close()
 
-	r, err := ar.NewReader(f)
+	r, p, err := openFile(f)
 	if err != nil {
 		return nil, err
 	}
+	if err := readData(r, p); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func openFile(f *os.File) (tape.Reader, *pkg, error) {
+	r, err := ar.NewReader(f)
+	if err != nil {
+		return nil, nil, err
+	}
 	if err := readDebian(r); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	p := pkg{name: filepath.Base(file)}
+	p := pkg{name: filepath.Base(f.Name())}
 	if err := readControl(r, &p); err != nil {
+		return nil, nil, err
+	}
+	return r, &p, nil
+}
+
+func About(file string) (*packit.Control, error) {
+	f, err := os.Open(file)
+	if err != nil {
 		return nil, err
 	}
-	if err := readData(r, &p); err != nil {
+	defer f.Close()
+
+	_, p, err := openFile(f)
+	if err != nil {
 		return nil, err
 	}
-	return &p, nil
+	return control.Parse(p.control)
 }
 
 func Arch(a uint8) string {

@@ -18,6 +18,7 @@ import (
 	"github.com/midbel/packit/deb/changelog"
 	"github.com/midbel/packit/deb/control"
 	"github.com/midbel/tape"
+	"github.com/ulikunitz/xz"
 )
 
 type pkg struct {
@@ -233,15 +234,19 @@ func readControl(r tape.Reader, p *pkg) error {
 	var rs io.Reader
 	switch e := filepath.Ext(h.Filename); e {
 	case packit.ExtGZ:
-		z, err := gzip.NewReader(r)
-		if err != nil {
-			return err
-		}
-		rs = z
+		rs, err = gzip.NewReader(r)
+		// if err != nil {
+		// 	return err
+		// }
+		// rs = z
 	case packit.ExtXZ:
-		return packit.ErrUnsupportedPayloadFormat
+		rs, err = xz.NewReader(r)
+		// return packit.ErrUnsupportedPayloadFormat
 	default:
 		return packit.ErrMalformedPackage
+	}
+	if err != nil {
+		return err
 	}
 	t := tar.NewReader(rs)
 	for {
@@ -280,15 +285,19 @@ func readData(r tape.Reader, p *pkg) error {
 	var rs io.Reader
 	switch e := filepath.Ext(h.Filename); e {
 	case packit.ExtGZ:
-		z, err := gzip.NewReader(r)
-		if err != nil {
-			return err
-		}
-		rs = z
+		rs, err = gzip.NewReader(r)
+		// if err != nil {
+		// 	return err
+		// }
+		// rs = z
 	case packit.ExtXZ:
-		return packit.ErrUnsupportedPayloadFormat
+		rs, err = xz.NewReader(r)
+		// return packit.ErrUnsupportedPayloadFormat
 	default:
 		return packit.ErrMalformedPackage
+	}
+	if err != nil {
+		return err
 	}
 	bs, err := ioutil.ReadAll(rs)
 	if err == nil {

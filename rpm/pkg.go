@@ -16,6 +16,7 @@ import (
 
 	"github.com/midbel/packit"
 	"github.com/midbel/tape/cpio"
+	"github.com/ulikunitz/xz"
 )
 
 type pkg struct {
@@ -259,7 +260,8 @@ func readData(r io.Reader, format string) (*bytes.Reader, error) {
 	case "cpio.gz", "cpio.gzip", "":
 		z, err = gzip.NewReader(r)
 	case "cpio.xz":
-		return nil, packit.ErrUnsupportedPayloadFormat
+		z, err = xz.NewReader(r)
+		// return nil, packit.ErrUnsupportedPayloadFormat
 	default:
 		return nil, packit.ErrMalformedPackage
 	}
