@@ -219,23 +219,28 @@ func (s *Script) Valid() bool {
 }
 
 type Control struct {
-	Package     string   `toml:"package"`
-	Version     string   `toml:"version"`
-	Release     string   `toml:"release"`
-	Summary     string   `toml:"summary"`
-	Desc        string   `toml:"description"`
-	License     string   `toml:"license"`
-	Section     string   `toml:"section"`
-	Priority    string   `toml:"priority"`
-	Os          string   `toml:"os"`
-	Arch        uint8    `toml:"arch"`
-	Vendor      string   `toml:"vendor"`
-	Home        string   `toml:"homepage"`
-	Depends     []string `toml:"depends"`
-	Suggests    []string `toml:"suggests"`
-	Provides    []string `toml:"provides"`
-	Compiler    string   `toml:"compiler"`
+	Package     string `toml:"package"`
+	Version     string `toml:"version"`
+	Release     string `toml:"release"`
+	Summary     string `toml:"summary"`
+	Desc        string `toml:"description"`
+	License     string `toml:"license"`
+	Section     string `toml:"section"`
+	Priority    string `toml:"priority"`
+	Os          string `toml:"os"`
+	Arch        uint8  `toml:"arch"`
+	Vendor      string `toml:"vendor"`
+	Home        string `toml:"homepage"`
 	*Maintainer `toml:"maintainer"`
+
+	Depends   []string `toml:"depends"`
+	Suggests  []string `toml:"suggests"`
+	Provides  []string `toml:"provides"`
+	Breaks    []string `toml:"breaks"`
+	Conflicts []string `toml:"conflicts"`
+	Replaces  []string `toml:"replaces"`
+
+	Compiler string `toml:"compiler"`
 
 	Format string    `toml:"-"`
 	Status string    `toml:"-"`

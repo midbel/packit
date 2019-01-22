@@ -204,6 +204,32 @@ func runExtract(cmd *cli.Command, args []string) error {
 	})
 }
 
+func showControls(ns []string, fn func(packit.Control) error) error {
+	if fn == nil {
+		return nil
+	}
+	for _, n := range ns {
+		var (
+			c   *packit.Control
+			err error
+		)
+		switch e := filepath.Ext(n); e {
+		case ".deb":
+			c, err = deb.About(n)
+		case ".rpm":
+			c, err = rpm.About(n)
+		default:
+		}
+		if err != nil {
+			return err
+		}
+		if err := fn(*c); err != nil {
+			return fmt.Errorf("%s: %s", c.Package, err)
+		}
+	}
+	return nil
+}
+
 func showPackages(ns []string, fn func(packit.Package) error) error {
 	if fn == nil {
 		return nil

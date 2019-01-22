@@ -36,6 +36,8 @@ Architecture: {{arch .Arch}}
 {{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
 {{if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}
 {{if .Provides}}Provides: {{join .Provides ", "}}{{end}}
+{{if .Conflicts}}Conflicts: {{join .Conflicts ", "}}{{end}}
+{{if .Replaces}}Replaces: {{join .Replaces ", "}}{{end}}
 Installed-Size: {{.Size | bytesize}}
 {{if .Compiler}}Build-Using: {{.Compiler}}{{end}}
 Description: {{if .Summary }}{{.Summary}}{{else}}summary missing{{end}}
