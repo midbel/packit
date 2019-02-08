@@ -138,6 +138,14 @@ func Parse(r io.Reader) (*packit.Control, error) {
 			c.Maintainer = m
 		case "homepage":
 			c.Home = v
+		case "conflicts":
+			c.Conflicts = strings.Split(v, ", ")
+		case "replaces":
+			c.Replaces = strings.Split(v, ", ")
+		case "breaks":
+			c.Breaks = strings.Split(v, ", ")
+		case "suggests":
+			c.Suggests = strings.Split(v, ", ")
 		case "depends":
 			c.Depends = strings.Split(v, ", ")
 		case "provides":
