@@ -17,6 +17,11 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	dpkgBase = "/var/lib/dpkg"
+	dpkgInfo = "/var/lib/dpkg/info"
+)
+
 func runBuild(cmd *cli.Command, args []string) error {
 	format := cmd.Flag.String("k", "", "package format")
 	datadir := cmd.Flag.String("d", os.TempDir(), "datadir")
