@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,11 +56,6 @@ var commands = []*cli.Command{
 	},
 }
 
-func init() {
-	log.SetOutput(os.Stdout)
-	log.SetFlags(0)
-}
-
 const helpText = `{{.Name}} is an easy to use package manager which can be used
 to create softwares package in various format, show their content and/or verify
 their integrity.
@@ -78,7 +72,6 @@ Use {{.Name}} [command] -h for more information about its usage.
 `
 
 func main() {
-	log.SetFlags(0)
 	cli.RunAndExit(commands, cli.Usage("packit", helpText, commands))
 }
 
