@@ -79,22 +79,7 @@ Use {{.Name}} [command] -h for more information about its usage.
 
 func main() {
 	log.SetFlags(0)
-	usage := func() {
-		data := struct {
-			Name     string
-			Commands []*cli.Command
-		}{
-			Name:     filepath.Base(os.Args[0]),
-			Commands: commands,
-		}
-		t := template.Must(template.New("help").Parse(helpText))
-		t.Execute(os.Stderr, data)
-
-		os.Exit(2)
-	}
-	if err := cli.Run(commands, usage, nil); err != nil {
-		log.Fatalln(err)
-	}
+	cli.RunAndExit(commands, cli.Usage("packit", helpText, commands))
 }
 
 func runLog(cmd *cli.Command, args []string) error {
