@@ -182,13 +182,8 @@ func repackPackages(pkgs []string, datadir, format string) error {
 }
 
 func prepare(file, format string) (packit.Builder, error) {
-	r, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
 	var mf packit.Makefile
-	if err := toml.NewDecoder(r).Decode(&mf); err != nil {
+	if err := toml.DecodeFile(file, &mf); err != nil {
 		return nil, err
 	}
 	return buildPackage(&mf, format)
