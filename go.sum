@@ -1,0 +1,10 @@
+github.com/midbel/cli v0.2.1 h1:u/xbwsu+oyV0jw5kkAimksy8qzoiCTE2HvtYtE/PHLE=
+github.com/midbel/cli v0.2.1/go.mod h1:HRXqwypQ5mtcO4MhCT7eCDLyAS1lua9lmD2yHAP82i4=
+github.com/midbel/tape v0.0.0-20181224185002-3d8694f64b95 h1:eWBHsvnZjBgZUiiyAWfBd5eC0ziZ+6wzBBK5ZLp/e4Y=
+github.com/midbel/tape v0.0.0-20181224185002-3d8694f64b95/go.mod h1:0SOTZLVf7EGY2YjkpILn9ng9OopbEgFYF9SWIDq4jA8=
+github.com/midbel/toml v1.0.5 h1:Cs9miXleUt2fNxx6iufnLlvrNW5dgN4KjRD4pF3qbHE=
+github.com/midbel/toml v1.0.5/go.mod h1:+sjz9eF3MUm1viemJC2sOXFVLrtmkWunF6rmX1zDKM0=
+github.com/ulikunitz/xz v0.5.10 h1:t92gobL9l3HE202wg3rlk19F6X+JOxl9BBrCCMYEYd8=
+github.com/ulikunitz/xz v0.5.10/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
