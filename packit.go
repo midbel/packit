@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -192,7 +191,7 @@ func (c *code) String() string {
 
 func (c *code) Set(s string) error {
 	if i, err := os.Stat(s); err == nil && i.Mode().IsRegular() {
-		bs, err := ioutil.ReadFile(s)
+		bs, err := os.ReadFile(s)
 		if err != nil {
 			return err
 		}
