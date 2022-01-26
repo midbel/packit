@@ -1,0 +1,37 @@
+name        = maestro
+version     = "0.2.0"
+summary     = "manage your commands made easy"
+description = ""
+license     = ""
+section     = ""
+priority    = ""
+os          = ""
+arch        = ""
+vendor      = ""
+homepage    = ""
+compiler    = "go1.17.6"
+
+maintainer {
+  name  = "midbel"
+  email = "noreply@midbel.org"
+}
+
+change {
+  title   = "make command callable by others defined"
+  version = "0.2.0"
+}
+
+change {
+  title   = "implements the serve sub command"
+  version = "0.2.0"
+}
+
+change {
+  title   = "add support for test expression"
+  version = "0.2.0"
+}
+
+pre-install  = ""
+post-install = ""
+pre-remove   = ""
+post-remove  = ""
