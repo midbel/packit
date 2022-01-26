@@ -1,4 +1,4 @@
-name        = packit
+package     = packit
 version     = "0.1.0"
 summary     = "create easily deb and/or rpm package"
 description = ""
@@ -6,7 +6,7 @@ license     = "MIT"
 section     = "contrib"
 priority    = "extra"
 os          = "linux"
-arch        = "amd64"
+arch        = 64
 vendor      = "midbel"
 homepage    = "https://github.com/midbel/packit"
 compiler    = "go1.17.6"

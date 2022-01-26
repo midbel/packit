@@ -6,9 +6,14 @@ import (
 	"os"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/deb"
 )
 
 func main() {
+	var (
+		dir  = flag.String("d", "", "output directory")
+		kind = flag.String("k", "", "package type")
+	)
 	flag.Parse()
 
 	r, err := os.Open(flag.Arg(0))
@@ -22,4 +27,15 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("%+v\n", m)
+	switch *kind {
+	case packit.DEB, "":
+		err = deb.Build(*dir, m)
+	case packit.RPM:
+	default:
+		err = fmt.Errorf("%s: unsupported package type", *kind)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
