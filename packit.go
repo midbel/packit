@@ -38,8 +38,8 @@ type Metadata struct {
 
 	Maintainer Maintainer
 
-	Resources []Resource
-	Changes   []Change
+	Resources []Resource `fig:"resource"`
+	Changes   []Change   `fig:"change"`
 
 	Depends   []string `fig:"depend"`
 	Suggests  []string `fig:"suggest"`
@@ -60,8 +60,14 @@ type Maintainer struct {
 }
 
 type Resource struct {
-	File string
-	Perm int
+	File     string
+	Perm     int    `fig:"permission"`
+	Dir      string `fig:"directory"`
+	Compress bool
+
+	Size    int64     `fig:"-"`
+	ModTime time.Time `fig:"-"`
+	Sum     string    `fig:"-"`
 }
 
 type Change struct {

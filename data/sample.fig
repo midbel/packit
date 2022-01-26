@@ -1,14 +1,14 @@
-name        = maestro
-version     = "0.2.0"
-summary     = "manage your commands made easy"
+name        = packit
+version     = "0.1.0"
+summary     = "create easily deb and/or rpm package"
 description = ""
-license     = ""
-section     = ""
-priority    = ""
-os          = ""
-arch        = ""
-vendor      = ""
-homepage    = ""
+license     = "MIT"
+section     = "contrib"
+priority    = "extra"
+os          = "linux"
+arch        = "amd64"
+vendor      = "midbel"
+homepage    = "https://github.com/midbel/packit"
 compiler    = "go1.17.6"
 
 maintainer {
@@ -16,19 +16,10 @@ maintainer {
   email = "noreply@midbel.org"
 }
 
-change {
-  title   = "make command callable by others defined"
-  version = "0.2.0"
-}
-
-change {
-  title   = "implements the serve sub command"
-  version = "0.2.0"
-}
-
-change {
-  title   = "add support for test expression"
-  version = "0.2.0"
+resource {
+  file = "bin/packit"
+  directory = "usr/bin"
+  permission = 0755
 }
 
 pre-install  = ""
