@@ -1,10 +1,12 @@
 package packit
 
 import (
+	"compress/gzip"
 	"crypto/md5"
-	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/midbel/fig"
@@ -59,10 +61,10 @@ type Metadata struct {
 	Conflicts []string `fig:"conflict"`
 	Replaces  []string `fig:"replace"`
 
-	PreInst  string
-	PostInst string
-	PreRem   string
-	PostRem  string
+	PreInst  string `fig:"pre-install"`
+	PostInst string `fig:"post-install"`
+	PreRem   string `fig:"pre-remove"`
+	PostRem  string `fig:"post-remove"`
 
 	Date time.Time `fig:"-"`
 	Size int64     `fig:"-"`
@@ -92,9 +94,19 @@ func (m *Metadata) Update() error {
 		}
 		defer r.Close()
 
-		sum := md5.New()
-		res.Size, err = io.Copy(sum, r)
-		res.Digest = hex.EncodeToString(sum.Sum(nil)[:])
+		var (
+			sum           = md5.New()
+			wrt io.Writer = sum
+		)
+		if res.Compress {
+			wrt, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
+		}
+		res.Size, err = io.Copy(wrt, r)
+		if c, ok := wrt.(io.Closer); ok {
+			c.Close()
+		}
+		res.Digest = fmt.Sprintf("%x", sum.Sum(nil))
+		res.ModTime = time.Now()
 		return res, err
 	}
 	for i := range m.Resources {
@@ -113,15 +125,47 @@ type Maintainer struct {
 	Email string
 }
 
+type Script struct {
+	Content string
+}
+
+// implements fig.Setter
+func (s *Script) Set(v interface{}) error {
+	return nil
+}
+
+const fileCopyright = "copyright"
+
 type Resource struct {
 	File     string
 	Perm     int    `fig:"permission"`
 	Dir      string `fig:"directory"`
 	Compress bool
-	Lang string
+	Lang     string
 
-	Size   int64  `fig:"-"`
-	Digest string `fig:"-"`
+	Inline  bool      `fig:"-"`
+	Digest  string    `fig:"-"`
+	Size    int64     `fig:"-"`
+	ModTime time.Time `fig:"-"`
+}
+
+// implements fig.Setter interface
+func (r *Resource) Set(v interface{}) error {
+	return nil
+}
+
+func (r Resource) Path() string {
+	switch base := filepath.Base(r.Dir); base {
+	case fileCopyright:
+		return r.Dir
+	default:
+	}
+	if r.Compress {
+		if filepath.Ext(r.File) != ".gz" {
+			r.File += ".gz"
+		}
+	}
+	return filepath.Join(r.Dir, filepath.Base(r.File))
 }
 
 func (r Resource) IsConfig() bool {

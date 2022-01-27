@@ -1,28 +1,71 @@
+.define(midbel) {
+  maintainer {
+    name  = "midbel"
+    email = "noreply@midbel.org"
+  }
+}
+
 package     = packit
 version     = "0.1.0"
-summary     = "create easily deb and/or rpm package"
-description = ""
+summary     = "Create easily deb and rpm package."
+description = <<DESC
+Packit is a free and open source package builder. It is easy to use and can
+quickly create your deb or rpm packages.
+DESC
 license     = "MIT"
-section     = "contrib"
-priority    = "extra"
+section     = "utils"
+priority    = "optional"
 os          = "linux"
 arch        = 64
 vendor      = "midbel"
 homepage    = "https://github.com/midbel/packit"
 compiler    = "go1.17.6"
 
-maintainer {
-  name  = "midbel"
-  email = "noreply@midbel.org"
+.apply(midbel, method=merge)
+
+depend = linux-vdso
+depend = libpthread
+depend = libc6
+depend = ld-linux-x86-64
+
+
+resource {
+  file      = "bin/packit"
+  directory = "usr/bin"
+  permission = 0755
 }
 
 resource {
-  file = "bin/packit"
-  directory = "usr/bin"
-  permission = 0755
+  file       = LICENSE
+  directory  = "usr/share/doc/packit/copyright"
+  permission = 0644
 }
 
 pre-install  = ""
 post-install = ""
 pre-remove   = ""
 post-remove  = ""
+
+change {
+  .apply(midbel)
+  version = "0.1.0"
+  when    = "2022-01-26"
+  title   = "switch from toml to fig configuration file"
+  description = <<DESC
+the fig configuration file offers a little bit more feature natively. It is a better
+choice than toml because we don't have to tweak in the code the desired features
+we want from an option
+DESC
+}
+
+change {
+  .apply(midbel)
+  version     = "0.1.0"
+  when        = "2022-01-26"
+  title       = "rewrite deb package"
+  description = <<DESC
+rewrite the package to make the code more clear and better organized.
+the previous version become too messy in order to make the package evolve
+easily.
+DESC
+}

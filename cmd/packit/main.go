@@ -26,7 +26,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Printf("%+v\n", m)
 	switch *kind {
 	case packit.DEB, "":
 		err = deb.Build(*dir, m)
