@@ -3,11 +3,14 @@ package packit
 import (
 	"compress/gzip"
 	"crypto/md5"
+	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/midbel/fig"
@@ -36,6 +39,9 @@ const (
 	EnvMaintainerName = "PACKIT_MAINTAINER_NAME"
 	EnvMaintainerMail = "PACKIT_MAINTAINER_MAIL"
 )
+
+//go:embed licenses/*tpl
+var licenses embed.FS
 
 type Metadata struct {
 	Package  string
@@ -87,6 +93,35 @@ func Load(r io.Reader) (Metadata, error) {
 		Date: time.Now(),
 	}
 	return meta, fig.NewDecoder(r).Decode(&meta)
+}
+
+func (m Metadata) GetLicense(dir string) (Resource, error) {
+	if res, ok := findLicense(m.Resources); ok {
+		return res, nil
+	}
+	var (
+		res    Resource
+		name   = fmt.Sprintf("%s.tpl", m.License)
+		b, err = fs.ReadFile(licenses, filepath.Join("licenses", name))
+	)
+	if err != nil {
+		return res, err
+	}
+	tpl, err := template.New("license").Parse(string(b))
+	if err != nil {
+		return res, err
+	}
+	ctx := struct {
+		Year   int
+		Holder string
+	}{
+		Year:   m.Date.Year(),
+		Holder: m.Maintainer.Name,
+	}
+	if err := tpl.Execute(os.Stdout, ctx); err != nil {
+		return res, err
+	}
+	return res, nil
 }
 
 func (m *Metadata) Update() error {
@@ -176,7 +211,7 @@ func (r *Resource) Update() error {
 	}
 
 	var (
-		sum = md5.New()
+		sum           = md5.New()
 		wrt io.Writer = sum
 	)
 	if r.Compress {
@@ -192,60 +227,24 @@ func (r *Resource) Update() error {
 	return err
 }
 
-type FileInfo struct {
-	File string
-
-	Inline  bool      `fig:"-"`
-	Digest  string    `fig:"-"`
-	Size    int64     `fig:"-"`
-	ModTime time.Time `fig:"-"`
-
-	Sub []Resource
-}
-
-// implements fig.Setter interface
-func (f *FileInfo) Set(str string) error {
-	f.File = str
-	r, err := os.Open(f.File)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	s, err := r.Stat()
-	if err != nil {
-		return err
-	}
-	if s.IsDir() {
-		return f.sub(f.File)
-	}
-
-	var (
-		sum = md5.New()
-		wrt io.Writer = sum
-	)
-	// Resource has Compress option but not FileInfo
-	// if f.Compress {
-	// 	wrt, _ = gzip.NewWriterLevel(sum, gzip.BestCompression)
-	// }
-	f.Size, err = io.Copy(sum, r)
-	if c, ok := wrt.(io.Closer); ok {
-		c.Close()
-	}
-	f.Digest = fmt.Sprintf("%x", sum.Sum(nil))
-	f.ModTime = s.ModTime()
-
-	return err
-}
-
-func (f *FileInfo) sub(dir string) error {
-	return nil
-}
-
 type Change struct {
 	Title      string
 	Desc       string `fig:"description"`
 	Version    string
 	When       time.Time
 	Maintainer Maintainer
+}
+
+func findLicense(res []Resource) (Resource, bool) {
+	for _, r := range res {
+		base := filepath.Base(r.Dir)
+		switch base := strings.ToLower(base); {
+		case base == "copyright" || base == "license":
+			return r, true
+		case r.File == "license" || r.File == "LICENSE":
+			return r, true
+		default:
+		}
+	}
+	return Resource{}, false
 }

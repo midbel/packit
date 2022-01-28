@@ -12,12 +12,12 @@ description = <<DESC
 Packit is a free and open source package builder. It is easy to use and can
 quickly create your deb or rpm packages.
 DESC
-license     = "MIT"
-section     = "utils"
-priority    = "optional"
-os          = "linux"
+license     = mit
+section     = utils
+priority    = optional
+os          = linux
 arch        = 64
-vendor      = "midbel"
+vendor      = midbel
 homepage    = "https://github.com/midbel/packit"
 compiler    = "go1.17.6"
 
@@ -35,11 +35,11 @@ resource {
   permission = 0755
 }
 
-resource {
-  file       = LICENSE
-  directory  = "usr/share/doc/packit/copyright"
-  permission = 0644
-}
+#resource {
+#  file       = LICENSE
+#  directory  = "usr/share/doc/packit/copyright"
+#  permission = 0644
+#}
 
 pre-install  = "echo script pre-install"
 post-install = "echo script post-install"

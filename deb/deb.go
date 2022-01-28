@@ -43,6 +43,7 @@ const (
 )
 
 func Build(dir string, meta packit.Metadata) error {
+	meta.GetLicense(debDocDir)
 	w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
 	if err != nil {
 		return err
@@ -67,9 +68,6 @@ func Build(dir string, meta packit.Metadata) error {
 		}
 		meta.Resources = append(meta.Resources, res)
 		defer os.Remove(file)
-	}
-	if err := meta.Update(); err != nil {
-		return err
 	}
 	return build(w, meta)
 }
