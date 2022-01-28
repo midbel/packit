@@ -35,11 +35,11 @@ resource {
   permission = 0755
 }
 
-#resource {
-#  file       = LICENSE
-#  directory  = "usr/share/doc/packit/copyright"
-#  permission = 0644
-#}
+resource {
+  file       = LICENSE
+  directory  = "usr/share/doc/packit/copyright"
+  permission = 0644
+}
 
 pre-install  = "echo script pre-install"
 post-install = "echo script post-install"
