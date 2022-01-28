@@ -1,6 +1,6 @@
 Package: {{.Package}}
 Version: {{.Version}}
-{{if .License}}License: {{.License}}{{end}}
+{{- if .Essential}}Essential: yes{{end}}
 Section: {{.Section}}
 Priority: {{if .Priority}}{{.Priority}}{{else}}optional{{end}}
 Date: {{datetime .Date}}

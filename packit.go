@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/midbel/fig"
@@ -28,6 +29,7 @@ const (
 	DefaultSection  = "contrib"
 	DefaultPriority = "extra"
 	DefaultOS       = "linux"
+	DefaultShebang  = "#!/bin/sh"
 )
 
 const (
@@ -54,6 +56,7 @@ type Metadata struct {
 	Resources []Resource `fig:"resource"`
 	Changes   []Change   `fig:"change"`
 
+	Essential bool
 	Depends   []string `fig:"depend"`
 	Suggests  []string `fig:"suggest"`
 	Provides  []string `fig:"provide"`
@@ -61,10 +64,10 @@ type Metadata struct {
 	Conflicts []string `fig:"conflict"`
 	Replaces  []string `fig:"replace"`
 
-	PreInst  string `fig:"pre-install"`
-	PostInst string `fig:"post-install"`
-	PreRem   string `fig:"pre-remove"`
-	PostRem  string `fig:"post-remove"`
+	PreInst  Script `fig:"pre-install"`
+	PostInst Script `fig:"post-install"`
+	PreRem   Script `fig:"pre-remove"`
+	PostRem  Script `fig:"post-remove"`
 
 	Date time.Time `fig:"-"`
 	Size int64     `fig:"-"`
@@ -87,35 +90,8 @@ func Load(r io.Reader) (Metadata, error) {
 }
 
 func (m *Metadata) Update() error {
-	read := func(res Resource) (Resource, error) {
-		r, err := os.Open(res.File)
-		if err != nil {
-			return res, err
-		}
-		defer r.Close()
-
-		var (
-			sum           = md5.New()
-			wrt io.Writer = sum
-		)
-		if res.Compress {
-			wrt, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
-		}
-		res.Size, err = io.Copy(wrt, r)
-		if c, ok := wrt.(io.Closer); ok {
-			c.Close()
-		}
-		res.Digest = fmt.Sprintf("%x", sum.Sum(nil))
-		res.ModTime = time.Now()
-		return res, err
-	}
-	for i := range m.Resources {
-		res, err := read(m.Resources[i])
-		if err != nil {
-			return err
-		}
-		m.Resources[i] = res
-		m.Size += res.Size
+	for _, r := range m.Resources {
+		m.Size += r.Size
 	}
 	return nil
 }
@@ -126,11 +102,23 @@ type Maintainer struct {
 }
 
 type Script struct {
-	Content string
+	Code   string
+	Digest string
 }
 
 // implements fig.Setter
-func (s *Script) Set(v interface{}) error {
+func (s *Script) Set(str string) error {
+	if str == "" {
+		return nil
+	}
+	if b, err := os.ReadFile(str); err == nil {
+		str = string(b)
+	}
+	if !strings.HasPrefix(str, "#!") {
+		str = fmt.Sprintf("%s\n\n%s", DefaultShebang, str)
+	}
+	s.Code = str
+	s.Digest = fmt.Sprintf("%x", md5.Sum([]byte(s.Code)))
 	return nil
 }
 
@@ -147,11 +135,6 @@ type Resource struct {
 	Digest  string    `fig:"-"`
 	Size    int64     `fig:"-"`
 	ModTime time.Time `fig:"-"`
-}
-
-// implements fig.Setter interface
-func (r *Resource) Set(v interface{}) error {
-	return nil
 }
 
 func (r Resource) Path() string {
@@ -174,6 +157,89 @@ func (r Resource) IsConfig() bool {
 
 func (r Resource) IsDoc() bool {
 	return false
+}
+
+// implements fig.Updater interface
+func (r *Resource) Update() error {
+	f, err := os.Open(r.File)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	s, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if s.IsDir() {
+		return fmt.Errorf("%s is not a file", r.File)
+	}
+
+	var (
+		sum = md5.New()
+		wrt io.Writer = sum
+	)
+	if r.Compress {
+		wrt, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
+	}
+	r.Size, err = io.Copy(wrt, f)
+	if c, ok := wrt.(io.Closer); ok {
+		c.Close()
+	}
+	r.Digest = fmt.Sprintf("%x", sum.Sum(nil))
+	r.ModTime = s.ModTime()
+
+	return err
+}
+
+type FileInfo struct {
+	File string
+
+	Inline  bool      `fig:"-"`
+	Digest  string    `fig:"-"`
+	Size    int64     `fig:"-"`
+	ModTime time.Time `fig:"-"`
+
+	Sub []Resource
+}
+
+// implements fig.Setter interface
+func (f *FileInfo) Set(str string) error {
+	f.File = str
+	r, err := os.Open(f.File)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	s, err := r.Stat()
+	if err != nil {
+		return err
+	}
+	if s.IsDir() {
+		return f.sub(f.File)
+	}
+
+	var (
+		sum = md5.New()
+		wrt io.Writer = sum
+	)
+	// Resource has Compress option but not FileInfo
+	// if f.Compress {
+	// 	wrt, _ = gzip.NewWriterLevel(sum, gzip.BestCompression)
+	// }
+	f.Size, err = io.Copy(sum, r)
+	if c, ok := wrt.(io.Closer); ok {
+		c.Close()
+	}
+	f.Digest = fmt.Sprintf("%x", sum.Sum(nil))
+	f.ModTime = s.ModTime()
+
+	return err
+}
+
+func (f *FileInfo) sub(dir string) error {
+	return nil
 }
 
 type Change struct {

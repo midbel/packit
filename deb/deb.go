@@ -62,6 +62,9 @@ func Build(dir string, meta packit.Metadata) error {
 			Perm:     0644,
 			Compress: true,
 		}
+		if err := res.Update(); err != nil {
+			return err
+		}
 		meta.Resources = append(meta.Resources, res)
 		defer os.Remove(file)
 	}
@@ -204,6 +207,7 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 			script = string(b)
 		}
 		h := getTarHeaderFile(file, len(script), meta.Date)
+		h.Mode = 0755
 		if err := tw.WriteHeader(&h); err != nil {
 			return err
 		}
@@ -211,7 +215,7 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 		return err
 	}
 	scripts := []struct {
-		Script string
+		Script packit.Script
 		File   string
 	}{
 		{Script: meta.PreInst, File: debPreinst},
@@ -220,7 +224,7 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 		{Script: meta.PostRem, File: debPostrem},
 	}
 	for _, s := range scripts {
-		if err := write(s.Script, s.File); err != nil {
+		if err := write(s.Script.Code, s.File); err != nil {
 			return err
 		}
 	}
