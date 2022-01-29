@@ -1,6 +1,6 @@
 github.com/midbel/cli v0.2.1/go.mod h1:HRXqwypQ5mtcO4MhCT7eCDLyAS1lua9lmD2yHAP82i4=
-github.com/midbel/fig v0.2.0 h1:3NKCpM+z12WVqjL0LAjbtLtOVhqKKruraesec9Qlc6A=
-github.com/midbel/fig v0.2.0/go.mod h1:VDbb5LoOxCuU2DC+ZHi05zuI5bEE2rBzeJbo83ZfWxA=
+github.com/midbel/fig v0.3.1 h1:qRwMyRKy0UdbDExFcMAdjRcLcSRp4LRPC+XY8JDT7kI=
+github.com/midbel/fig v0.3.1/go.mod h1:VDbb5LoOxCuU2DC+ZHi05zuI5bEE2rBzeJbo83ZfWxA=
 github.com/midbel/tape v0.1.2 h1:ip8ng0jxQFN1Yut8tvoxhhrJnMdaWu8tIqWefoArbL0=
 github.com/midbel/tape v0.1.2/go.mod h1:j3E11iYTvt6ZcH4AqlXudfWkLAbsL4el6RGrpP7E8Ko=
 github.com/midbel/textwrap v0.1.3 h1:M131mjp/2NXjM4c8ypEL/Xi/je8gy70KfOb3gvFWmqo=

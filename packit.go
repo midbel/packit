@@ -124,7 +124,7 @@ func (m Metadata) GetLicense(dir string) (Resource, error) {
 	res.File = "LICENSE"
 	res.Perm = 0644
 	res.Dir  = filepath.Join(dir, m.Package)
-	// res.Size = 
+	// res.Size =
 	// res.Digest =
 
 	return res, nil
@@ -189,7 +189,7 @@ func (r Resource) Path() string {
 			r.File += ".gz"
 		}
 	}
-	return filepath.Join(r.Dir, filepath.Base(r.File))
+	return r.Dir
 }
 
 func (r Resource) IsConfig() bool {

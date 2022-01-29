@@ -58,7 +58,7 @@ func Build(dir string, meta packit.Metadata) error {
 		}
 		res := packit.Resource{
 			File:     file,
-			Dir:      filepath.Join(debDocDir, meta.Package),
+			Dir:      filepath.Join(debDocDir, meta.Package, debChangeFile),
 			Perm:     0644,
 			Compress: true,
 		}
