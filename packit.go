@@ -96,11 +96,11 @@ func Load(r io.Reader) (Metadata, error) {
 }
 
 func (m Metadata) GetLicense(dir string) (Resource, error) {
-	if res, ok := findLicense(m.Resources); ok {
+	res, ok := findLicense(m.Resources)
+	if ok {
 		return res, nil
 	}
 	var (
-		res    Resource
 		name   = fmt.Sprintf("%s.tpl", m.License)
 		b, err = fs.ReadFile(licenses, filepath.Join("licenses", name))
 	)
@@ -121,6 +121,12 @@ func (m Metadata) GetLicense(dir string) (Resource, error) {
 	if err := tpl.Execute(os.Stdout, ctx); err != nil {
 		return res, err
 	}
+	res.File = "LICENSE"
+	res.Perm = 0644
+	res.Dir  = filepath.Join(dir, m.Package)
+	// res.Size = 
+	// res.Digest =
+
 	return res, nil
 }
 

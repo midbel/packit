@@ -28,10 +28,13 @@ depend = libpthread
 depend = libc6
 depend = ld-linux-x86-64
 
+bin      = "usr/bin/${package}"
+doc      = "usr/share/doc/${package}"
+examples = "usr/share/doc/${package}"
 
 resource {
   file      = "bin/packit"
-  directory = "usr/bin"
+  directory = "usr/bin" # $bin
   permission = 0755
 }
 
