@@ -7,6 +7,7 @@ import (
 
 	"github.com/midbel/packit"
 	"github.com/midbel/packit/deb"
+	"github.com/midbel/packit/rpm"
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 	case packit.DEB, "":
 		err = deb.Build(*dir, m)
 	case packit.RPM:
+		err = rpm.Build(*dir, m)
 	default:
 		err = fmt.Errorf("%s: unsupported package type", *kind)
 	}
