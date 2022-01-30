@@ -48,26 +48,6 @@ func Build(dir string, meta packit.Metadata) error {
 		return err
 	}
 	defer w.Close()
-	if len(meta.Changes) > 0 {
-		var (
-			file = filepath.Join(dir, "changelog")
-			err  = createChangelog(file, meta)
-		)
-		if err != nil {
-			return err
-		}
-		res := packit.Resource{
-			File:     file,
-			Dir:      filepath.Join(debDocDir, meta.Package, debChangeFile),
-			Perm:     0644,
-			Compress: true,
-		}
-		if err := res.Update(); err != nil {
-			return err
-		}
-		meta.Resources = append(meta.Resources, res)
-		defer os.Remove(file)
-	}
 	return build(w, meta)
 }
 

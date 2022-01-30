@@ -44,10 +44,10 @@ resource {
   permission = 0644
 }
 
-pre-install  = "echo script pre-install"
-post-install = "echo script post-install"
-pre-remove   = "echo script pre-uninstall"
-post-remove  = "echo script post-uninstall"
+pre-install  = "set -e; echo script pre-install"
+post-install = "set -e; echo script post-install"
+pre-remove   = "set -e; echo script pre-uninstall"
+post-remove  = "set -e; echo script post-uninstall"
 
 change {
   .apply(midbel)

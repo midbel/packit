@@ -6,11 +6,9 @@ import (
 	"embed"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/midbel/fig"
@@ -28,7 +26,7 @@ const (
 
 const (
 	DefaultVersion  = "0.1.0"
-	DefaultLicense  = "gpl-3.0"
+	DefaultLicense  = "mit"
 	DefaultSection  = "contrib"
 	DefaultPriority = "extra"
 	DefaultOS       = "linux"
@@ -93,41 +91,6 @@ func Load(r io.Reader) (Metadata, error) {
 		Date: time.Now(),
 	}
 	return meta, fig.NewDecoder(r).Decode(&meta)
-}
-
-func (m Metadata) GetLicense(dir string) (Resource, error) {
-	res, ok := findLicense(m.Resources)
-	if ok {
-		return res, nil
-	}
-	var (
-		name   = fmt.Sprintf("%s.tpl", m.License)
-		b, err = fs.ReadFile(licenses, filepath.Join("licenses", name))
-	)
-	if err != nil {
-		return res, err
-	}
-	tpl, err := template.New("license").Parse(string(b))
-	if err != nil {
-		return res, err
-	}
-	ctx := struct {
-		Year   int
-		Holder string
-	}{
-		Year:   m.Date.Year(),
-		Holder: m.Maintainer.Name,
-	}
-	if err := tpl.Execute(os.Stdout, ctx); err != nil {
-		return res, err
-	}
-	res.File = "LICENSE"
-	res.Perm = 0644
-	res.Dir  = filepath.Join(dir, m.Package)
-	// res.Size =
-	// res.Digest =
-
-	return res, nil
 }
 
 func (m *Metadata) Update() error {
@@ -202,6 +165,10 @@ func (r Resource) IsDoc() bool {
 
 // implements fig.Updater interface
 func (r *Resource) Update() error {
+	if r.Perm == 0 {
+		r.Perm = 0644
+	}
+
 	f, err := os.Open(r.File)
 	if err != nil {
 		return err
@@ -239,18 +206,4 @@ type Change struct {
 	Version    string
 	When       time.Time
 	Maintainer Maintainer
-}
-
-func findLicense(res []Resource) (Resource, bool) {
-	for _, r := range res {
-		base := filepath.Base(r.Dir)
-		switch base := strings.ToLower(base); {
-		case base == "copyright" || base == "license":
-			return r, true
-		case r.File == "license" || r.File == "LICENSE":
-			return r, true
-		default:
-		}
-	}
-	return Resource{}, false
 }
