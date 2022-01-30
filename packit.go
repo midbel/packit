@@ -1,14 +1,17 @@
 package packit
 
 import (
+	"bytes"
 	"compress/gzip"
 	"crypto/md5"
 	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/midbel/fig"
@@ -17,6 +20,11 @@ import (
 const (
 	DEB = "deb"
 	RPM = "rpm"
+)
+
+const (
+	Changelog = "CHANGELOG"
+	License   = "LICENSE"
 )
 
 const (
@@ -40,6 +48,30 @@ const (
 
 //go:embed licenses/*tpl
 var licenses embed.FS
+
+func GetLicense(name string, meta Metadata) (string, error) {
+	name = fmt.Sprintf("%s.tpl", name)
+	b, err := fs.ReadFile(licenses, filepath.Join("licenses", name))
+	if err != nil {
+		return "", err
+	}
+	t, err := template.New("license").Parse(string(b))
+	if err != nil {
+		return "", err
+	}
+	ctx := struct {
+		Year   int
+		Holder string
+	}{
+		Year:   meta.Date.Year(),
+		Holder: meta.Maintainer.Name,
+	}
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, ctx); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
 
 type Metadata struct {
 	Package  string
@@ -100,6 +132,34 @@ func (m *Metadata) Update() error {
 	return nil
 }
 
+func (m *Metadata) HasChangelog() bool {
+	return hasFile(m.Resources, Changelog)
+}
+
+func (m *Metadata) HasLicense() bool {
+	return hasFile(m.Resources, License)
+}
+
+func hasFile(list []Resource, file string) bool {
+	for _, r := range list {
+		base := stripExt(r.File)
+		if file == base {
+			return true
+		}
+	}
+	return false
+}
+
+func stripExt(file string) string {
+	for {
+		e := filepath.Ext(file)
+		if e == "" {
+			return file
+		}
+		file = strings.TrimSuffix(file, e)
+	}
+}
+
 type Maintainer struct {
 	Name  string
 	Email string
@@ -126,12 +186,14 @@ func (s *Script) Set(str string) error {
 	return nil
 }
 
-const fileCopyright = "copyright"
+const (
+	gzExt = ".gz"
+)
 
 type Resource struct {
 	File     string
-	Perm     int    `fig:"permission"`
-	Dir      string `fig:"directory"`
+	Perm     int
+	Archive  string `fig:"archive"`
 	Compress bool
 	Lang     string
 
@@ -142,25 +204,7 @@ type Resource struct {
 }
 
 func (r Resource) Path() string {
-	switch base := filepath.Base(r.Dir); base {
-	case fileCopyright:
-		return r.Dir
-	default:
-	}
-	if r.Compress {
-		if filepath.Ext(r.File) != ".gz" {
-			r.File += ".gz"
-		}
-	}
-	return r.Dir
-}
-
-func (r Resource) IsConfig() bool {
-	return false
-}
-
-func (r Resource) IsDoc() bool {
-	return false
+	return r.Archive
 }
 
 // implements fig.Updater interface
@@ -189,6 +233,9 @@ func (r *Resource) Update() error {
 	)
 	if r.Compress {
 		wrt, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
+		if e := filepath.Ext(r.Archive); e != gzExt {
+			r.Archive += gzExt
+		}
 	}
 	r.Size, err = io.Copy(wrt, f)
 	if c, ok := wrt.(io.Closer); ok {
@@ -198,6 +245,18 @@ func (r *Resource) Update() error {
 	r.ModTime = s.ModTime()
 
 	return err
+}
+
+func (r Resource) IsConfig() bool {
+	return false
+}
+
+func (r Resource) IsDoc() bool {
+	return false
+}
+
+func (r Resource) IsRegular() bool {
+	return false
 }
 
 type Change struct {

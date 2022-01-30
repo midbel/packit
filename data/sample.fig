@@ -28,20 +28,21 @@ depend = libpthread
 depend = libc6
 depend = ld-linux-x86-64
 
+# directories definition
 bin      = `usr/bin/${package}`
 doc      = `usr/share/doc/${package}`
 examples = `usr/share/doc/${package}/examples`
 
 resource {
-  file      = "bin/packit"
-  directory = `${bin}`
-  permission = 0755
+  file    = "bin/packit"
+  archive = `${bin}`
+  perm    = 0o755
 }
 
 resource {
-  file       = LICENSE
-  directory  = `${doc}/copyright`
-  permission = 0644
+  file    = LICENSE
+  archive = `${doc}/copyright`
+  perm    = 0o644
 }
 
 pre-install  = "set -e; echo script pre-install"

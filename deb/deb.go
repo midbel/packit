@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/md5"
 	_ "embed"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ const (
 	debSumFile     = "md5sums"
 	debConfFile    = "conffiles"
 	debChangeFile  = "changelog.gz"
+	debCopyFile    = "copyright"
 	debPreinst     = "preinst"
 	debPostinst    = "postinst"
 	debPrerem      = "prerm"
@@ -48,6 +50,12 @@ func Build(dir string, meta packit.Metadata) error {
 		return err
 	}
 	defer w.Close()
+	if err := createChangelog(&meta); err != nil {
+		return err
+	}
+	if err := createLicense(&meta); err != nil {
+		return err
+	}
 	return build(w, meta)
 }
 
@@ -239,18 +247,6 @@ func appendChecksums(tw *tar.Writer, meta packit.Metadata) error {
 	return err
 }
 
-func createChangelog(file string, meta packit.Metadata) error {
-	tpl, err := template.New("changelog").Funcs(fmap).Parse(changefile)
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, meta); err != nil {
-		return err
-	}
-	return os.WriteFile(file, buf.Bytes(), 0644)
-}
-
 func appendControlFile(tw *tar.Writer, meta packit.Metadata) error {
 	tpl, err := template.New("control").Funcs(fmap).Parse(controlfile)
 	if err != nil {
@@ -267,6 +263,62 @@ func appendControlFile(tw *tar.Writer, meta packit.Metadata) error {
 	}
 	_, err = io.Copy(tw, &buf)
 	return err
+}
+
+func createChangelog(meta *packit.Metadata) error {
+	if meta.HasChangelog() {
+		return nil
+	}
+	tpl, err := template.New("changelog").Funcs(fmap).Parse(changefile)
+	if err != nil {
+		return err
+	}
+	var (
+		tmp    bytes.Buffer
+		sum    = md5.New()
+		wrt    = io.MultiWriter(&tmp, sum)
+		buf, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
+		file   = filepath.Join(os.TempDir(), packit.Changelog)
+	)
+	if err := tpl.Execute(buf, meta); err != nil {
+		return err
+	}
+	buf.Close()
+	if err := os.WriteFile(file, tmp.Bytes(), 0644); err != nil {
+		return err
+	}
+	res := packit.Resource{
+		File:    file,
+		Archive: filepath.Join(debDocDir, meta.Package, debChangeFile),
+		Digest:  fmt.Sprintf("%x", sum.Sum(nil)),
+		Size:    int64(tmp.Len()),
+		ModTime: meta.Date,
+	}
+	meta.Resources = append(meta.Resources, res)
+	return nil
+}
+
+func createLicense(meta *packit.Metadata) error {
+	if meta.HasLicense() {
+		return nil
+	}
+	str, err := packit.GetLicense(meta.License, *meta)
+	if err != nil {
+		return err
+	}
+	file := filepath.Join(os.TempDir(), packit.License)
+	if err := os.WriteFile(file, []byte(str), 0644); err != nil {
+		return err
+	}
+	res := packit.Resource{
+		File:    file,
+		Archive: filepath.Join(debDocDir, meta.Package, debCopyFile),
+		Digest:  fmt.Sprintf("%x", md5.Sum([]byte(str))),
+		Size:    int64(len(str)),
+		ModTime: meta.Date,
+	}
+	meta.Resources = append(meta.Resources, res)
+	return nil
 }
 
 func getTarHeaderFile(file string, size int, when time.Time) tar.Header {
