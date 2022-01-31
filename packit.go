@@ -195,8 +195,9 @@ func (m Maintainer) IsZero() bool {
 }
 
 type Script struct {
-	Code   string
-	Digest string
+	Program string
+	Code    string
+	Digest  string
 }
 
 // implements fig.Setter

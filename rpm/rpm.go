@@ -540,12 +540,12 @@ func getNumber32(tag int32, num int64) field {
 func itob(n int64, z int) []byte {
 	var (
 		b = make([]byte, z)
-		x = 8 * (z - 1)
+		x int
 	)
-	for i := 0; i < z; i++ {
-		b[0] = byte(n >> x)
-		x -= 8
-	}
+  for i := z-1; i >= 0; i-- {
+    b[i] = byte(n>>x)
+    x += 8
+  }
 	return b
 }
 
