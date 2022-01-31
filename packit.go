@@ -18,6 +18,10 @@ import (
 )
 
 const (
+	EnvArchive = "archive"
+)
+
+const (
 	DEB = "deb"
 	RPM = "rpm"
 )
@@ -116,7 +120,7 @@ type Metadata struct {
 	Size int64     `fig:"-"`
 }
 
-func Load(r io.Reader) (Metadata, error) {
+func Load(r io.Reader, kind string) (Metadata, error) {
 	meta := Metadata{
 		Version:  DefaultVersion,
 		Section:  DefaultSection,
@@ -129,7 +133,9 @@ func Load(r io.Reader) (Metadata, error) {
 		},
 		Date: time.Now(),
 	}
-	return meta, fig.NewDecoder(r).Decode(&meta)
+	d := fig.NewDecoder(r)
+	d.Define(EnvArchive, kind)
+	return meta, d.Decode(&meta)
 }
 
 func (m *Metadata) Update() error {

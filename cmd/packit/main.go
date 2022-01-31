@@ -22,7 +22,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	m, err := packit.Load(r)
+	m, err := packit.Load(r, *kind)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -53,8 +53,8 @@ const (
 
 const (
 	rpmSigBase    = 256
-	rpmSigSha1    = rpmSigBase + 13
-	rpmSigSha256  = rpmSigBase + 17
+	rpmSigSha1    = 269
+	rpmSigSha256  = 273
 	rpmSigLength  = 1000
 	rpmSigMD5     = 1004
 	rpmSigPayload = 1007
@@ -132,16 +132,16 @@ func build(w io.Writer, meta packit.Metadata) error {
 	var (
 		header bytes.Buffer
 		sh1    = sha1.New()
+    sh2  = sha256.New()
 	)
-	if err := writeHeader(io.MultiWriter(sh1, &header), meta); err != nil {
+	if err := writeHeader(io.MultiWriter(sh1, sh2, &header), meta); err != nil {
 		return err
 	}
 	var (
 		body bytes.Buffer
 		md   = md5.New()
-		sh2  = sha256.New()
 	)
-	_, err := io.Copy(io.MultiWriter(md, sh1, &body), io.MultiReader(&header, &data))
+	_, err := io.Copy(io.MultiWriter(md, &body), io.MultiReader(&header, &data))
 	if err != nil {
 		return err
 	}
@@ -260,13 +260,13 @@ func appendResource(cw *cpio.Writer, res packit.Resource) error {
 	if res.Compress {
 		w, _ = gzip.NewWriterLevel(w, gzip.BestCompression)
 	}
-	h := getHeader(res.Path(), res.Size, res.ModTime)
-	if err := cw.WriteHeader(&h); err != nil {
-		return err
-	}
 	_, err = io.Copy(w, r)
 	if c, ok := w.(io.Closer); ok {
 		c.Close()
+	}
+	h := getHeader(res.Path(), res.Size, res.ModTime)
+	if err := cw.WriteHeader(&h); err != nil {
+		return err
 	}
 	_, err = io.Copy(cw, &buf)
 	return err
