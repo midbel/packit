@@ -52,7 +52,6 @@ const (
 )
 
 const (
-	rpmSigBase    = 256
 	rpmSigSha1    = 269
 	rpmSigSha256  = 273
 	rpmSigLength  = 1000
@@ -132,7 +131,7 @@ func build(w io.Writer, meta packit.Metadata) error {
 	var (
 		header bytes.Buffer
 		sh1    = sha1.New()
-    sh2  = sha256.New()
+		sh2    = sha256.New()
 	)
 	if err := writeHeader(io.MultiWriter(sh1, sh2, &header), meta); err != nil {
 		return err
@@ -155,16 +154,15 @@ func build(w io.Writer, meta packit.Metadata) error {
 
 func writeSignature(w io.Writer, archive, size int, m, h1, h2 hash.Hash) error {
 	var (
-		hsum2 = h2.Sum(nil)
-		msum  = m.Sum(nil)
+		sum = m.Sum(nil)
+		fs  = []field{
+			getNumber32(rpmSigLength, int64(size)),
+			getNumber32(rpmSigPayload, int64(archive)),
+			getString(rpmSigSha1, fmt.Sprintf("%x", h1.Sum(nil))),
+			getString(rpmSigSha256, fmt.Sprintf("%x", h2.Sum(nil))),
+			getBinary(rpmSigMD5, sum[:]),
+		}
 	)
-	fs := []field{
-		getNumber32(rpmSigLength, int64(size)),
-		getNumber32(rpmSigPayload, int64(archive)),
-		getString(rpmSigSha1, fmt.Sprintf("%x", h1.Sum(nil))),
-		getBinary(rpmSigSha256, hsum2[:]),
-		getBinary(rpmSigMD5, msum[:]),
-	}
 	return writeFields(w, fs, rpmTagSignatureIndex, true)
 }
 
@@ -388,7 +386,7 @@ const (
 	kindInt64
 	kindString
 	kindBinary
-	kindStrArray
+	kindStringArray
 	kindI18nString
 )
 
@@ -443,11 +441,11 @@ func itob(n int64, z int) []byte {
 func getArrayString(tag int32, list []string) field {
 	var b [][]byte
 	for i := range list {
-		b = append(b, []byte(list[i]))
+		b = append(b, []byte(list[i]+"\x00"))
 	}
 	return field{
 		Tag:   tag,
-		Kind:  kindString,
+		Kind:  kindStringArray,
 		bytes: b,
 	}
 }
@@ -457,7 +455,7 @@ func getString(tag int32, str string) field {
 	return field{
 		Tag:   tag,
 		Kind:  kindString,
-		bytes: append(b, []byte(str)),
+		bytes: append(b, []byte(str+"\x00")),
 	}
 }
 
@@ -466,7 +464,7 @@ func getStringI18N(tag int32, str string) field {
 	return field{
 		Tag:   tag,
 		Kind:  kindI18nString,
-		bytes: append(b, []byte(str)),
+		bytes: append(b, []byte(str+"\x00")),
 	}
 }
 
@@ -483,6 +481,10 @@ func (f field) Bytes() []byte {
 }
 
 func (f field) Len() int32 {
+	if f.Kind == kindBinary {
+		b := f.Bytes()
+		return int32(len(b))
+	}
 	return int32(len(f.bytes))
 }
 
