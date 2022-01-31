@@ -84,6 +84,27 @@ const (
 )
 
 const (
+	rpmTagProvide          = 1047
+	rpmTagProvideVersion   = 1113
+	rpmTagProvideFlag      = 1112
+	rpmTagRequire          = 1049
+	rpmTagRequireVersion   = 1050
+	rpmTagRequireFlag      = 1048
+	rpmTagConflict         = 1054
+	rpmTagConflictVersion  = 1055
+	rpmTagConflictFlag     = 1053
+	rpmTagObsolete         = 1090
+	rpmTagObsoleteVersion  = 1115
+	rpmTagObsoleteFlag     = 1114
+	rpmTagRecommand        = 5046
+	rpmTagRecommandVersion = 5047
+	rpmTagRecommandFlag    = 5048
+	rpmTagSuggest          = 5049
+	rpmTagSuggestVersion   = 5050
+	rpmTagSuggestFlag      = 5051
+)
+
+const (
 	rpmTagFileSizes   = 1028
 	rpmTagFileModes   = 1030
 	rpmTagFileDevs    = 1033

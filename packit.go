@@ -115,13 +115,16 @@ type Metadata struct {
 	Resources []Resource `fig:"resource"`
 	Changes   []Change   `fig:"change"`
 
-	Essential bool
-	Depends   []string `fig:"depend"`
-	Suggests  []string `fig:"suggest"`
-	Provides  []string `fig:"provide"`
-	Breaks    []string `fig:"break"`
-	Conflicts []string `fig:"conflict"`
-	Replaces  []string `fig:"replace"`
+	Essential  bool
+	Depends    []string `fig:"depend"`
+	Suggests   []string `fig:"suggest"`
+	Provides   []string `fig:"provide"`
+	Breaks     []string `fig:"break"`
+	Conflicts  []string `fig:"conflict"`
+	Replaces   []string `fig:"replace"`
+	Requires   []string `fig:"require"`
+	Recommands []string `fig:"recommand"`
+	Obsolets   []string `fig:"obsolet"`
 
 	PreInst  Script `fig:"pre-install"`
 	PostInst Script `fig:"post-install"`
@@ -187,6 +190,11 @@ func stripExt(file string) string {
 		}
 		file = strings.TrimSuffix(file, e)
 	}
+}
+
+type Dependency struct {
+	Name string
+	Version string
 }
 
 type Maintainer struct {
