@@ -23,8 +23,14 @@ const (
 )
 
 const (
+	docDir = "doc"
+	etcDir = "etc"
+)
+
+const (
 	Changelog = "CHANGELOG"
 	License   = "LICENSE"
+	Readme    = "README"
 )
 
 const (
@@ -76,6 +82,7 @@ func GetLicense(name string, meta Metadata) (string, error) {
 type Metadata struct {
 	Package  string
 	Version  string
+	Release  string
 	Summary  string
 	Desc     string `fig:"description"`
 	License  string
@@ -132,6 +139,10 @@ func (m *Metadata) Update() error {
 	return nil
 }
 
+func (m Metadata) PackageName() string {
+	return fmt.Sprintf("%s-%s", m.Package, m.Version)
+}
+
 func (m *Metadata) HasChangelog() bool {
 	return hasFile(m.Resources, Changelog)
 }
@@ -163,6 +174,14 @@ func stripExt(file string) string {
 type Maintainer struct {
 	Name  string
 	Email string
+}
+
+func (m Maintainer) String() string {
+	return m.Name
+}
+
+func (m Maintainer) IsZero() bool {
+	return m.Name == ""
 }
 
 type Script struct {
@@ -248,15 +267,23 @@ func (r *Resource) Update() error {
 }
 
 func (r Resource) IsConfig() bool {
-	return false
+	return strings.Contains(r.Archive, etcDir)
 }
 
 func (r Resource) IsDoc() bool {
-	return false
+	return strings.Contains(r.Archive, docDir)
 }
 
 func (r Resource) IsRegular() bool {
 	return false
+}
+
+func (r Resource) IsLicense() bool {
+	return filepath.Base(r.File) == License || filepath.Base(r.Archive) == License
+}
+
+func (r Resource) IsReadme() bool {
+	return filepath.Base(r.File) == Readme || filepath.Base(r.Archive) == Readme
 }
 
 type Change struct {
