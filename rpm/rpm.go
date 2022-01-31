@@ -542,10 +542,10 @@ func itob(n int64, z int) []byte {
 		b = make([]byte, z)
 		x int
 	)
-  for i := z-1; i >= 0; i-- {
-    b[i] = byte(n>>x)
-    x += 8
-  }
+	for i := z - 1; i >= 0; i-- {
+		b[i] = byte(n >> x)
+		x += 8
+	}
 	return b
 }
 
