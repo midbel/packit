@@ -124,7 +124,7 @@ type Metadata struct {
 	Replaces   []Dependency `fig:"replace"`
 	Requires   []Dependency `fig:"require"`
 	Recommands []Dependency `fig:"recommand"`
-	Obsolets   []Dependency `fig:"obsolet"`
+	Obsoletes  []Dependency `fig:"obsolet"`
 
 	PreInst  Script `fig:"pre-install"`
 	PostInst Script `fig:"post-install"`

@@ -148,6 +148,13 @@ const (
 	rpmTagEncoding  = 5068
 )
 
+const (
+  rpmCondAny = 0
+  rpmCondLt = 1 << 1
+  rpmCondGt = 1 << 2
+  rpmCondEq = 1 << 3
+)
+
 func Build(dir string, meta packit.Metadata) error {
 	w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
 	if err != nil {
@@ -372,7 +379,32 @@ func getBaseFields(meta packit.Metadata) []field {
 }
 
 func getDependencyFields(meta packit.Metadata) []field {
-	return nil
+	var (
+		ns []string
+		vs []string
+		gs []int64
+		fs []field
+	)
+	for _, d := range meta.Provides {
+		ns = append(ns, d.Name)
+		vs = append(vs, d.Version)
+		switch d.Cond {
+		case packit.Eq:
+			gs = append(gs, rpmCondAny)
+		case packit.Lt:
+			gs = append(gs, rpmCondLt)
+		case packit.Le:
+			gs = append(gs, rpmCondLt|rpmCondEq)
+		case packit.Gt:
+			gs = append(gs, rpmCondGt)
+		case packit.Ge:
+			gs = append(gs, rpmCondGt|rpmCondEq)
+		}
+	}
+	fs = append(fs, getArrayString(rpmTagProvide, ns))
+	fs = append(fs, getArrayString(rpmTagProvideVersion, vs))
+	fs = append(fs, getArrayNumber32(rpmTagProvideFlag, gs))
+	return fs
 }
 
 func getScriptFields(meta packit.Metadata) []field {

@@ -28,6 +28,8 @@ depend = libpthread
 depend = 'libc6 >= 2.31-0ubuntu9.2'
 depend = ld-linux-x86-64
 
+provide = 'packit = 0.1.0'
+
 # directories definition
 bin      = `usr/bin/${package}`
 doc      = `usr/share/doc/${package}`
