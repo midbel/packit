@@ -350,6 +350,12 @@ func getBaseFields(meta packit.Metadata) []field {
 }
 
 func getScriptFields(meta packit.Metadata) []field {
+	return []field{
+		getString(rpmTagPrein, meta.PreInst.Code),
+		getString(rpmTagPostin, meta.PostInst.Code),
+		getString(rpmTagPreun, meta.PreRem.Code),
+		getString(rpmTagPostun, meta.PostRem.Code),
+	}
 	return nil
 }
 
