@@ -172,29 +172,13 @@ func (m *Metadata) HasLicense() bool {
 	return hasFile(m.Resources, License)
 }
 
-func hasFile(list []Resource, file string) bool {
-	for _, r := range list {
-		base := stripExt(r.File)
-		if file == base {
-			return true
-		}
-	}
-	return false
-}
-
-func stripExt(file string) string {
-	for {
-		e := filepath.Ext(file)
-		if e == "" {
-			return file
-		}
-		file = strings.TrimSuffix(file, e)
-	}
-}
-
 type Dependency struct {
-	Name string
+	Name    string
 	Version string
+}
+
+func (d *Dependency) Set(str string) error {
+	return nil
 }
 
 type Maintainer struct {
@@ -318,4 +302,24 @@ type Change struct {
 	Version    string
 	When       time.Time
 	Maintainer Maintainer
+}
+
+func hasFile(list []Resource, file string) bool {
+	for _, r := range list {
+		base := stripExt(r.File)
+		if file == base {
+			return true
+		}
+	}
+	return false
+}
+
+func stripExt(file string) string {
+	for {
+		e := filepath.Ext(file)
+		if e == "" {
+			return file
+		}
+		file = strings.TrimSuffix(file, e)
+	}
 }

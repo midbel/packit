@@ -342,6 +342,7 @@ func writeLead(w io.Writer, meta packit.Metadata) error {
 func getFields(meta packit.Metadata) []field {
 	fs := getBaseFields(meta)
 	fs = append(fs, getFileFields(meta.Resources)...)
+	fs = append(fs, getDependencyFields(meta)...)
 	fs = append(fs, getScriptFields(meta)...)
 	fs = append(fs, getChangeFields(meta.Changes, meta.Maintainer)...)
 	return fs
@@ -368,6 +369,10 @@ func getBaseFields(meta packit.Metadata) []field {
 		getString(rpmTagCompressor, rpmPayloadCompressor),
 		getString(rpmTagPayloadFlags, rpmPayloadFlags),
 	}
+}
+
+func getDependencyFields(meta packit.Metadata) []field {
+	return nil
 }
 
 func getScriptFields(meta packit.Metadata) []field {
