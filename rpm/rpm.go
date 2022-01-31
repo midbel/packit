@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/midbel/packit"
@@ -103,6 +104,21 @@ const (
 	rpmTagChangeTime = 1080
 	rpmTagChangeName = 1081
 	rpmTagChangeText = 1082
+)
+
+const (
+	rpmTagPrein       = 1023
+	rpmTagPreinFlags  = 5020
+	rpmTagPreinProg   = 1085
+	rpmTagPostin      = 1024
+	rpmTagPostinFlags = 5021
+	rpmTagPostinProg  = 1086
+	rpmTagPreun       = 1025
+	rpmTagPreunFlags  = 5024
+	rpmTagPreunProg   = 1087
+	rpmTagPostun      = 1026
+	rpmTagPostunFlags = 5023
+	rpmTagPostunProg  = 1088
 )
 
 const (
@@ -303,7 +319,16 @@ func writeLead(w io.Writer, meta packit.Metadata) error {
 }
 
 func getFields(meta packit.Metadata) []field {
-	fs := []field{
+	fs := getBaseFields(meta)
+	fs = append(fs, getFileFields(meta.Resources)...)
+	fs = append(fs, getScriptFields(meta)...)
+	fs = append(fs, getChangeFields(meta.Changes, meta.Maintainer)...)
+	return fs
+}
+
+func getBaseFields(meta packit.Metadata) []field {
+	return []field{
+		getNumber32(rpmTagSize, meta.Size),
 		getString(rpmTagPackage, meta.Package),
 		getString(rpmTagVersion, meta.Version),
 		getString(rpmTagRelease, meta.Release),
@@ -311,6 +336,7 @@ func getFields(meta packit.Metadata) []field {
 		getStringI18N(rpmTagDesc, meta.Desc),
 		getStringI18N(rpmTagGroup, meta.Section),
 		getString(rpmTagOS, meta.OS),
+		getString(rpmTagBuildHost, packit.Hostname()),
 		getNumber32(rpmTagBuildTime, meta.Date.Unix()),
 		getString(rpmTagVendor, meta.Vendor),
 		getString(rpmTagPackager, meta.Maintainer.String()),
@@ -321,8 +347,44 @@ func getFields(meta packit.Metadata) []field {
 		getString(rpmTagCompressor, rpmPayloadCompressor),
 		getString(rpmTagPayloadFlags, rpmPayloadFlags),
 	}
-	fs = append(fs, getChangeFields(meta.Changes, meta.Maintainer)...)
-	return fs
+}
+
+func getScriptFields(meta packit.Metadata) []field {
+	return nil
+}
+
+func getFileFields(resources []packit.Resource) []field {
+	var (
+		dirs    []string
+		bases   []string
+		files   []string
+		users   []string
+		groups  []string
+		sizes   []int64
+		digests []string
+		times   []int64
+		seen    = make(map[string]struct{})
+	)
+	for _, r := range resources {
+		files = append(files, r.Path())
+		times = append(times, r.ModTime.Unix())
+		sizes = append(sizes, r.Size)
+		digests = append(digests, r.Digest)
+		users = append(users, packit.Root)
+		groups = append(groups, packit.Root)
+		bases = append(bases, filepath.Base(r.Path()))
+		dirs = append(dirs, getListDirectories(r.Path(), seen)...)
+	}
+	return []field{
+		getArrayNumber32(rpmTagFileTimes, times),
+		getArrayNumber32(rpmTagFileSizes, sizes),
+		getArrayString(rpmTagFileDigests, digests),
+		getArrayString(rpmTagDirnames, dirs),
+		getArrayString(rpmTagBasenames, bases),
+		getArrayString(rpmTagFilenames, files),
+		getArrayString(rpmTagOwners, users),
+		getArrayString(rpmTagGroups, groups),
+	}
 }
 
 func getChangeFields(changes []packit.Change, maintainer packit.Maintainer) []field {
@@ -355,6 +417,23 @@ func getChangeFields(changes []packit.Change, maintainer packit.Maintainer) []fi
 	fs = append(fs, getArrayString(rpmTagChangeText, ds))
 
 	return fs
+}
+
+func getListDirectories(file string, done map[string]struct{}) []string {
+	var (
+		dirs []string
+		tmp  string
+		dir  = filepath.Dir(file)
+	)
+	for _, d := range strings.Split(dir, "/") {
+		tmp = filepath.Join(tmp, d)
+		if _, ok := done[tmp]; ok {
+			continue
+		}
+		done[tmp] = struct{}{}
+		dirs = append(dirs, tmp)
+	}
+	return dirs
 }
 
 const namepat = "%s-%s.%s.%s"

@@ -32,6 +32,10 @@ const (
 )
 
 const (
+	Root = "root"
+)
+
+const (
 	Changelog = "CHANGELOG"
 	License   = "LICENSE"
 	Readme    = "README"
@@ -55,6 +59,14 @@ const (
 	EnvMaintainerName = "PACKIT_MAINTAINER_NAME"
 	EnvMaintainerMail = "PACKIT_MAINTAINER_MAIL"
 )
+
+func Hostname() string {
+	h, err := os.Hostname()
+	if err != nil {
+		h = "localhost"
+	}
+	return h
+}
 
 //go:embed licenses/*tpl
 var licenses embed.FS
@@ -131,7 +143,7 @@ func Load(r io.Reader, kind string) (Metadata, error) {
 			Name:  os.Getenv(EnvMaintainerName),
 			Email: os.Getenv(EnvMaintainerMail),
 		},
-		Date: time.Now(),
+		Date: time.Now().UTC(),
 	}
 	d := fig.NewDecoder(r)
 	d.Define(EnvArchive, kind)
