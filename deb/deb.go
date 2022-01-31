@@ -367,6 +367,7 @@ var fmap = template.FuncMap{
 	"datetime":  getPackageDate,
 	"arch":      getPackageArch,
 	"bytesize":  getPackageSize,
+	"deplist":   joinDependencies,
 	"wrap1":     wrapText(" "),
 	"wrap2":     wrapText("  "),
 }
@@ -399,6 +400,17 @@ func getPackageSize(size int64) int64 {
 
 func getPackageDate(when time.Time) string {
 	return when.Format(debDateFormat)
+}
+
+func joinDependencies(list []packit.Dependency) string {
+	var str strings.Builder
+	for i := range list {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(list[i].String())
+	}
+	return str.String()
 }
 
 func wrapText(indent string) func(string) string {

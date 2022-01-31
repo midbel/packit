@@ -116,15 +116,15 @@ type Metadata struct {
 	Changes   []Change   `fig:"change"`
 
 	Essential  bool
-	Depends    []string `fig:"depend"`
-	Suggests   []string `fig:"suggest"`
-	Provides   []string `fig:"provide"`
-	Breaks     []string `fig:"break"`
-	Conflicts  []string `fig:"conflict"`
-	Replaces   []string `fig:"replace"`
-	Requires   []string `fig:"require"`
-	Recommands []string `fig:"recommand"`
-	Obsolets   []string `fig:"obsolet"`
+	Depends    []Dependency `fig:"depend"`
+	Suggests   []Dependency `fig:"suggest"`
+	Provides   []Dependency `fig:"provide"`
+	Breaks     []Dependency `fig:"break"`
+	Conflicts  []Dependency `fig:"conflict"`
+	Replaces   []Dependency `fig:"replace"`
+	Requires   []Dependency `fig:"require"`
+	Recommands []Dependency `fig:"recommand"`
+	Obsolets   []Dependency `fig:"obsolet"`
 
 	PreInst  Script `fig:"pre-install"`
 	PostInst Script `fig:"post-install"`
@@ -172,13 +172,52 @@ func (m *Metadata) HasLicense() bool {
 	return hasFile(m.Resources, License)
 }
 
+type Condition int
+
+const (
+	Eq Condition = 1 << iota
+	Lt
+	Le
+	Gt
+	Ge
+)
+
 type Dependency struct {
 	Name    string
 	Version string
+	Cond    Condition
+}
+
+func ParseDependency(str string) (Dependency, error) {
+	return parseDependency(str)
+}
+
+func (d Dependency) String() string {
+	if d.Cond == 0 {
+		return d.Name
+	}
+	var op string
+	switch d.Cond {
+	case Eq:
+		op = "="
+	case Gt:
+		op = ">"
+	case Ge:
+		op = ">="
+	case Lt:
+		op = "<"
+	case Le:
+		op = ">="
+	}
+	return fmt.Sprintf("%s %s %s", d.Name, op, d.Version)
 }
 
 func (d *Dependency) Set(str string) error {
-	return nil
+	x, err := ParseDependency(str)
+	if err == nil {
+		*d = x
+	}
+	return err
 }
 
 type Maintainer struct {
@@ -323,4 +362,33 @@ func stripExt(file string) string {
 		}
 		file = strings.TrimSuffix(file, e)
 	}
+}
+
+func parseDependency(str string) (Dependency, error) {
+	data := []struct{
+		Op string
+		Cd Condition
+	} {
+		{Op: "<=", Cd: Le},
+		{Op: ">=", Cd: Ge},
+		{Op: "<", Cd: Lt},
+		{Op: ">", Cd: Gt},
+		{Op: "=", Cd: Eq},
+	}
+	var dep Dependency
+	for _, d := range data {
+		x := strings.Index(str, d.Op)
+		if x > 0 {
+			parts := strings.Split(str, d.Op)
+			if len(parts) != 2 {
+				return dep, fmt.Errorf("%s: syntax error (dependency)")
+			}
+			dep.Name = strings.TrimSpace(parts[0])
+			dep.Version = strings.TrimSpace(parts[1])
+			dep.Cond = d.Cd
+			return dep, nil
+		}
+	}
+	dep.Name = str
+	return dep, nil
 }

@@ -8,11 +8,11 @@ Architecture: {{arch .Arch}}
 {{if .Vendor}}Vendor: {{.Vendor}}{{end}}
 {{with .Maintainer}}Maintainer: {{.Name}}{{if .Email}} <{{.Email}}>{{end}}{{end}}
 {{if .Home}}Homepage: {{.Home}}{{end}}
-{{if .Depends }}Depends: {{join .Depends ", "}}{{end}}
-{{- if .Suggests }}Suggests: {{join .Suggests ", "}}{{end}}
-{{- if .Provides}}Provides: {{join .Provides ", "}}{{end}}
-{{- if .Conflicts}}Conflicts: {{join .Conflicts ", "}}{{end}}
-{{- if .Replaces}}Replaces: {{join .Replaces ", "}}{{end}}
+{{if .Depends }}Depends: {{deplist .Depends}}{{end}}
+{{- if .Suggests }}Suggests: {{deplist .Suggests}}{{end}}
+{{- if .Provides}}Provides: {{deplist .Provides}}{{end}}
+{{- if .Conflicts}}Conflicts: {{deplist .Conflicts}}{{end}}
+{{- if .Replaces}}Replaces: {{deplist .Replaces}}{{end}}
 Installed-Size: {{bytesize .Size}}
 {{if .Compiler}}Build-Using: {{.Compiler}}{{end}}
 {{if .Summary}}Description: {{.Summary}}{{end}}

@@ -25,7 +25,7 @@ compiler    = "go1.17.6"
 
 depend = linux-vdso
 depend = libpthread
-depend = libc6
+depend = 'libc6 >= 2.31-0ubuntu9.2'
 depend = ld-linux-x86-64
 
 # directories definition
