@@ -613,7 +613,7 @@ func getString(tag int32, str string) field {
 func getStringI18N(tag int32, str string) field {
 	var b [][]byte
 	if len(str) > 0 {
-		append(b, stob(str))
+		b = append(b, stob(str))
 	}
 	return field{
 		Tag:   tag,
@@ -671,5 +671,5 @@ func itob(n int64, z int) []byte {
 
 func stob(str string) []byte {
 	b := []byte(str)
-	return b = append(b, 0)
+	return append(b, 0)
 }
