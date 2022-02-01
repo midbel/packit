@@ -177,7 +177,7 @@ func Load(r io.Reader, kind string) (Metadata, error) {
 	return meta, d.Decode(&meta)
 }
 
-func (m *Metadata) Update() error {
+func (m *Metadata) Update(_ fig.Resolver) error {
 	for _, r := range m.Resources {
 		m.Size += r.Size
 	}
@@ -264,7 +264,7 @@ type Script struct {
 }
 
 // implements fig.Updater
-func (s *Script) Update() error {
+func (s *Script) Update(_ fig.Resolver) error {
 	if s.Code == "" {
 		return nil
 	}
@@ -297,7 +297,7 @@ func (r Resource) Path() string {
 }
 
 // implements fig.Updater interface
-func (r *Resource) Update() error {
+func (r *Resource) Update(_ fig.Resolver) error {
 	if r.Perm == 0 {
 		r.Perm = 0644
 	}
