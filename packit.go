@@ -146,6 +146,12 @@ type Metadata struct {
 	Size int64     `fig:"-"`
 }
 
+var fmap = fig.FuncMap{
+	"dirname":   filepath.Dir,
+	"basename":  filepath.Base,
+	"cleanpath": filepath.Clean,
+}
+
 func Load(r io.Reader, kind string) (Metadata, error) {
 	meta := Metadata{
 		Version:  DefaultVersion,
@@ -160,6 +166,8 @@ func Load(r io.Reader, kind string) (Metadata, error) {
 		Date: time.Now().UTC(),
 	}
 	d := fig.NewDecoder(r)
+	d.Funcs(fmap)
+
 	d.Define(EnvArchive, kind)
 	d.Define(EnvBash, Bash)
 	d.Define(EnvShell, Shell)
