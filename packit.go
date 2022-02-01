@@ -19,7 +19,11 @@ import (
 
 const (
 	EnvArchive = "archive"
-	EnvBash    = "shell"
+	EnvBash    = "bash"
+	EnvShell   = "shell"
+	EnvPwsh    = "pwsh"
+	EnvPython  = "python"
+	EnvPerl    = "perl"
 )
 
 const (
@@ -33,9 +37,13 @@ const (
 )
 
 const (
-	Root    = "root"
-	Shebang = "#!"
-	Bash    = "/bin/bash"
+	Root       = "root"
+	Shebang    = "#!"
+	Bash       = "/bin/bash"
+	Shell      = "/bin/sh"
+	Powershell = "/usr/bin/pwsh"
+	Python     = "/usr/bin/env python3"
+	Perl       = "/usr/bin/perl"
 )
 
 const (
@@ -154,6 +162,10 @@ func Load(r io.Reader, kind string) (Metadata, error) {
 	d := fig.NewDecoder(r)
 	d.Define(EnvArchive, kind)
 	d.Define(EnvBash, Bash)
+	d.Define(EnvShell, Shell)
+	d.Define(EnvPwsh, Powershell)
+	d.Define(EnvPython, Python)
+	d.Define(EnvPerl, Perl)
 	return meta, d.Decode(&meta)
 }
 
