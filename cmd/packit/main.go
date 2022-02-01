@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/apk"
 	"github.com/midbel/packit/deb"
 	"github.com/midbel/packit/rpm"
 )
@@ -32,6 +33,8 @@ func main() {
 		err = deb.Build(*dir, m)
 	case packit.RPM:
 		err = rpm.Build(*dir, m)
+	case packit.APK:
+		err = apk.Build(*dir, m)
 	default:
 		err = fmt.Errorf("%s: unsupported package type", *kind)
 	}
