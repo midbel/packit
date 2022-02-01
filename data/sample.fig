@@ -49,22 +49,22 @@ resource {
 }
 
 pre-install {
-  program =
+  program = @shell
   script  = "set -e; echo script pre-install"
 }
 
 post-install {
-  program =
+  program = @shell
   script  = "set -e; echo script post-install"
 }
 
 pre-remove {
-  program =
+  program = @shell
   script  = "set -e; echo script pre-remove"
 }
 
 post-remove {
-  program =
+  program = @shell
   script  = "set -e; echo script post-remove"
 }
 

@@ -46,11 +46,6 @@ const (
 	debArch32  = "i386"
 )
 
-const (
-	shbash   = "/bin/bash"
-	shebang = "#!"
-)
-
 func Build(dir string, meta packit.Metadata) error {
 	w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
 	if err != nil {
@@ -228,14 +223,14 @@ func prepareScript(s packit.Script) string {
 		return ""
 	}
 	if s.Program == "" {
-		s.Program = shbash
+		s.Program = packit.Bash
 	}
-	if !strings.HasPrefix(s.Code, shebang) {
+	if !strings.HasPrefix(s.Code, packit.Shebang) {
 		var (
 			cmd, _ = exec.LookPath(s.Program)
 			str    strings.Builder
 		)
-		str.WriteString(shebang)
+		str.WriteString(packit.Shebang)
 		str.WriteString(cmd)
 		str.WriteString("\n\n")
 		str.WriteString(s.Code)

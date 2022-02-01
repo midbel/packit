@@ -421,9 +421,13 @@ func appendDependencies(list []packit.Dependency, dep, version, flag int) []fiel
 func getScriptFields(meta packit.Metadata) []field {
 	return []field{
 		getString(rpmTagPrein, meta.PreInst.Code),
+		getString(rpmTagPreinProg, meta.PreInst.Program),
 		getString(rpmTagPostin, meta.PostInst.Code),
+		getString(rpmTagPostinProg, meta.PostInst.Program),
 		getString(rpmTagPreun, meta.PreRem.Code),
+		getString(rpmTagPreunProg, meta.PreRem.Program),
 		getString(rpmTagPostun, meta.PostRem.Code),
+		getString(rpmTagPostunProg, meta.PostRem.Program),
 	}
 	return nil
 }

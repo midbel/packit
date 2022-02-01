@@ -19,6 +19,7 @@ import (
 
 const (
 	EnvArchive = "archive"
+	EnvBash    = "shell"
 )
 
 const (
@@ -32,7 +33,9 @@ const (
 )
 
 const (
-	Root = "root"
+	Root    = "root"
+	Shebang = "#!"
+	Bash    = "/bin/bash"
 )
 
 const (
@@ -150,6 +153,7 @@ func Load(r io.Reader, kind string) (Metadata, error) {
 	}
 	d := fig.NewDecoder(r)
 	d.Define(EnvArchive, kind)
+	d.Define(EnvBash, Bash)
 	return meta, d.Decode(&meta)
 }
 
