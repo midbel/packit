@@ -379,14 +379,25 @@ func getBaseFields(meta packit.Metadata) []field {
 }
 
 func getDependencyFields(meta packit.Metadata) []field {
-	var (
+  var fs []field
+  fs = append(fs, appendDependencies(meta.Provides, rpmTagProvide, rpmTagProvideVersion, rpmTagProvideFlag)...)
+  fs = append(fs, appendDependencies(meta.Requires, rpmTagRequire, rpmTagRequireVersion, rpmTagRequireFlag)...)
+  fs = append(fs, appendDependencies(meta.Conflicts, rpmTagConflict, rpmTagConflictVersion, rpmTagConflictFlag)...)
+  fs = append(fs, appendDependencies(meta.Obsoletes, rpmTagObsolete, rpmTagObsoleteVersion, rpmTagObsoleteFlag)...)
+  fs = append(fs, appendDependencies(meta.Recommands, rpmTagRecommand, rpmTagRecommandVersion, rpmTagRecommandFlag)...)
+  fs = append(fs, appendDependencies(meta.Suggests, rpmTagSuggest, rpmTagSuggestVersion, rpmTagSuggestFlag)...)
+  return fs
+}
+
+func appendDependencies(list []packit.Dependency, dep, version, flag int) []field {
+  var (
 		ns []string
 		vs []string
 		gs []int64
 		fs []field
 	)
-	for _, d := range meta.Provides {
-		ns = append(ns, d.Name)
+  for _, d := range list {
+    ns = append(ns, d.Name)
 		vs = append(vs, d.Version)
 		switch d.Cond {
 		case packit.Eq:
@@ -400,8 +411,8 @@ func getDependencyFields(meta packit.Metadata) []field {
 		case packit.Ge:
 			gs = append(gs, rpmCondGt|rpmCondEq)
 		}
-	}
-	fs = append(fs, getArrayString(rpmTagProvide, ns))
+  }
+  fs = append(fs, getArrayString(rpmTagProvide, ns))
 	fs = append(fs, getArrayString(rpmTagProvideVersion, vs))
 	fs = append(fs, getArrayNumber32(rpmTagProvideFlag, gs))
 	return fs
