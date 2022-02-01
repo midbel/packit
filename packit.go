@@ -235,22 +235,18 @@ func (m Maintainer) IsZero() bool {
 
 type Script struct {
 	Program string
-	Code    string
+	Code    string `fig:"script"`
 	Digest  string
 }
 
-// implements fig.Setter
-func (s *Script) Set(str string) error {
-	if str == "" {
+// implements fig.Updater
+func (s *Script) Update() error {
+	if s.Code == "" {
 		return nil
 	}
-	if b, err := os.ReadFile(str); err == nil {
-		str = string(b)
+	if b, err := os.ReadFile(s.Code); err == nil {
+		s.Code = string(b)
 	}
-	if !strings.HasPrefix(str, "#!") {
-		str = fmt.Sprintf("%s\n\n%s", DefaultShebang, str)
-	}
-	s.Code = str
 	s.Digest = fmt.Sprintf("%x", md5.Sum([]byte(s.Code)))
 	return nil
 }

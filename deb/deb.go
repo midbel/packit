@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -43,6 +44,11 @@ const (
 	debArchAll = "all"
 	debArch64  = "amd64"
 	debArch32  = "i386"
+)
+
+const (
+	shbash   = "/bin/bash"
+	shebang = "#!"
 )
 
 func Build(dir string, meta packit.Metadata) error {
@@ -201,20 +207,41 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 		return err
 	}
 	scripts := []struct {
-		Script packit.Script
+		Script string
 		File   string
 	}{
-		{Script: meta.PreInst, File: debPreinst},
-		{Script: meta.PostInst, File: debPostinst},
-		{Script: meta.PreRem, File: debPrerem},
-		{Script: meta.PostRem, File: debPostrem},
+		{Script: prepareScript(meta.PreInst), File: debPreinst},
+		{Script: prepareScript(meta.PostInst), File: debPostinst},
+		{Script: prepareScript(meta.PreRem), File: debPrerem},
+		{Script: prepareScript(meta.PostRem), File: debPostrem},
 	}
 	for _, s := range scripts {
-		if err := write(s.Script.Code, s.File); err != nil {
+		if err := write(s.Script, s.File); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func prepareScript(s packit.Script) string {
+	if s.Code == "" {
+		return ""
+	}
+	if s.Program == "" {
+		s.Program = shbash
+	}
+	if !strings.HasPrefix(s.Code, shebang) {
+		var (
+			cmd, _ = exec.LookPath(s.Program)
+			str    strings.Builder
+		)
+		str.WriteString(shebang)
+		str.WriteString(cmd)
+		str.WriteString("\n\n")
+		str.WriteString(s.Code)
+		return str.String()
+	}
+	return s.Code
 }
 
 func appendConffiles(tw *tar.Writer, meta packit.Metadata) error {

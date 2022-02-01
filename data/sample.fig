@@ -48,10 +48,25 @@ resource {
   perm    = 0o644
 }
 
-pre-install  = "set -e; echo script pre-install"
-post-install = "set -e; echo script post-install"
-pre-remove   = "set -e; echo script pre-uninstall"
-post-remove  = "set -e; echo script post-uninstall"
+pre-install {
+  program =
+  script  = "set -e; echo script pre-install"
+}
+
+post-install {
+  program =
+  script  = "set -e; echo script post-install"
+}
+
+pre-remove {
+  program =
+  script  = "set -e; echo script pre-remove"
+}
+
+post-remove {
+  program =
+  script  = "set -e; echo script post-remove"
+}
 
 change {
   .apply(midbel)
