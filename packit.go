@@ -366,10 +366,10 @@ func stripExt(file string) string {
 }
 
 func parseDependency(str string) (Dependency, error) {
-	data := []struct{
+	data := []struct {
 		Op string
 		Cd Condition
-	} {
+	}{
 		{Op: "<=", Cd: Le},
 		{Op: ">=", Cd: Ge},
 		{Op: "<", Cd: Lt},

@@ -1,21 +1,21 @@
 package apk
 
 import (
-  "path/filepath"
-  "os"
+	"os"
+	"path/filepath"
 
-  "github.com/midbel/packit"
+	"github.com/midbel/packit"
 )
 
 func Build(dir string, meta packit.Metadata) error {
-  w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
-  if err != nil {
-    return err
-  }
-  defer w.Close()
-  return nil
+	w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	return nil
 }
 
 func getPackageName(meta packit.Metadata) string {
-  return ""
+	return ""
 }
