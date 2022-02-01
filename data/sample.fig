@@ -7,6 +7,7 @@
 
 package     = packit
 version     = "0.1.0"
+essential   =
 summary     = "Create easily deb and rpm package."
 description = <<DESC
 Packit is a free and open source package builder. It is easy to use and can
@@ -19,7 +20,7 @@ os          = linux
 arch        = 64
 vendor      = midbel
 homepage    = "https://github.com/midbel/packit"
-compiler    = "go1.17.6"
+compiler    = "go-1.17.6"
 
 .apply(midbel, method=merge)
 

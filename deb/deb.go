@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/midbel/packit"
+	"github.com/midbel/packit/text"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
 	"github.com/midbel/textwrap"
@@ -253,7 +254,7 @@ func appendControlFile(tw *tar.Writer, meta packit.Metadata) error {
 		return err
 	}
 	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, meta); err != nil {
+	if err := text.Execute(tpl, &buf, meta); err != nil {
 		return err
 	}
 
@@ -404,11 +405,32 @@ func getPackageDate(when time.Time) string {
 
 func joinDependencies(list []packit.Dependency) string {
 	var str strings.Builder
-	for i := range list {
+	for i, d := range list {
 		if i > 0 {
 			str.WriteString(", ")
 		}
-		str.WriteString(list[i].String())
+		str.WriteString(d.Name)
+		if d.Cond == 0 || d.Version == "" {
+			continue
+		}
+		str.WriteString("(")
+		var op string
+		switch d.Cond {
+		case packit.Eq:
+			op = "="
+		case packit.Lt:
+			op = "<"
+		case packit.Le:
+			op = "<="
+		case packit.Gt:
+			op = ">"
+		case packit.Ge:
+			op = ">="
+		}
+		str.WriteString(op)
+		str.WriteString(" ")
+		str.WriteString(d.Version)
+		str.WriteString(")")
 	}
 	return str.String()
 }
