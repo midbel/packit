@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/midbel/fig"
 )
+
+var ErrPackage = errors.New("unsupported package type")
 
 const (
 	EnvArchive = "archive"

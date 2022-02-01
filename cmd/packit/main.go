@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/packit"
@@ -25,7 +27,7 @@ var commands = []*cli.Command{
 		Run:   runConvert,
 	},
 	{
-		Usage: "extract [-d <directory>] [-a <extract-all>] package",
+		Usage: "extract [-d <directory>] [-f <flat>] [-a <all>] package",
 		Short: "extract files from package archive",
 		Run:   runExtract,
 	},
@@ -49,8 +51,20 @@ var commands = []*cli.Command{
 	},
 }
 
+const helpText = `{{.Name}} help to create packages in various format such as  deb
+or rpm (and maybe other in a later time)
+
+Usage: {{.Name}} command [arguments]
+
+Available commands:
+
+{{range .Commands}}{{printf "  %-9s %s" .String .Short}}
+{{end}}
+Use {{.Name}} [command] -h for more information about its usage.
+`
+
 func main() {
-	cli.RunAndExit(commands, func() {})
+	cli.RunAndExit(commands, cli.Usage("packit", helpText, commands))
 }
 
 func runBuild(cmd *cli.Command, args []string) error {
@@ -76,27 +90,113 @@ func runBuild(cmd *cli.Command, args []string) error {
 	case packit.RPM:
 		err = rpm.Build(*dir, m)
 	default:
-		err = fmt.Errorf("%s: unsupported package type", *kind)
+		err = fmt.Errorf("%s: %w", *kind, packit.ErrPackage)
 	}
 	return err
 }
 
 func runConvert(cmd *cli.Command, args []string) error {
+	var (
+		dir = cmd.Flag.String("d", "", "directory")
+		kind = cmd.Flag.String("k", "", "kind")
+	)
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	_, _ = dir, kind
 	return nil
 }
 
 func runExtract(cmd *cli.Command, args []string) error {
-	return nil
+	var (
+		dir  = cmd.Flag.String("d", "", "directory")
+		all  = cmd.Flag.Bool("a", false, "extract all")
+		flat = cmd.Flag.Bool("f", false, "flat")
+	)
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	var err error
+	switch ext := Ext(cmd.Flag.Arg(0)); ext {
+	case packit.RPM:
+		err = rpm.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+	case packit.DEB:
+		err = deb.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+	default:
+		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
+	}
+	return err
 }
 
 func runList(cmd *cli.Command, args []string) error {
-	return nil
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	var (
+		err  error
+		list []packit.Resource
+	)
+	switch ext := Ext(cmd.Flag.Arg(0)); ext {
+	case packit.RPM:
+		list, err = rpm.List(cmd.Flag.Arg(0))
+	case packit.DEB:
+		list, err = deb.List(cmd.Flag.Arg(0))
+	default:
+		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
+	}
+	if err == nil {
+		printResources(list)
+	}
+	return err
 }
 
 func runInfo(cmd *cli.Command, args []string) error {
-	return nil
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	var (
+		err  error
+		meta packit.Metadata
+	)
+	switch ext := Ext(cmd.Flag.Arg(0)); ext {
+	case packit.RPM:
+		meta, err = rpm.Info(cmd.Flag.Arg(0))
+	case packit.DEB:
+		meta, err = deb.Info(cmd.Flag.Arg(0))
+	default:
+		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
+	}
+	if err == nil {
+		printMetadata(meta)
+	}
+	return err
 }
 
 func runVerify(cmd *cli.Command, args []string) error {
-	return nil
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	var err error
+	switch ext := Ext(cmd.Flag.Arg(0)); ext {
+	case packit.RPM:
+		err = rpm.Verify(cmd.Flag.Arg(0))
+	case packit.DEB:
+		err = deb.Verify(cmd.Flag.Arg(0))
+	default:
+		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
+	}
+	return err
+}
+
+func printMetadata(meta packit.Metadata) {
+
+}
+
+func printResources(list []packit.Resource) {
+
+}
+
+func Ext(file string) string {
+	ext := filepath.Ext(file)
+	return strings.TrimPrefix(ext, ".")
 }

@@ -46,6 +46,27 @@ const (
 	debArch32  = "i386"
 )
 
+func Extract(file, dir string, flat, all bool) error {
+	return nil
+}
+
+func Info(file string) (packit.Metadata, error) {
+	return packit.Metadata{}, nil
+}
+
+func Verify(file string) error {
+	return nil
+}
+
+func List(file string) ([]packit.Resource, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return nil, nil
+}
+
 func Build(dir string, meta packit.Metadata) error {
 	w, err := os.Create(filepath.Join(dir, getPackageName(meta)))
 	if err != nil {
