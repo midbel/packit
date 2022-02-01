@@ -552,10 +552,13 @@ type field struct {
 
 func getBinary(tag int32, str []byte) field {
 	var b [][]byte
+	if len(str) > 0 {
+		b = append(b, str)
+	}
 	return field{
 		Tag:   tag,
 		Kind:  kindBinary,
-		bytes: append(b, str),
+		bytes: b,
 	}
 }
 
@@ -580,22 +583,13 @@ func getNumber32(tag int32, num int64) field {
 	}
 }
 
-func itob(n int64, z int) []byte {
-	var (
-		b = make([]byte, z)
-		x int
-	)
-	for i := z - 1; i >= 0; i-- {
-		b[i] = byte(n >> x)
-		x += 8
-	}
-	return b
-}
-
 func getArrayString(tag int32, list []string) field {
 	var b [][]byte
 	for i := range list {
-		b = append(b, []byte(list[i]+"\x00"))
+		if len(list[i]) == 0 {
+			continue
+		}
+		b = append(b, stob(list[i]))
 	}
 	return field{
 		Tag:   tag,
@@ -606,24 +600,26 @@ func getArrayString(tag int32, list []string) field {
 
 func getString(tag int32, str string) field {
 	var b [][]byte
+	if len(str) > 0 {
+		b = append(b, stob(str))
+	}
 	return field{
 		Tag:   tag,
 		Kind:  kindString,
-		bytes: append(b, []byte(str+"\x00")),
+		bytes: b,
 	}
 }
 
 func getStringI18N(tag int32, str string) field {
 	var b [][]byte
+	if len(str) > 0 {
+		append(b, stob(str))
+	}
 	return field{
 		Tag:   tag,
 		Kind:  kindI18nString,
-		bytes: append(b, []byte(str+"\x00")),
+		bytes: b,
 	}
-}
-
-func getIndex(tag int) field {
-	return field{}
 }
 
 func (f field) Bytes() []byte {
@@ -659,4 +655,21 @@ func (f field) Limit() int {
 		limit = 8
 	}
 	return limit
+}
+
+func itob(n int64, z int) []byte {
+	var (
+		b = make([]byte, z)
+		x int
+	)
+	for i := z - 1; i >= 0; i-- {
+		b[i] = byte(n >> x)
+		x += 8
+	}
+	return b
+}
+
+func stob(str string) []byte {
+	b := []byte(str)
+	return b = append(b, 0)
 }
