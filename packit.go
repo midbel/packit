@@ -32,6 +32,7 @@ const (
 const (
 	DEB = "deb"
 	RPM = "rpm"
+	APK = "apk"
 )
 
 const (
