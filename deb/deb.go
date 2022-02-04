@@ -394,7 +394,7 @@ func getHeader(file string, size int, when time.Time) tape.Header {
 		Uid:      0,
 		Gid:      0,
 		Mode:     0644,
-		Length:   int64(size),
+		Size:     int64(size),
 		ModTime:  when,
 	}
 }

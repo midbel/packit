@@ -97,7 +97,7 @@ func runBuild(cmd *cli.Command, args []string) error {
 
 func runConvert(cmd *cli.Command, args []string) error {
 	var (
-		dir = cmd.Flag.String("d", "", "directory")
+		dir  = cmd.Flag.String("d", "", "directory")
 		kind = cmd.Flag.String("k", "", "kind")
 	)
 	if err := cmd.Flag.Parse(args); err != nil {
