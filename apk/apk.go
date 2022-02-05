@@ -57,6 +57,7 @@ func writeControl(w io.Writer, meta packit.Metadata) error {
 		buf = gzip.NewWriter(&tmp)
 		tw  = tar.NewWriter(buf)
 	)
+	buf.Header.Name = apkControlFile
 	if err := appendControlFile(tw, meta); err != nil {
 		return err
 	}
@@ -77,6 +78,7 @@ func writeData(w io.Writer, meta packit.Metadata) error {
 		tw   = tar.NewWriter(buf)
 		dirs = make(map[string]struct{})
 	)
+	buf.Header.Name = apkDataFile
 	for _, r := range meta.Resources {
 		if err := appendResource(tw, r, dirs); err != nil {
 			return err

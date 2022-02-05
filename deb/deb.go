@@ -122,6 +122,7 @@ func writeControl(arw *ar.Writer, meta packit.Metadata) error {
 			appendScripts,
 		}
 	)
+	buf.Header.Name = debControlTar
 	for _, f := range files {
 		if err := f(tw, meta); err != nil {
 			return err
@@ -148,6 +149,7 @@ func writeData(arw *ar.Writer, meta packit.Metadata) error {
 		tw   = tar.NewWriter(buf)
 		dirs = make(map[string]struct{})
 	)
+	buf.Header.Name = debDataTar
 	for _, r := range meta.Resources {
 		if err := appendResource(tw, r, dirs); err != nil {
 			return err
