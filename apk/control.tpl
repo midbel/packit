@@ -3,11 +3,11 @@ pkgver = {{.Version}}
 pkgdesc = {{.Summary}}
 url = {{.Home }}
 builddate = {{.Date.Unix}}
-{{with .Maintainer}}packager = {{.Name}}{{end}}
+{{with .Maintainer}}packager = {{.Name}}{{if .Email}} <{{.Email}}>{{end}}
 size = {{.Size}}
 arch = {{.Arch}}
 origin = {{.Package}}
-{{with .Maintainer}}maintainer = {{.Name}}{{end}}
+{{with .Maintainer}}maintainer = {{.Name}}{{if .Email}} <{{.Email}}>{{end}}
 license = {{.License}}
 {{range .Depends}}depend = {{.Name}}
 {{end}}
@@ -15,4 +15,4 @@ license = {{.License}}
 {{end}}
 {{range .Provides}}provide = {{.Name}}
 {{end}}
-# datahash = {{.DataHash}}
+datahash = {{.DataHash}}
