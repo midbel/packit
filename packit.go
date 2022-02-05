@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
 	"embed"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"os"
@@ -27,6 +31,8 @@ const (
 	EnvPwsh    = "pwsh"
 	EnvPython  = "python"
 	EnvPerl    = "perl"
+
+	envHash = "hash"
 )
 
 const (
@@ -301,7 +307,7 @@ func (r Resource) Path() string {
 }
 
 // implements fig.Updater interface
-func (r *Resource) Update(_ fig.Resolver) error {
+func (r *Resource) Update(res fig.Resolver) error {
 	if r.Perm == 0 {
 		r.Perm = 0644
 	}
@@ -321,9 +327,14 @@ func (r *Resource) Update(_ fig.Resolver) error {
 	}
 
 	var (
-		sum           = md5.New()
-		wrt io.Writer = sum
+		sum hash.Hash
+		wrt io.Writer
 	)
+	if sum, err = getHash(res); err != nil {
+		return err
+	}
+	wrt = sum
+
 	if r.Compress {
 		wrt, _ = gzip.NewWriterLevel(wrt, gzip.BestCompression)
 		if e := filepath.Ext(r.Archive); e != gzExt {
@@ -358,6 +369,30 @@ func (r Resource) IsLicense() bool {
 
 func (r Resource) IsReadme() bool {
 	return filepath.Base(r.File) == Readme || filepath.Base(r.Archive) == Readme
+}
+
+func getHash(res fig.Resolver) (hash.Hash, error) {
+	v, err := res.Resolve(envHash)
+	if err != nil {
+		return md5.New(), nil
+	}
+	var (
+		str, _ = v.(string)
+		hasher hash.Hash
+	)
+	switch str {
+	case "", "md5":
+		hasher = md5.New()
+	case "sha1":
+		hasher = sha1.New()
+	case "sha256":
+		hasher = sha256.New()
+	case "sha512":
+		hasher = sha512.New()
+	default:
+		return nil, fmt.Errorf("%s: unsupported hash", str)
+	}
+	return hasher, nil
 }
 
 type Change struct {
