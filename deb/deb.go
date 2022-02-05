@@ -1,7 +1,7 @@
 package deb
 
 import (
-	"archive/tar"
+	// "archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -20,6 +20,7 @@ import (
 	"github.com/midbel/packit/text"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
+	"github.com/midbel/tape/tar"
 	"github.com/midbel/textwrap"
 )
 
@@ -215,7 +216,7 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 			script = string(b)
 		}
 		h := getTarHeaderFile(file, len(script), meta.Date)
-		h.Mode = 0755
+		h.Perm = 0755
 		if err := tw.WriteHeader(&h); err != nil {
 			return err
 		}
@@ -367,24 +368,28 @@ func createLicense(meta *packit.Metadata) error {
 
 func getTarHeaderFile(file string, size int, when time.Time) tar.Header {
 	return tar.Header{
-		Name:     file,
-		Mode:     0644,
-		Size:     int64(size),
-		ModTime:  when,
-		Gid:      0,
-		Uid:      0,
-		Typeflag: tar.TypeReg,
+		Name: file,
+		Perm: 0644,
+		// Mode:     0644,
+		Size:    int64(size),
+		ModTime: when,
+		Gid:     0,
+		Uid:     0,
+		Type:    tar.TypeReg,
+		// Typeflag: tar.TypeReg,
 	}
 }
 
 func getTarHeaderDir(file string, when time.Time) tar.Header {
 	return tar.Header{
-		Name:     file,
-		Mode:     0755,
-		ModTime:  when,
-		Gid:      0,
-		Uid:      0,
-		Typeflag: tar.TypeDir,
+		Name: file,
+		Perm: 0755,
+		// Mode:     0755,
+		ModTime: when,
+		Gid:     0,
+		Uid:     0,
+		Type:    tar.TypeDir,
+		// Typeflag: tar.TypeDir,
 	}
 }
 

@@ -2,8 +2,8 @@ package apk
 
 import (
 	"bytes"
-  "crypto/sha256"
 	"compress/gzip"
+	"crypto/sha256"
 	_ "embed"
 	"fmt"
 	"io"
@@ -36,18 +36,18 @@ func Build(dir string, meta packit.Metadata) error {
 }
 
 func build(w io.Writer, meta packit.Metadata) error {
-  var (
-    data bytes.Buffer
-    hash = sha256.New()
-  )
-  if err := writeData(io.MultiWriter(&data, hash), meta); err != nil {
-    return err
-  }
-  meta.DataHash = fmt.Sprintf("%x", hash.Sum(nil))
+	var (
+		data bytes.Buffer
+		hash = sha256.New()
+	)
+	if err := writeData(io.MultiWriter(&data, hash), meta); err != nil {
+		return err
+	}
+	meta.DataHash = fmt.Sprintf("%x", hash.Sum(nil))
 	if err := writeControl(w, meta); err != nil {
 		return err
 	}
-  _, err := io.Copy(w, &data)
+	_, err := io.Copy(w, &data)
 	return err
 }
 
@@ -60,7 +60,7 @@ func writeControl(w io.Writer, meta packit.Metadata) error {
 	if err := appendControlFile(tw, meta); err != nil {
 		return err
 	}
-  tw.Flush()
+	tw.Flush()
 	buf.Close()
 
 	_, err := io.Copy(w, &tmp)
