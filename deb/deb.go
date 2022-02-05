@@ -416,10 +416,6 @@ var fmap = template.FuncMap{
 	"wrap2":     wrapText("  "),
 }
 
-func getMD5File(meta packit.Metadata) (io.Reader, error) {
-	return nil, nil
-}
-
 const namepat = "%s-%s_%s.%s"
 
 func getPackageName(meta packit.Metadata) string {
