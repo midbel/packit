@@ -152,8 +152,9 @@ type Metadata struct {
 	PreRem   Script `fig:"pre-remove"`
 	PostRem  Script `fig:"post-remove"`
 
-	Date time.Time `fig:"-"`
-	Size int64     `fig:"-"`
+	Date     time.Time `fig:"-"`
+	Size     int64     `fig:"-"`
+	DataHash string    `fig:"-"`
 }
 
 var fmap = fig.FuncMap{

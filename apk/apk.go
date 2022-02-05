@@ -50,6 +50,7 @@ func writeControl(w io.Writer, meta packit.Metadata) error {
 	if err := appendControlFile(tw, meta); err != nil {
 		return err
 	}
+  tw.Flush()
 	buf.Close()
 
 	_, err := io.Copy(w, &tmp)
@@ -172,7 +173,7 @@ func getTarHeaderDir(file string, when time.Time) tar.Header {
 		Gid:     0,
 		Uid:     0,
 		Type:    tar.TypeDir,
-    PaxHeaders: map[string]string{
+		PaxHeaders: map[string]string{
 			"atime": "0",
 			"mtime": "0",
 		},
