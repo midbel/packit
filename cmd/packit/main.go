@@ -125,6 +125,7 @@ func runExtract(cmd *cli.Command, args []string) error {
 		err = rpm.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
 	case packit.DEB:
 		err = deb.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+	case packit.APK:
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -144,6 +145,7 @@ func runList(cmd *cli.Command, args []string) error {
 		list, err = rpm.List(cmd.Flag.Arg(0))
 	case packit.DEB:
 		list, err = deb.List(cmd.Flag.Arg(0))
+	case packit.APK:
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -166,6 +168,7 @@ func runInfo(cmd *cli.Command, args []string) error {
 		meta, err = rpm.Info(cmd.Flag.Arg(0))
 	case packit.DEB:
 		meta, err = deb.Info(cmd.Flag.Arg(0))
+	case packit.APK:
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -185,6 +188,7 @@ func runVerify(cmd *cli.Command, args []string) error {
 		err = rpm.Verify(cmd.Flag.Arg(0))
 	case packit.DEB:
 		err = deb.Verify(cmd.Flag.Arg(0))
+	case packit.APK:
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -192,7 +196,28 @@ func runVerify(cmd *cli.Command, args []string) error {
 }
 
 func printMetadata(meta packit.Metadata) {
-
+	fmt.Printf("%-12s: %s", "Package", meta.Package)
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "Maintainer", meta.Maintainer.Name)
+	if meta.Maintainer.Email != "" {
+		fmt.Printf(" <%s>", meta.Maintainer.Email)
+	}
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "Version", meta.Version)
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "Architecture", packit.Arch(meta.Arch))
+	fmt.Println()
+	fmt.Printf("%-12s: %dKB", "Size", meta.Size)
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "Build Date", meta.Date.Format("2006-01-02 15:04:05"))
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "URL", meta.Home)
+	fmt.Println()
+	fmt.Printf("%-12s: %s", "Summary", meta.Summary)
+	fmt.Println()
+	fmt.Printf("%-12s:", "Description")
+	fmt.Println()
+	fmt.Println(meta.Desc)
 }
 
 func printResources(list []packit.Resource) {

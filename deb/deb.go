@@ -52,7 +52,17 @@ func Extract(file, dir string, flat, all bool) error {
 }
 
 func Info(file string) (packit.Metadata, error) {
-	return packit.Metadata{}, nil
+	f, err := os.Open(file)
+	if err != nil {
+		return packit.Metadata{}, err
+	}
+	defer f.Close()
+
+	r, err := getFile(f, debControlTar, debControlFile)
+	if err != nil {
+		return packit.Metadata{}, err
+	}
+	return ParseControl(r)
 }
 
 func Verify(file string) error {
@@ -490,4 +500,72 @@ func wrapText(indent string) func(string) string {
 	return func(str string) string {
 		return w.Wrap(str)
 	}
+}
+
+func getFile(r io.Reader, zone, file string) (io.Reader, error) {
+	rs, err := ar.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	if err := readDebian(rs); err != nil {
+		return nil, err
+	}
+	var size int64
+	for {
+		h, err := rs.Next()
+		if err != nil {
+			return nil, err
+		}
+		if h.Filename == zone {
+			size = h.Size
+			break
+		}
+		if _, err := io.CopyN(io.Discard, rs, h.Size); err != nil {
+			return nil, err
+		}
+	}
+	if size == 0 {
+		return nil, fmt.Errorf("%s: file not found", zone)
+	}
+	rz, err := gzip.NewReader(io.LimitReader(rs, size))
+	if err != nil {
+		return nil, err
+	}
+	if file == "" {
+		return rz, nil
+	}
+	rt := tar.NewReader(rz)
+	for {
+		h, err := rt.Next()
+		if err != nil {
+			return nil, err
+		}
+		if h.Name == file {
+			return io.LimitReader(rt, h.Size), nil
+		}
+		if _, err := io.CopyN(io.Discard, rt, h.Size); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("%s: file not found in %s", file, zone)
+}
+
+func getData(r io.Reader) (io.Reader, error) {
+	return getFile(r, debDataTar, "")
+}
+
+func getControl(r io.Reader) (io.Reader, error) {
+	return getFile(r, debControlTar, "")
+}
+
+func readDebian(r *ar.Reader) error {
+	h, err := r.Next()
+	if err != nil {
+		return err
+	}
+	bs, err := io.ReadAll(io.LimitReader(r, h.Size))
+	if err == nil && !bytes.Equal(bs, []byte(debVersion)) {
+		err = fmt.Errorf("invalid deb file")
+	}
+	return err
 }

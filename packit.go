@@ -81,6 +81,19 @@ const (
 	EnvMaintainerMail = "PACKIT_MAINTAINER_MAIL"
 )
 
+func Arch(a int) string {
+	switch a {
+	case Arch64:
+		return "amd64"
+	case Arch32:
+		return "i386"
+	case 0:
+		return "all"
+	default:
+		return "?"
+	}
+}
+
 func Hostname() string {
 	h, err := os.Hostname()
 	if err != nil {
