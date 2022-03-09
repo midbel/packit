@@ -18,6 +18,27 @@ func ParseControl(r io.Reader) (packit.Metadata, error) {
 	return meta, parseControl(r, &meta)
 }
 
+const (
+	ctrlPackage       = "Package"
+	ctrlVersion       = "Version"
+	ctrlEssential     = "Essential"
+	ctrlSection       = "Section"
+	ctrlPriority      = "Priority"
+	ctrlDate          = "Date"
+	ctrlArchitecture  = "Architecture"
+	ctrlVendor        = "Vendor"
+	ctrlMaintainer    = "Maintainer"
+	ctrlHomepage      = "Homepage"
+	ctrlDepends       = "Depends"
+	ctrlSuggests      = "Suggests"
+	ctrlProvides      = "Provides"
+	ctrlConflicts     = "Conflicts"
+	ctrlReplaces      = "Replaces"
+	ctrlBuildUsing    = "Build-Using"
+	ctrlInstalledSize = "Installed-Size"
+	ctrlDescription   = "Description"
+)
+
 func parseControl(r io.Reader, meta *packit.Metadata) error {
 	rs := bufio.NewReader(r)
 	for {
@@ -31,23 +52,23 @@ func parseControl(r io.Reader, meta *packit.Metadata) error {
 		switch field {
 		default:
 			return fmt.Errorf("%s: unsupported/unknown field", field)
-		case "Package":
+		case ctrlPackage:
 			meta.Package = value
-		case "Version":
+		case ctrlVersion:
 			meta.Version = value
-		case "Essential":
+		case ctrlEssential:
 			meta.Essential = true
-		case "Section":
+		case ctrlSection:
 			meta.Section = value
-		case "Priority":
+		case ctrlPriority:
 			meta.Priority = value
-		case "Date":
+		case ctrlDate:
 			dt, err := time.Parse(debDateFormat, value)
 			if err != nil {
 				return err
 			}
 			meta.Date = dt
-		case "Architecture":
+		case ctrlArchitecture:
 			switch value {
 			case debArch64:
 				meta.Arch = packit.Arch64
@@ -57,31 +78,31 @@ func parseControl(r io.Reader, meta *packit.Metadata) error {
 			default:
 				return fmt.Errorf("%s: invalid architecture value", value)
 			}
-		case "Vendor":
+		case ctrlVendor:
 			meta.Vendor = value
-		case "Maintainer":
+		case ctrlMaintainer:
 			addr, err := mail.ParseAddress(value)
 			meta.Maintainer.Name = value
 			if err == nil {
 				meta.Maintainer.Name = addr.Name
 				meta.Maintainer.Email = addr.Address
 			}
-		case "Homepage":
+		case ctrlHomepage:
 			meta.Home = value
-		case "Depends":
-		case "Suggests":
-		case "Provides":
-		case "Conflicts":
-		case "Replaces":
-		case "Build-Using":
+		case ctrlDepends:
+		case ctrlSuggests:
+		case ctrlProvides:
+		case ctrlConflicts:
+		case ctrlReplaces:
+		case ctrlBuildUsing:
 			meta.Compiler = value
-		case "Installed-Size":
+		case ctrlInstalledSize:
 			i, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				return err
 			}
 			meta.Size = i
-		case "Description":
+		case ctrlDescription:
 			meta.Summary = value
 			meta.Desc = strings.Join(tryContinuation(rs), "\n")
 		}
