@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/midbel/cli"
@@ -229,6 +230,7 @@ var (
 	green   = "\033[92m"
 	cyan    = "\033[96m"
 	regular = "\033[39m"
+	red     = "\033[91m"
 	reset   = "\033[0m"
 )
 
@@ -248,14 +250,38 @@ func printResources(list []packit.Resource, all bool) {
 		switch {
 		case r.Size == 0:
 			color = cyan
-		case mode&0111 != 0:
+		case isExecutable(mode):
 			color = green
+		case isCompressed(r.File):
+			color = red
 		default:
 			color = regular
 		}
 		fmt.Printf("%s %-8d %s %s%s%s", mode, r.Size, when, color, r.File, reset)
 		fmt.Println()
 	}
+}
+
+func isExecutable(mode fs.FileMode) bool {
+	return mode&0111 != 0
+}
+
+var compressed = []string{
+	".gz",
+	".tar",
+	".cpio",
+	".ar",
+	".xz",
+	".zip",
+}
+
+func isCompressed(file string) bool {
+	sort.Strings(compressed)
+	var (
+		e = filepath.Ext(file)
+		i = sort.SearchStrings(compressed, e)
+	)
+	return i < len(compressed) && compressed[i] == e
 }
 
 func Ext(file string) string {
