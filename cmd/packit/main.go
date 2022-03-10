@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +40,7 @@ var commands = []*cli.Command{
 		Run:   runInfo,
 	},
 	{
-		Usage: "list <package>",
+		Usage: "list [-a <all>] <package>",
 		Short: "list content of a package",
 		Alias: []string{"content"},
 		Run:   runList,
@@ -126,6 +127,7 @@ func runExtract(cmd *cli.Command, args []string) error {
 	case packit.DEB:
 		err = deb.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
 	case packit.APK:
+		err = apk.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -133,6 +135,7 @@ func runExtract(cmd *cli.Command, args []string) error {
 }
 
 func runList(cmd *cli.Command, args []string) error {
+	all := cmd.Flag.Bool("a", false, "show all")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -146,11 +149,12 @@ func runList(cmd *cli.Command, args []string) error {
 	case packit.DEB:
 		list, err = deb.List(cmd.Flag.Arg(0))
 	case packit.APK:
+		list, err = apk.List(cmd.Flag.Arg(0))
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
 	if err == nil {
-		printResources(list)
+		printResources(list, *all)
 	}
 	return err
 }
@@ -169,6 +173,7 @@ func runInfo(cmd *cli.Command, args []string) error {
 	case packit.DEB:
 		meta, err = deb.Info(cmd.Flag.Arg(0))
 	case packit.APK:
+		meta, err = apk.Info(cmd.Flag.Arg(0))
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
@@ -220,8 +225,37 @@ func printMetadata(meta packit.Metadata) {
 	fmt.Println(meta.Desc)
 }
 
-func printResources(list []packit.Resource) {
+var (
+	green   = "\033[92m"
+	cyan    = "\033[96m"
+	regular = "\033[39m"
+	reset   = "\033[0m"
+)
 
+func printResources(list []packit.Resource, all bool) {
+	for _, r := range list {
+		if !all && r.Size == 0 {
+			continue
+		}
+		var (
+			mode  = fs.FileMode(r.Perm)
+			when  = r.ModTime.Format("2006-01-02 15:04")
+			color = regular
+		)
+		if r.Size == 0 {
+			mode |= fs.ModeDir
+		}
+		switch {
+		case r.Size == 0:
+			color = cyan
+		case mode&0111 != 0:
+			color = green
+		default:
+			color = regular
+		}
+		fmt.Printf("%s %-8d %s %s%s%s", mode, r.Size, when, color, r.File, reset)
+		fmt.Println()
+	}
 }
 
 func Ext(file string) string {

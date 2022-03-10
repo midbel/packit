@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	_ "embed"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -70,12 +71,40 @@ func Verify(file string) error {
 }
 
 func List(file string) ([]packit.Resource, error) {
-	r, err := os.Open(file)
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-	return nil, nil
+	defer f.Close()
+
+	r, err := getData(f)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		rt   = tar.NewReader(r)
+		list []packit.Resource
+	)
+	for {
+		h, err := rt.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		if _, err := io.Copy(io.Discard, io.LimitReader(rt, h.Size)); err != nil {
+			return nil, err
+		}
+		r := packit.Resource{
+			File:    h.Name,
+			Perm:    int(h.Perm),
+			Size:    h.Size,
+			ModTime: h.ModTime,
+		}
+		list = append(list, r)
+	}
+	return list, nil
 }
 
 func Build(dir string, meta packit.Metadata) error {
@@ -514,13 +543,16 @@ func getFile(r io.Reader, zone, file string) (io.Reader, error) {
 	for {
 		h, err := rs.Next()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, fmt.Errorf("%s: file not found", zone)
+			}
 			return nil, err
 		}
 		if h.Filename == zone {
 			size = h.Size
 			break
 		}
-		if _, err := io.CopyN(io.Discard, rs, h.Size); err != nil {
+		if _, err := io.Copy(io.Discard, io.LimitReader(rs, h.Size)); err != nil {
 			return nil, err
 		}
 	}
