@@ -240,7 +240,7 @@ func appendResource(tw *tar.Writer, res packit.Resource, dirs map[string]struct{
 	if c, ok := w.(io.Closer); ok {
 		c.Close()
 	}
-	h := getTarHeaderFile(res.Path(), buf.Len(), res.ModTime)
+	h := getTarHeaderFile(res.Path(), res.Perm, buf.Len(), res.ModTime)
 	if err := tw.WriteHeader(&h); err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func appendScripts(tw *tar.Writer, meta packit.Metadata) error {
 		if b, err := os.ReadFile(script); err == nil {
 			script = string(b)
 		}
-		h := getTarHeaderFile(file, len(script), meta.Date)
+		h := getTarHeaderFile(file, 0755, len(script), meta.Date)
 		h.Perm = 0755
 		if err := tw.WriteHeader(&h); err != nil {
 			return err
@@ -312,7 +312,7 @@ func appendConffiles(tw *tar.Writer, meta packit.Metadata) error {
 	if buf.Len() == 0 {
 		return nil
 	}
-	h := getTarHeaderFile(debConfFile, buf.Len(), meta.Date)
+	h := getTarHeaderFile(debConfFile, 0644, buf.Len(), meta.Date)
 	if err := tw.WriteHeader(&h); err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func appendChecksums(tw *tar.Writer, meta packit.Metadata) error {
 	for _, r := range meta.Resources {
 		fmt.Fprintf(&buf, "%s  %s\n", r.Digest, r.Path())
 	}
-	h := getTarHeaderFile(debSumFile, buf.Len(), meta.Date)
+	h := getTarHeaderFile(debSumFile, 0644, buf.Len(), meta.Date)
 	if err := tw.WriteHeader(&h); err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func appendControlFile(tw *tar.Writer, meta packit.Metadata) error {
 		return err
 	}
 
-	h := getTarHeaderFile(debControlFile, buf.Len(), meta.Date)
+	h := getTarHeaderFile(debControlFile, 0644, buf.Len(), meta.Date)
 	if err := tw.WriteHeader(&h); err != nil {
 		return err
 	}
@@ -375,6 +375,7 @@ func createChangelog(meta *packit.Metadata) error {
 	}
 	res := packit.Resource{
 		File:    file,
+		Perm:    0644,
 		Archive: filepath.Join(debDocDir, meta.Package, debChangeFile),
 		Digest:  fmt.Sprintf("%x", sum.Sum(nil)),
 		Size:    int64(tmp.Len()),
@@ -407,17 +408,15 @@ func createLicense(meta *packit.Metadata) error {
 	return nil
 }
 
-func getTarHeaderFile(file string, size int, when time.Time) tar.Header {
+func getTarHeaderFile(file string, perm, size int, when time.Time) tar.Header {
 	return tar.Header{
-		Name: file,
-		Perm: 0644,
-		// Mode:     0644,
+		Name:    file,
+		Perm:    int64(perm),
 		Size:    int64(size),
 		ModTime: when,
 		Gid:     0,
 		Uid:     0,
 		Type:    tar.TypeReg,
-		// Typeflag: tar.TypeReg,
 	}
 }
 
