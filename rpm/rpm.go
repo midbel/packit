@@ -1,12 +1,14 @@
 package rpm
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -160,7 +162,12 @@ func Extract(file, dir string, flat, all bool) error {
 }
 
 func Info(file string) (packit.Metadata, error) {
-	return packit.Metadata{}, nil
+	r, err := os.Open(file)
+	if err != nil {
+		return packit.Metadata{}, err
+	}
+	defer r.Close()
+	return getMeta(bufio.NewReader(r))
 }
 
 func Verify(file string) error {
@@ -168,12 +175,40 @@ func Verify(file string) error {
 }
 
 func List(file string) ([]packit.Resource, error) {
-	r, err := os.Open(file)
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-	return nil, nil
+	defer f.Close()
+
+	r, err := getData(bufio.NewReader(f))
+	if err != nil {
+		return nil, err
+	}
+	var (
+		rc   = cpio.NewReader(r)
+		list []packit.Resource
+	)
+	for {
+		h, err := rc.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		if _, err := io.Copy(io.Discard, io.LimitReader(rc, h.Size)); err != nil {
+			return nil, err
+		}
+		r := packit.Resource{
+			File:    h.Filename,
+			Perm:    int(h.Mode),
+			Size:    h.Size,
+			ModTime: h.ModTime,
+		}
+		list = append(list, r)
+	}
+	return list, nil
 }
 
 func Build(dir string, meta packit.Metadata) error {
@@ -219,8 +254,8 @@ func build(w io.Writer, meta packit.Metadata) error {
 
 func writeSignature(w io.Writer, archive, size int, m, h1, h2 hash.Hash) error {
 	var (
-		sum = m.Sum(nil)
-		fs  = []field{
+		sum    = m.Sum(nil)
+		fields = []field{
 			getNumber32(rpmSigLength, int64(size)),
 			getNumber32(rpmSigPayload, int64(archive)),
 			getString(rpmSigSha1, fmt.Sprintf("%x", h1.Sum(nil))),
@@ -228,7 +263,7 @@ func writeSignature(w io.Writer, archive, size int, m, h1, h2 hash.Hash) error {
 			getBinary(rpmSigMD5, sum[:]),
 		}
 	)
-	return writeFields(w, fs, rpmTagSignatureIndex, true)
+	return writeFields(w, fields, rpmTagSignatureIndex, true)
 }
 
 func writeHeader(w io.Writer, meta packit.Metadata) error {
@@ -327,7 +362,7 @@ func appendResource(cw *cpio.Writer, res packit.Resource) error {
 	if c, ok := w.(io.Closer); ok {
 		c.Close()
 	}
-	h := getHeader(res.Path(), res.Size, res.ModTime)
+	h := getHeader(res.Path(), int64(res.Perm), res.Size, res.ModTime)
 	if err := cw.WriteHeader(&h); err != nil {
 		return err
 	}
@@ -335,12 +370,12 @@ func appendResource(cw *cpio.Writer, res packit.Resource) error {
 	return err
 }
 
-func getHeader(file string, size int64, when time.Time) tape.Header {
+func getHeader(file string, perm, size int64, when time.Time) tape.Header {
 	return tape.Header{
 		Filename: file,
 		Uid:      0,
 		Gid:      0,
-		Mode:     0644,
+		Mode:     perm,
 		Size:     int64(size),
 		ModTime:  when,
 	}
@@ -697,4 +732,75 @@ func itob(n int64, z int) []byte {
 func stob(str string) []byte {
 	b := []byte(str)
 	return append(b, 0)
+}
+
+func readLead(r io.Reader) error {
+	lead := make([]byte, rpmLeadLen)
+	if _, err := io.ReadFull(r, lead); err != nil {
+		return err
+	}
+	if !bytes.HasPrefix(lead, rpmMagicRpm) {
+		return fmt.Errorf("not a RPM - invalid RPM magic file (%x)", lead[:4])
+	}
+	var (
+		version = binary.BigEndian.Uint16(lead[4:])
+		major   = version >> 8
+		minor   = version & 0xFF
+	)
+	if major != rpmMajorVersion && minor != rpmMinorVersion {
+		return fmt.Errorf("unsupported RPM version %d.%d", major, minor)
+	}
+	return nil
+}
+
+func readHeader(r io.Reader) (packit.Metadata, error) {
+	var meta packit.Metadata
+	rs, err := getMeta(r)
+	if err != nil {
+		return meta, err
+	}
+	_ = rs
+	return meta, nil
+}
+
+func getMeta(r io.Reader) (io.Reader, error) {
+	if err := readLead(r); err != nil {
+		return nil, err
+	}
+	if err := skipIndex(r, true); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+func getData(r io.Reader) (io.Reader, error) {
+	if err := readLead(r); err != nil {
+		return nil, err
+	}
+	for i := 0; i < 2; i++ {
+		if err := skipIndex(r, i == 0); err != nil {
+			return nil, err
+		}
+	}
+	return gzip.NewReader(r)
+}
+
+func skipIndex(r io.Reader, pad bool) error {
+	field := make([]byte, 16)
+	if _, err := io.ReadFull(r, field); err != nil {
+		return err
+	}
+	if !bytes.HasPrefix(field, rpmMagicHeader) {
+		return fmt.Errorf("invalid magic RPM header (%x)", field)
+	}
+	var (
+		inexlen = binary.BigEndian.Uint32(field[8:]) * 16
+		storlen = binary.BigEndian.Uint32(field[12:])
+		skip    = inexlen + storlen
+	)
+	if m := skip % 8; m != 0 && pad {
+		skip += 8 - m
+	}
+	_, err := io.CopyN(io.Discard, r, int64(skip))
+	return err
 }

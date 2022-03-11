@@ -267,11 +267,11 @@ func isExecutable(mode fs.FileMode) bool {
 }
 
 var compressed = []string{
-	".gz",
-	".tar",
-	".cpio",
 	".ar",
+	".gz",
 	".xz",
+	".cpio",
+	".tar",
 	".zip",
 }
 
