@@ -2,6 +2,7 @@ package deb
 
 import (
 	// "archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -66,8 +67,91 @@ func Info(file string) (packit.Metadata, error) {
 	return ParseControl(r)
 }
 
+type checksum struct {
+	File string
+	Sum  string
+}
+
 func Verify(file string) error {
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	all, err := getChecksums(r)
+	if err != nil {
+		return err
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	return compareChecksums(r, all)
+}
+
+func compareChecksums(r io.Reader, files []checksum) error {
+	list, err := getFile(r, debControlTar, debSumFile)
+	if err != nil {
+		return err
+	}
+	scan := bufio.NewScanner(list)
+	for scan.Scan() {
+		sum, file, ok := strings.Cut(scan.Text(), "  ")
+		if !ok || sum == "" || file == "" {
+			return fmt.Errorf("mdsum: invalid format")
+		}
+		i := sort.Search(len(files), func(i int) bool {
+			return file <= files[i].File
+		})
+		if i >= len(files) || files[i].File != file {
+			return fmt.Errorf("%s not found in data", file)
+		}
+		if sum != files[i].Sum {
+			return fmt.Errorf("%s: checksum mismatched", file)
+		}
+		files = append(files[:i], files[i+1:]...)
+	}
+	if len(files) > 0 {
+		return fmt.Errorf("files are not registered in mdsum")
+	}
 	return nil
+}
+
+func getChecksums(r io.Reader) ([]checksum, error) {
+	data, err := getData(r)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		list []checksum
+		rt   = tar.NewReader(data)
+	)
+	for {
+		h, err := rt.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		if h.Type != tar.TypeReg {
+			io.CopyN(io.Discard, rt, h.Size)
+			continue
+		}
+		sum := md5.New()
+		if _, err := io.CopyN(sum, rt, h.Size); err != nil {
+			return nil, err
+		}
+		md := checksum{
+			File: h.Name,
+			Sum:  fmt.Sprintf("%x", sum.Sum(nil)),
+		}
+		list = append(list, md)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].File < list[j].File
+	})
+	return list, nil
 }
 
 func List(file string) ([]packit.Resource, error) {

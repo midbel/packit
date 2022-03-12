@@ -171,6 +171,11 @@ func Info(file string) (packit.Metadata, error) {
 }
 
 func Verify(file string) error {
+	r, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
 	return nil
 }
 
