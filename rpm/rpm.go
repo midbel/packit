@@ -167,7 +167,7 @@ func Info(file string) (packit.Metadata, error) {
 		return packit.Metadata{}, err
 	}
 	defer r.Close()
-	return getMeta(bufio.NewReader(r))
+	return readHeader(bufio.NewReader(r))
 }
 
 func Verify(file string) error {
@@ -753,24 +753,105 @@ func readLead(r io.Reader) error {
 	return nil
 }
 
+func readSignature(r io.Reader) error {
+	return nil
+}
+
 func readHeader(r io.Reader) (packit.Metadata, error) {
 	var meta packit.Metadata
-	rs, err := getMeta(r)
+	index, store, err := getMeta(r)
 	if err != nil {
 		return meta, err
 	}
-	_ = rs
+	_ = store
+	for {
+		e, err := getIndexEntry(index)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return meta, err
+		}
+		if _, err := store.Seek(int64(e.Off), io.SeekStart); err != nil {
+			return meta, err
+		}
+		switch e.Tag {
+		case rpmTagSize:
+			meta.Size, err = getIntFrom(store)
+			meta.Size /= 1000
+		case rpmTagPackage:
+			meta.Package, err = getStringFrom(store)
+		case rpmTagVersion:
+			meta.Version, err = getStringFrom(store)
+		case rpmTagRelease:
+			meta.Release, err = getStringFrom(store)
+		case rpmTagSummary:
+			meta.Summary, err = getStringFrom(store)
+		case rpmTagDesc:
+			meta.Desc, err = getStringFrom(store)
+		case rpmTagGroup:
+			meta.Section, err = getStringFrom(store)
+		case rpmTagOS:
+			meta.OS, err = getStringFrom(store)
+		case rpmTagBuildHost:
+		case rpmTagBuildTime:
+			var unix int64
+			unix, err = getIntFrom(store)
+			if err == nil {
+				meta.Date = time.Unix(unix, 0)
+			}
+		case rpmTagVendor:
+			meta.Vendor, err = getStringFrom(store)
+		case rpmTagPackager:
+			meta.Maintainer.Name, err = getStringFrom(store)
+		case rpmTagLicense:
+			meta.License, err = getStringFrom(store)
+		case rpmTagURL:
+			meta.Home, err = getStringFrom(store)
+		case rpmTagArch:
+			arch, err1 := getStringFrom(store)
+			if err1 != nil {
+				err = err1
+				break
+			}
+			switch arch {
+			case rpmArch64:
+				meta.Arch = packit.Arch64
+			case rpmArch32:
+				meta.Arch = packit.Arch32
+			default:
+			}
+		default:
+		}
+		if err != nil {
+			return meta, err
+		}
+	}
 	return meta, nil
 }
 
-func getMeta(r io.Reader) (io.Reader, error) {
+func getMeta(r io.Reader) (io.Reader, io.ReadSeeker, error) {
 	if err := readLead(r); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := skipIndex(r, true); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return r, nil
+	ix, st, err := getHeaderInfo(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	var (
+		index = make([]byte, ix)
+		store = make([]byte, st)
+	)
+	if _, err := io.ReadFull(r, index); err != nil {
+		return nil, nil, err
+	}
+	if _, err := io.ReadFull(r, store); err != nil {
+		return nil, nil, err
+	}
+	return bytes.NewReader(index), bytes.NewReader(store), nil
 }
 
 func getData(r io.Reader) (io.Reader, error) {
@@ -786,21 +867,68 @@ func getData(r io.Reader) (io.Reader, error) {
 }
 
 func skipIndex(r io.Reader, pad bool) error {
-	field := make([]byte, 16)
-	if _, err := io.ReadFull(r, field); err != nil {
+	ix, st, err := getHeaderInfo(r)
+	if err != nil {
 		return err
 	}
-	if !bytes.HasPrefix(field, rpmMagicHeader) {
-		return fmt.Errorf("invalid magic RPM header (%x)", field)
-	}
-	var (
-		inexlen = binary.BigEndian.Uint32(field[8:]) * 16
-		storlen = binary.BigEndian.Uint32(field[12:])
-		skip    = inexlen + storlen
-	)
+	skip := ix + st
 	if m := skip % 8; m != 0 && pad {
 		skip += 8 - m
 	}
-	_, err := io.CopyN(io.Discard, r, int64(skip))
+	_, err = io.CopyN(io.Discard, r, int64(skip))
 	return err
+}
+
+type entry struct {
+	Tag  uint32
+	Type uint32
+	Off  uint32
+	Len  uint32
+}
+
+func getIndexEntry(r io.Reader) (entry, error) {
+	var e entry
+	return e, binary.Read(r, binary.BigEndian, &e)
+}
+
+func getStringFrom(r io.Reader) (string, error) {
+	var (
+		buf = make([]byte, 1024)
+		tmp []byte
+	)
+	for {
+		n, _ := r.Read(buf)
+		tmp = append(tmp, buf[:n]...)
+		if x := bytes.IndexByte(tmp, '\x00'); x >= 0 {
+			tmp = tmp[:x]
+			break
+		}
+		if n < 1024 {
+			return "", fmt.Errorf("null byte not found")
+		}
+	}
+	return string(tmp), nil
+}
+
+func getIntFrom(r io.Reader) (int64, error) {
+	var i int32
+	if err := binary.Read(r, binary.BigEndian, &i); err != nil {
+		return 0, err
+	}
+	return int64(i), nil
+}
+
+func getHeaderInfo(r io.Reader) (int, int, error) {
+	field := make([]byte, 16)
+	if _, err := io.ReadFull(r, field); err != nil {
+		return 0, 0, err
+	}
+	if !bytes.HasPrefix(field, rpmMagicHeader) {
+		return 0, 0, fmt.Errorf("invalid magic RPM header (%x)", field)
+	}
+	var (
+		index = binary.BigEndian.Uint32(field[8:]) * 16
+		store = binary.BigEndian.Uint32(field[12:])
+	)
+	return int(index), int(store), nil
 }
