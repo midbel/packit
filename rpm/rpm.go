@@ -768,36 +768,36 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 	if err != nil {
 		return meta, err
 	}
-	_ = store
-	for {
-		e, err := getIndexEntry(index)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return meta, err
-		}
+	entries, err := readEntries(index)
+	if err != nil {
+		return meta, err
+	}
+	for i, e := range entries {
 		if _, err := store.Seek(int64(e.Off), io.SeekStart); err != nil {
 			return meta, err
+		}
+		size := store.Size() - int64(e.Off)
+		if j := i+1; j < len(entries) {
+			size = int64(entries[j].Off) - int64(e.Off)
 		}
 		switch e.Tag {
 		case rpmTagSize:
 			meta.Size, err = getIntFrom(store)
 			meta.Size /= 1000
 		case rpmTagPackage:
-			meta.Package, err = getStringFrom(store)
+			meta.Package, err = getStringFrom(store, size)
 		case rpmTagVersion:
-			meta.Version, err = getStringFrom(store)
+			meta.Version, err = getStringFrom(store, size)
 		case rpmTagRelease:
-			meta.Release, err = getStringFrom(store)
+			meta.Release, err = getStringFrom(store, size)
 		case rpmTagSummary:
-			meta.Summary, err = getStringFrom(store)
+			meta.Summary, err = getStringFrom(store, size)
 		case rpmTagDesc:
-			meta.Desc, err = getStringFrom(store)
+			meta.Desc, err = getStringFrom(store, size)
 		case rpmTagGroup:
-			meta.Section, err = getStringFrom(store)
+			meta.Section, err = getStringFrom(store, size)
 		case rpmTagOS:
-			meta.OS, err = getStringFrom(store)
+			meta.OS, err = getStringFrom(store, size)
 		case rpmTagBuildHost:
 		case rpmTagBuildTime:
 			var unix int64
@@ -806,15 +806,15 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 				meta.Date = time.Unix(unix, 0)
 			}
 		case rpmTagVendor:
-			meta.Vendor, err = getStringFrom(store)
+			meta.Vendor, err = getStringFrom(store, size)
 		case rpmTagPackager:
-			meta.Maintainer.Name, err = getStringFrom(store)
+			meta.Maintainer.Name, err = getStringFrom(store, size)
 		case rpmTagLicense:
-			meta.License, err = getStringFrom(store)
+			meta.License, err = getStringFrom(store, size)
 		case rpmTagURL:
-			meta.Home, err = getStringFrom(store)
+			meta.Home, err = getStringFrom(store, size)
 		case rpmTagArch:
-			arch, err1 := getStringFrom(store)
+			arch, err1 := getStringFrom(store, size)
 			if err1 != nil {
 				err = err1
 				break
@@ -835,7 +835,7 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 	return meta, nil
 }
 
-func getMeta(r io.Reader) (io.Reader, io.ReadSeeker, error) {
+func getMeta(r io.Reader) (*bytes.Reader, *bytes.Reader, error) {
 	if err := readLead(r); err != nil {
 		return nil, nil, err
 	}
@@ -891,28 +891,39 @@ type entry struct {
 	Len  uint32
 }
 
+func readEntries(r io.Reader) ([]entry, error) {
+	var es []entry
+	for {
+		e, err := getIndexEntry(r)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		es = append(es, e)
+	}
+	sort.Slice(es, func(i, j int) bool {
+		return es[i].Off < es[j].Off
+	})
+	return es, nil
+}
+
 func getIndexEntry(r io.Reader) (entry, error) {
 	var e entry
 	return e, binary.Read(r, binary.BigEndian, &e)
 }
 
-func getStringFrom(r io.Reader) (string, error) {
-	var (
-		buf = make([]byte, 1024)
-		tmp []byte
-	)
-	for {
-		n, _ := r.Read(buf)
-		tmp = append(tmp, buf[:n]...)
-		if x := bytes.IndexByte(tmp, '\x00'); x >= 0 {
-			tmp = tmp[:x]
-			break
-		}
-		if n < 1024 {
-			return "", fmt.Errorf("null byte not found")
-		}
+func getStringFrom(r io.Reader, n int64) (string, error) {
+	n--
+	if n <= 0 {
+		return "", nil
 	}
-	return string(tmp), nil
+	b := make([]byte, n)
+	if _, err := io.ReadFull(r, b); err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 func getIntFrom(r io.Reader) (int64, error) {
