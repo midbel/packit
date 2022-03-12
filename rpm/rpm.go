@@ -814,9 +814,9 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 		case rpmTagURL:
 			meta.Home, err = getStringFrom(store, size)
 		case rpmTagArch:
-			arch, err1 := getStringFrom(store, size)
-			if err1 != nil {
-				err = err1
+			var arch string
+			arch, err = getStringFrom(store, size)
+			if err != nil {
 				break
 			}
 			switch arch {
