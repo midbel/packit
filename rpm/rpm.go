@@ -176,6 +176,44 @@ func Verify(file string) error {
 		return err
 	}
 	defer r.Close()
+
+	sig, err := readSignature(r)
+	if err != nil {
+		return err
+	}
+	var (
+		md  = md5.New()
+		sh1 = sha1.New()
+		sh2 = sha256.New()
+	)
+	rs := io.TeeReader(r, io.MultiWriter(sh1, sh2, md))
+	if err := skipIndex(rs, false); err != nil {
+		return err
+	}
+	if err := compareDigest(sig.Sh1, sh1); err != nil {
+		return err
+	}
+	if err := compareDigest(sig.Sh2, sh2); err != nil {
+		return err
+	}
+	if _, err = io.Copy(md, r); err != nil {
+		return err
+	}
+	sum3 := md.Sum(nil)
+	if !bytes.Equal(sum3[:], sig.Md5) && len(sig.Md5) > 0 {
+		return fmt.Errorf("header+data md5 mismatched")
+	}
+	return nil
+}
+
+func compareDigest(digest string, sum hash.Hash) error {
+	if digest == "" {
+		return nil
+	}
+	cmp := fmt.Sprintf("%x", sum.Sum(nil))
+	if cmp != digest {
+		return fmt.Errorf("hashes mismatched!")
+	}
 	return nil
 }
 
@@ -237,6 +275,7 @@ func build(w io.Writer, meta packit.Metadata) error {
 		header bytes.Buffer
 		sh1    = sha1.New()
 		sh2    = sha256.New()
+		datlen = data.Len()
 	)
 	if err := writeHeader(io.MultiWriter(sh1, sh2, &header), meta); err != nil {
 		return err
@@ -249,7 +288,7 @@ func build(w io.Writer, meta packit.Metadata) error {
 	if err != nil {
 		return err
 	}
-	err = writeSignature(w, data.Len(), body.Len(), md, sh1, sh2)
+	err = writeSignature(w, datlen, body.Len(), md, sh1, sh2)
 	if err != nil {
 		return err
 	}
@@ -758,8 +797,49 @@ func readLead(r io.Reader) error {
 	return nil
 }
 
-func readSignature(r io.Reader) error {
-	return nil
+type signature struct {
+	Archive int64
+	Data    int64
+	Md5     []byte
+	Sh1     string
+	Sh2     string
+}
+
+func readSignature(r io.Reader) (signature, error) {
+	var sig signature
+	index, store, err := getSignature(r)
+	if err != nil {
+		return sig, err
+	}
+	entries, err := readEntries(index)
+	if err != nil {
+		return sig, err
+	}
+	for i, e := range entries {
+		if _, err := store.Seek(int64(e.Off), io.SeekStart); err != nil {
+			return sig, err
+		}
+		size := store.Size() - int64(e.Off)
+		if j := i + 1; j < len(entries) {
+			size = int64(entries[j].Off) - int64(e.Off)
+		}
+		switch e.Tag {
+		case rpmSigLength:
+			sig.Data, err = getIntFrom(store)
+		case rpmSigPayload:
+			sig.Archive, err = getIntFrom(store)
+		case rpmSigSha1:
+			sig.Sh1, err = getStringFrom(store, size)
+		case rpmSigSha256:
+			sig.Sh2, err = getStringFrom(store, size)
+		case rpmSigMD5:
+			sig.Md5, err = getBinFrom(store, size)
+		}
+		if err != nil {
+			return sig, err
+		}
+	}
+	return sig, nil
 }
 
 func readHeader(r io.Reader) (packit.Metadata, error) {
@@ -833,6 +913,30 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 		}
 	}
 	return meta, nil
+}
+
+func getSignature(r io.Reader) (*bytes.Reader, *bytes.Reader, error) {
+	if err := readLead(r); err != nil {
+		return nil, nil, err
+	}
+	ix, st, err := getHeaderInfo(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	var (
+		index = make([]byte, ix)
+		store = make([]byte, st)
+	)
+	if _, err := io.ReadFull(r, index); err != nil {
+		return nil, nil, err
+	}
+	if _, err := io.ReadFull(r, store); err != nil {
+		return nil, nil, err
+	}
+	if m := st % 8; m != 0 {
+		io.CopyN(io.Discard, r, int64(8-m))
+	}
+	return bytes.NewReader(index), bytes.NewReader(store), nil
 }
 
 func getMeta(r io.Reader) (*bytes.Reader, *bytes.Reader, error) {
@@ -914,6 +1018,14 @@ func getIndexEntry(r io.Reader) (entry, error) {
 	return e, binary.Read(r, binary.BigEndian, &e)
 }
 
+func getBinFrom(r io.Reader, n int64) ([]byte, error) {
+	var (
+		b      = make([]byte, n)
+		_, err = io.ReadFull(r, b)
+	)
+	return b, err
+}
+
 func getStringFrom(r io.Reader, n int64) (string, error) {
 	n--
 	if n <= 0 {
@@ -923,7 +1035,7 @@ func getStringFrom(r io.Reader, n int64) (string, error) {
 	if _, err := io.ReadFull(r, b); err != nil {
 		return "", err
 	}
-	return string(b), nil
+	return string(bytes.TrimRight(b, "\x00")), nil
 }
 
 func getIntFrom(r io.Reader) (int64, error) {
