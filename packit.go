@@ -386,7 +386,7 @@ func (r Resource) IsReadme() bool {
 }
 
 func getHash(res fig.Resolver) (hash.Hash, error) {
-	v, err := res.Resolve(envHash)
+	v, err := getValue(res, envHash, EnvArchive)
 	if err != nil {
 		return md5.New(), nil
 	}
@@ -395,9 +395,9 @@ func getHash(res fig.Resolver) (hash.Hash, error) {
 		hasher hash.Hash
 	)
 	switch str {
-	case "", "md5":
+	case "", "md5", DEB:
 		hasher = md5.New()
-	case "sha1":
+	case "sha1", APK:
 		hasher = sha1.New()
 	case "sha256":
 		hasher = sha256.New()
@@ -407,6 +407,16 @@ func getHash(res fig.Resolver) (hash.Hash, error) {
 		return nil, fmt.Errorf("%s: unsupported hash", str)
 	}
 	return hasher, nil
+}
+
+func getValue(res fig.Resolver, key ...string) (interface{}, error) {
+	for _, k := range key {
+		v, err := res.Resolve(k)
+		if err == nil {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("key not found")
 }
 
 type Change struct {

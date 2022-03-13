@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	// "crypto/sha1"
+	"crypto/sha1"
 	"crypto/md5"
 	"crypto/sha256"
 	_ "embed"
@@ -122,7 +122,7 @@ func Verify(file string) error {
 			io.Copy(io.Discard, rt)
 			continue
 		}
-		sh1 := md5.New()
+		sh1 := sha1.New()
 		if _, err := io.CopyN(sh1, rt, h.Size); err != nil {
 			return err
 		}

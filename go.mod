@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/midbel/cli v0.3.0
-	github.com/midbel/fig v0.5.0
+	github.com/midbel/fig v0.5.2
 	github.com/midbel/tape v0.2.1
 	github.com/midbel/textwrap v0.1.3
 )
