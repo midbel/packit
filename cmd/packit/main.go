@@ -218,9 +218,11 @@ func printMetadata(meta packit.Metadata) {
 	fmt.Println()
 	fmt.Printf("%-12s: %s", "Summary", meta.Summary)
 	fmt.Println()
-	fmt.Printf("%-12s:", "Description")
-	fmt.Println()
-	fmt.Println(meta.Desc)
+	if meta.Desc != "" {
+		fmt.Printf("%-12s:", "Description")
+		fmt.Println()
+		fmt.Println(meta.Desc)
+	}
 }
 
 var (

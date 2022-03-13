@@ -84,7 +84,12 @@ func Info(file string) (packit.Metadata, error) {
 		return packit.Metadata{}, err
 	}
 	defer f.Close()
-	return packit.Metadata{}, nil
+
+	r, err := getFile(bufio.NewReader(f), apkControlFile, apkPackageFile)
+	if err != nil {
+		return packit.Metadata{}, err
+	}
+	return ParseControl(r)
 }
 
 func Verify(file string) error {
