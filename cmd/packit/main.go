@@ -191,6 +191,7 @@ func runVerify(cmd *cli.Command, args []string) error {
 	case packit.DEB:
 		err = deb.Verify(cmd.Flag.Arg(0))
 	case packit.APK:
+		err = apk.Verify(cmd.Flag.Arg(0))
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
