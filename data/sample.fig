@@ -6,7 +6,8 @@
 }
 
 package     = packit
-version     = "0.1.0"
+# version     = "0.1.0"
+.exec(key=version, command="git tag | tail -n 1 | cut -d v -f 2")
 essential   =
 summary     = "Create easily deb and rpm package."
 description = <<DESC

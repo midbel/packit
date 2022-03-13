@@ -777,7 +777,7 @@ func readHeader(r io.Reader) (packit.Metadata, error) {
 			return meta, err
 		}
 		size := store.Size() - int64(e.Off)
-		if j := i+1; j < len(entries) {
+		if j := i + 1; j < len(entries) {
 			size = int64(entries[j].Off) - int64(e.Off)
 		}
 		switch e.Tag {

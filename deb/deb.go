@@ -1,7 +1,6 @@
 package deb
 
 import (
-	// "archive/tar"
 	"bufio"
 	"bytes"
 	"compress/gzip"
