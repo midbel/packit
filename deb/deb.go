@@ -48,8 +48,49 @@ const (
 	debArch32  = "i386"
 )
 
-func Extract(file, dir string, flat, all bool) error {
+func Extract(file, dir string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r, err := getData(f)
+	if err != nil {
+		return err
+	}
+	rt := tar.NewReader(r)
+	for {
+		h, err := rt.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+		if h.Type != tar.TypeReg {
+			continue
+		}
+		r := io.LimitReader(rt, h.Size)
+		if err := extractFile(r, filepath.Join(dir, h.Name), h.Perm); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func extractFile(r io.Reader, file string, perm int64) error {
+	if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+		return err
+	}
+	w, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, os.FileMode(perm))
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	_, err = io.Copy(w, r)
+	return err
 }
 
 func Info(file string) (packit.Metadata, error) {

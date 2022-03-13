@@ -157,8 +157,46 @@ const (
 	rpmCondEq  = 1 << 3
 )
 
-func Extract(file, dir string, flat, all bool) error {
+func Extract(file, dir string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r, err := getData(bufio.NewReader(f))
+	if err != nil {
+		return err
+	}
+	rc := cpio.NewReader(r)
+	for {
+		h, err := rc.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return err
+		}
+		r := io.LimitReader(rc, h.Size)
+		if err := extractFile(r, filepath.Join(dir, h.Filename), h.Mode); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func extractFile(r io.Reader, file string, perm int64) error {
+	if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+		return err
+	}
+	w, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, os.FileMode(perm))
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	_, err = io.Copy(w, r)
+	return err
 }
 
 func Info(file string) (packit.Metadata, error) {

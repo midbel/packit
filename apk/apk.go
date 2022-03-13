@@ -26,7 +26,7 @@ const (
 	apkSignatureFile = ".SIGN"
 )
 
-func Extract(file, dir string, flat, all bool) error {
+func Extract(file, dir string) error {
 	return nil
 }
 

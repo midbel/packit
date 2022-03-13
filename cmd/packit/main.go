@@ -30,7 +30,7 @@ var commands = []*cli.Command{
 		Run:   runConvert,
 	},
 	{
-		Usage: "extract [-d <directory>] [-f <flat>] [-a <all>] package",
+		Usage: "extract [-d <directory>] package",
 		Short: "extract files from package archive",
 		Run:   runExtract,
 	},
@@ -113,22 +113,18 @@ func runConvert(cmd *cli.Command, args []string) error {
 }
 
 func runExtract(cmd *cli.Command, args []string) error {
-	var (
-		dir  = cmd.Flag.String("d", "", "directory")
-		all  = cmd.Flag.Bool("a", false, "extract all")
-		flat = cmd.Flag.Bool("f", false, "flat")
-	)
+	dir := cmd.Flag.String("d", "", "directory")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
 	var err error
 	switch ext := Ext(cmd.Flag.Arg(0)); ext {
 	case packit.RPM:
-		err = rpm.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+		err = rpm.Extract(cmd.Flag.Arg(0), *dir)
 	case packit.DEB:
-		err = deb.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+		err = deb.Extract(cmd.Flag.Arg(0), *dir)
 	case packit.APK:
-		err = apk.Extract(cmd.Flag.Arg(0), *dir, *flat, *all)
+		err = apk.Extract(cmd.Flag.Arg(0), *dir)
 	default:
 		err = fmt.Errorf("%s: %w", cmd.Flag.Arg(0), packit.ErrPackage)
 	}
