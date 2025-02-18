@@ -1,0 +1,54 @@
+# variable definitions
+.let package packit
+.let doc     `usr/doc/$package`
+.let bin     usr/bin
+.let author  midbel
+.let mail    'noreply@midbel.org'
+
+# package description
+
+package $package
+version '0.1.0'
+
+maintainer {
+	name  $author
+	email $mail
+}
+
+license mit
+
+summary "package summary goes here"
+
+description <<DESC
+a tool to create easily your deb or rpm package
+DESC
+
+change {
+	version     "0.1.0"
+	summary     ""
+	description ""
+	date        '2025-02-15'
+	maintainer {
+		name  $author
+		email $mail
+	}
+}
+
+file {
+	source 'bin/packit.exe'
+	target `$bin/$package`
+	perm   0o755
+}
+
+pre-install <<SCRIPT
+echo pre-install
+exit 0
+SCRIPT
+
+post-install <<SCRIPT
+echo post-install
+exit 0
+SCRIPT
+
+pre-remove  "file/to/script.sh"
+post-remove "file/to/script.sh"
