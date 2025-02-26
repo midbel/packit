@@ -1,0 +1,6 @@
+github.com/midbel/rw v0.1.0 h1:jbgA4m76skqPbWDsEpsNKoQWT3mTpCxJp2TMNZXhwd0=
+github.com/midbel/rw v0.1.0/go.mod h1:iIwUqmsls/PSDEPVHLqkcLp2D8xxuwVpBce6pNwf0nI=
+github.com/midbel/tape v0.2.3 h1:G4b053UtNQhYl/Y2FOdKBcMO81Ztp9LmUrDu8yoS8BY=
+github.com/midbel/tape v0.2.3/go.mod h1:V9eHCQqrF/Oc54CcvjErElDjjtE6+2uk1zQ6npRc1Qo=
+github.com/ulikunitz/xz v0.5.12 h1:37Nm15o69RwBkXM0J6A5OlE67RZTfzUxTj8fB3dfcsc=
+github.com/ulikunitz/xz v0.5.12/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=

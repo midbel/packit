@@ -256,8 +256,10 @@ func (s *Scanner) scanNumber(tok *Token) {
 			tok.Type = Invalid
 			return
 		}
-		next(tok)
-		return
+		if next != nil {
+			next(tok)
+			return
+		}
 	}
 	for !s.done() && isDigit(s.char) {
 		s.write()
@@ -353,7 +355,7 @@ func (s *Scanner) scanVariable(tok *Token) {
 
 func (s *Scanner) scanMacro(tok *Token) {
 	s.read()
-	for !s.done() && isLetter(s.char) {
+	for !s.done() && (isLetter(s.char) || isDigit(s.char)) {
 		s.write()
 		s.read()
 	}

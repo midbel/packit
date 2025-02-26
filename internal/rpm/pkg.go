@@ -14,7 +14,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/midbel/packit"
+	// "github.com/midbel/packit"
 	"github.com/midbel/tape/cpio"
 	"github.com/ulikunitz/xz"
 )

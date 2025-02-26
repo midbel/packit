@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/midbel/packit"
-	"github.com/midbel/packit/rw"
+	// "github.com/midbel/packit"
+	// "github.com/midbel/packit/rw"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/cpio"
 )

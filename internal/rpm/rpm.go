@@ -11,8 +11,7 @@ import (
 	"io"
 	"os"
 	"time"
-
-	"github.com/midbel/packit"
+	// "github.com/midbel/packit"
 )
 
 func Arch(a uint8) string {

@@ -1,82 +1,12 @@
 package packfile
 
 import (
-	"embed"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
 )
-
-const (
-	Deb = "deb"
-	Rpm = "rpm"
-	Apk = "apk"
-)
-
-const (
-	Changelog = "CHANGELOG"
-	License   = "LICENSE"
-	Readme    = "README"
-)
-
-const (
-	Arch64 = "amd64"
-	Arch32 = "i386"
-)
-
-const (
-	EnvMaintainerName = "PACK_MAINTAINER_NAME"
-	EnvMaintainerMail = "PACK_MAINTAINER_MAIL"
-)
-
-const (
-	EnvArchive = "archive"
-	EnvBash    = "bash"
-	EnvShell   = "shell"
-
-	envHash = "hash"
-)
-
-const (
-	DefaultVersion  = "0.1.0"
-	DefaultLicense  = "mit"
-	DefaultSection  = "contrib"
-	DefaultPriority = "extra"
-	DefaultOS       = "linux"
-	DefaultShell    = "/bin/sh"
-)
-
-const (
-	constraintEq = "eq"
-	constraintNe = "ne"
-	constraintGt = "gt"
-	constraintGe = "ge"
-	constraintLt = "lt"
-	constraintLe = "le"
-)
-
-func getVersionContraint(constraint string) (string, error) {
-	switch constraint {
-	case constraintEq:
-		constraint = "="
-	case constraintNe:
-		constraint = "!="
-	case constraintGt:
-		constraint = ">"
-	case constraintGe:
-		constraint = ">="
-	case constraintLt:
-		constraint = "<"
-	case constraintLe:
-		constraint = "<="
-	default:
-		return "", fmt.Errorf("%s: invalid constraint given", constraint)
-	}
-	return constraint, nil
-}
-
-//go:embed licenses/*
-var licenseFiles embed.FS
 
 type Maintainer struct {
 	Name  string
@@ -87,35 +17,48 @@ type Dependency struct {
 	Package    string
 	Constraint string // gt, ge, lt, le,...
 	Version    string
-	Type       string // breaks, suggests, recommands,...
 	Arch       string
+	Type       string // breaks, suggests, recommands,...
 }
 
 type Change struct {
 	Summary string
-	Desc    string
+	Changes []string
 	Version string
 	When    time.Time
 	Maintainer
 }
 
 type Resource struct {
-	Local  *os.File
-	Target string
-	Perm   int64
+	Local    io.ReadCloser
+	Target   string
+	Perm     int64
+	Config   bool
+	Compress bool
 
-	size    int64
-	lastmod time.Time
+	Size    int64
+	Lastmod time.Time
+	Hash    string
+}
+
+type Compiler struct {
+	Name    string
+	Version string
 }
 
 type Package struct {
+	Setup    string
+	Teardown string
+
 	Name    string
 	Summary string
 	Desc    string
 	Version string
 	Release string
+	Home    string
+	Vendor  string
 
-	Compiler    string
+	BuildWith   Compiler
 	PackageType string
 
 	Essential bool
@@ -132,59 +75,81 @@ type Package struct {
 	PreRem   string
 	PostRem  string
 
-	Maintainers []Maintainer
-	Depends     []Dependency
-	Changes     []Change
+	Maintainer Maintainer
+	Depends    []Dependency
+	Changes    []Change
 
 	Files []Resource
 }
 
-func Load(file string) (*Package, error) {
+func Load(file, context string) (*Package, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Close()
 
-	d, err := NewDecoder(r)
+	d, err := NewDecoder(r, context)
 	if err != nil {
 		return nil, err
 	}
 	return d.Decode()
 }
 
+func (p *Package) GetDirDoc(file string) string {
+	return filepath.Join(DirDoc, p.Name, file)
+}
+
+func (p *Package) Requires() []Dependency {
+	return p.depends("depends")
+}
+
+func (p *Package) Recommends() []Dependency {
+	return p.depends("recommends")
+}
+
+func (p *Package) Suggests() []Dependency {
+	return p.depends("suggests")
+}
+
+func (p *Package) Breaks() []Dependency {
+	return p.depends("breaks")
+}
+
+func (p *Package) Conflicts() []Dependency {
+	return p.depends("conflicts")
+}
+
+func (p *Package) Replaces() []Dependency {
+	return p.depends("replaces")
+}
+
+func (p *Package) Enhances() []Dependency {
+	return p.depends("enhances")
+}
+
+func (p *Package) Provides() []Dependency {
+	return p.depends("provides")
+}
+
+func (p *Package) depends(kind string) []Dependency {
+	var list []Dependency
+	for _, d := range p.Depends {
+		if d.Type == kind {
+			list = append(list, d)
+		}
+	}
+	return list
+}
+
+func (p *Package) TotalSize() int64 {
+	var z int64
+	for _, r := range p.Files {
+		z += r.Size
+	}
+	return z
+}
+
 func (p *Package) PackageName() string {
 	return fmt.Sprintf("%s-%s", p.Name, p.Version)
-}
-
-type Environ struct {
-	parent *Environ
-	values map[string]any
-}
-
-func Empty() *Environ {
-	e := Environ{
-		values: make(map[string]any),
-	}
-	return &e
-}
-
-func (e *Environ) Define(ident string, value any) error {
-	_, ok := e.values[ident]
-	if ok {
-		return fmt.Errorf("identifier %q already defined", ident)
-	}
-	e.values[ident] = value
-	return nil
-}
-
-func (e *Environ) Resolve(ident string) (any, error) {
-	v, ok := e.values[ident]
-	if ok {
-		return v, nil
-	}
-	if e.parent != nil {
-		return e.parent.Resolve(ident)
-	}
-	return nil, fmt.Errorf("undefined variable %s", ident)
 }
