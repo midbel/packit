@@ -21,6 +21,7 @@ import (
 	"github.com/midbel/packit/internal/packfile"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
+	"github.com/midbel/textwrap"
 )
 
 const (
@@ -445,7 +446,7 @@ func formatPackageSize(size int64) int64 {
 func formatPackageDesc(str string) string {
 	var (
 		wr bytes.Buffer
-		rd = bytes.NewBufferString(str)
+		rd = bytes.NewBufferString(textwrap.Wrap(str))
 		sc = bufio.NewScanner(rd)
 	)
 	for sc.Scan() {
