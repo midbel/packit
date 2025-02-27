@@ -1,16 +1,15 @@
 # variable definitions
-.let package angle
+.let package pack
 .let doc      `usr/share/doc/$package`
 .let etc      `etc/$package`
 .let examples `usr/share/doc/$package/examples`
 .let bin     .usrbindir
-.let script  .usrbindir
 .let author  midbel
 .let mail    'noreply@midbel.org'
 
 .env SHELL TEST
 
-setup "go build -o bin/pack pack.go"
+setup "go build -o bin/pack cmd/pack/"
 
 # package description
 
@@ -24,82 +23,17 @@ maintainer {
 
 license mit
 
-summary "package summary goes here"
+summary "create your package made easy"
 
-description <<DESC
-processing XML easily without headaches
-
-angle provides support for:
-
-* xml reading, formating
-* xpath v3
-* relax ng (limited syntax)
-* schematron
-DESC
-
-compiler go '1.24.0'
-
-changelog {
-	version     "0.1.0"
-	summary     "summary here"
-	change "fix minor 1"
-	change "fix minor 2"
-	change "fix minor 3"
-	date        '2025-02-15'
-	maintainer {
-		name  $author
-		email $mail
-	}
-}
-
-depends {
-	package go
-	version '1.23.12'
-	arch    .arch64
-	type    depends
-}
-
-depends {
-	package brain
-	version '42.11.9'
-	arch    .arch64
-	type    depends
-}
+compiler go '1.23.0'
 
 file {
-	source caartesian.go
-	target `$script/cartesian.go`
+	source bin/pack
+	target `$bin/pack`
 	perm   0o755
 }
 
 file {
-	source pack.go
-	target `$script/pack.go`
-	perm 0o755
-}
-
-file {
-	source data/Packfile
+	source data/sample.pf
 	target `$doc/Packfile.default`
 }
-
-file {
-	source data/Packfile
-	target `$etc/pack.default`
-	config true
-}
-
-pre-install <<SCRIPT
-#! /bin/bash
-echo pre-install
-exit 0
-SCRIPT
-
-post-install <<SCRIPT
-#! /bin/bash
-echo post-install
-exit 0
-SCRIPT
-
-pre-remove  "echo pre-remove"
-post-remove "echo post-remove"
