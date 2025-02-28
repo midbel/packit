@@ -105,19 +105,25 @@ func (d debBuilder) build(p *packfile.Package) error {
 		os.Remove(ControlFile)
 		os.Remove(DataFile)
 	}()
-	if err := writeFiles(p); err != nil {
+	data, err := writeFiles(p)
+	if err != nil {
 		return err
 	}
-	if err := writeControl(p); err != nil {
+	defer data.Close()
+
+	ctrl, err := writeControl(p)
+	if err != nil {
 		return err
 	}
+	defer ctrl.Close()
+
 	if err := d.writeDebian(); err != nil {
 		return err
 	}
-	if err := d.writeControl(); err != nil {
+	if err := d.writeControl(ctrl); err != nil {
 		return err
 	}
-	return d.writeData()
+	return d.writeData(data)
 }
 
 func (d debBuilder) writeDebian() error {
@@ -136,13 +142,10 @@ func (d debBuilder) writeDebian() error {
 	return err
 }
 
-func (d debBuilder) writeControl() error {
-	r, err := os.Open(ControlFile)
-	if err != nil {
+func (d debBuilder) writeControl(r *os.File) error {
+	if _, err := r.Seek(0, os.SEEK_SET); err != nil {
 		return err
 	}
-	defer r.Close()
-
 	h, err := tape.FileInfoHeaderFromFile(r)
 	if err != nil {
 		return err
@@ -154,13 +157,10 @@ func (d debBuilder) writeControl() error {
 	return err
 }
 
-func (d debBuilder) writeData() error {
-	r, err := os.Open(DataFile)
-	if err != nil {
+func (d debBuilder) writeData(r *os.File) error {
+	if _, err := r.Seek(0, os.SEEK_SET); err != nil {
 		return err
 	}
-	defer r.Close()
-
 	h, err := tape.FileInfoHeaderFromFile(r)
 	if err != nil {
 		return err
@@ -250,12 +250,11 @@ func writeConffiles(w *tar.Writer, pkg *packfile.Package) error {
 	return err
 }
 
-func writeControl(pkg *packfile.Package) error {
+func writeControl(pkg *packfile.Package) (*os.File, error) {
 	f, err := os.Create(ControlFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer f.Close()
 
 	ws := gzip.NewWriter(f)
 	defer ws.Close()
@@ -264,15 +263,22 @@ func writeControl(pkg *packfile.Package) error {
 	defer w.Close()
 
 	if err := writeSpec(w, pkg); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
 	if err := writeChecksums(w, pkg); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
 	if err := writeConffiles(w, pkg); err != nil {
-		return err
+		f.Close()
+		return nil, err
 	}
-	return writeScripts(w, pkg)
+	if err := writeScripts(w, pkg); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
 }
 
 func writeScripts(w *tar.Writer, pkg *packfile.Package) error {
@@ -317,12 +323,11 @@ func writeScripts(w *tar.Writer, pkg *packfile.Package) error {
 	return nil
 }
 
-func writeFiles(pkg *packfile.Package) error {
+func writeFiles(pkg *packfile.Package) (*os.File, error) {
 	f, err := os.Create(DataFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer f.Close()
 
 	ws, _ := gzip.NewWriterLevel(f, gzip.BestCompression)
 	defer func() {
@@ -339,7 +344,8 @@ func writeFiles(pkg *packfile.Package) error {
 	if len(pkg.Changes) > 0 {
 		res, err := writeChangelog(pkg)
 		if err != nil {
-			return err
+			f.Close()
+			return nil, err
 		}
 		pkg.Files = append(pkg.Files, res)
 	}
@@ -362,7 +368,8 @@ func writeFiles(pkg *packfile.Package) error {
 				seen[target] = struct{}{}
 				h := makeTarHeaderDir(strings.Join(paths[:i+1], "/"))
 				if err := w.WriteHeader(h); err != nil {
-					return err
+					f.Close()
+					return nil, err
 				}
 			}
 		}
@@ -375,16 +382,18 @@ func writeFiles(pkg *packfile.Package) error {
 			h    = makeTarHeader(r.Target, int(r.Size), int(perm))
 		)
 		if err := w.WriteHeader(h); err != nil {
-			return err
+			f.Close()
+			return nil, err
 		}
 		if _, err := io.Copy(io.MultiWriter(w, sum), r.Local); err != nil {
-			return err
+			f.Close()
+			return nil, err
 		}
 		r.Local.Close()
 		r.Hash = fmt.Sprintf("%x", sum.Sum(nil))
 		pkg.Files[i] = r
 	}
-	return nil
+	return f, nil
 }
 
 func writeChangelog(pkg *packfile.Package) (packfile.Resource, error) {

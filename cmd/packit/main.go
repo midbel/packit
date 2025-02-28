@@ -25,6 +25,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *kind == "" {
+		*kind = "deb"
+	}
+
 	name := fmt.Sprintf("%s.%s", pkg.PackageName(), *kind)
 	name = filepath.Join(*dist, name)
 	if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {

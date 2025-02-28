@@ -134,6 +134,11 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 		switch option {
 		case "type":
 			pkg.License, err = d.decodeString()
+		case "template":
+			_, err = d.decodeString()
+			if err != nil {
+				return err
+			}
 		case "text":
 			text, err := d.decodeString()
 			if err != nil {
@@ -197,7 +202,7 @@ func (d *Decoder) decodeLicenseFromTemplate(pkg *Package) error {
 
 	file := Resource{
 		Local:   io.NopCloser(&str),
-		Target:  filepath.Join(DirDoc, pkg.Name, "License"),
+		Target:  filepath.Join(DirDoc, pkg.Name, "copyright"),
 		Perm:    PermFile,
 		Size:    int64(str.Len()),
 		Lastmod: time.Now(),
