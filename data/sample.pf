@@ -1,0 +1,39 @@
+# variable definitions
+.let package pack
+.let doc      `usr/share/doc/$package`
+.let etc      `etc/$package`
+.let examples `usr/share/doc/$package/examples`
+.let bin     .usrbindir
+.let author  midbel
+.let mail    'noreply@midbel.org'
+
+.env SHELL TEST
+
+setup "go build -o bin/pack cmd/pack/"
+
+# package description
+
+package $package
+version '0.1.0'
+
+maintainer {
+	name  $author
+	email $mail
+}
+
+license mit
+
+summary "create your package made easy"
+
+compiler go '1.23.0'
+
+file {
+	source bin/pack
+	target `$bin/pack`
+	perm   0o755
+}
+
+file {
+	source data/sample.pf
+	target `$doc/Packfile.default`
+}
