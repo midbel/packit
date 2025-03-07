@@ -297,6 +297,7 @@ func prepareFiles(p *packfile.Package, index, store *bytes.Buffer) error {
 			groups = append(groups, packfile.DefaultGroup)
 			flags = append(flags, rpmFileDir)
 			devs = append(devs, 0)
+			flags = append(flags, packfile.FileFlagDir)
 			inodes = append(inodes, int64(len(bases))+1)
 		}
 

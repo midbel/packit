@@ -52,6 +52,6 @@ func Build(kind string, w io.Writer) (Builder, error) {
 	case packfile.Rpm:
 		return rpm.Build(w)
 	default:
-		return nil, fmt.Errorf("%s: package type not supported")
+		return nil, fmt.Errorf("%s: package type not supported", kind)
 	}
 }
