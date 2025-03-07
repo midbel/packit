@@ -51,6 +51,62 @@ func (e *Environ) Resolve(ident string) (any, error) {
 	return nil, fmt.Errorf("undefined variable %s", ident)
 }
 
+const (
+	optFile            = "file"
+	optFileSource      = "source"
+	optFileGhost       = "ghost"
+	optFileDoc         = "doc"
+	optFileConf        = "conf"
+	optFileLicense     = "license"
+	optFileReadme      = "readme"
+	optFileTarget      = "target"
+	optFilePerm        = "perm"
+	optFileCompress    = "compress"
+	optFileConfig      = "config"
+	optLicense         = "license"
+	optCopyright       = "copyright"
+	optLicenseText     = "text"
+	optLicenseType     = "type"
+	optLicenseFile     = "file"
+	optMaintainer      = "maintainer"
+	optMaintainerName  = "name"
+	optMaintainerEmail = "email"
+	optChange          = "changelog"
+	optChangeSummary   = "summary"
+	optChangeChange    = "change"
+	optChangeVersion   = "version"
+	optChangeDate      = "date"
+	optDepends         = "depends"
+	optDependsPackage  = "package"
+	optDependsType     = "type"
+	optDependsArch     = "arch"
+	optDependsVersion  = "version"
+	optCompiler        = "compiler"
+	optCompilerName    = "name"
+	optCompilerVersion = "version"
+	optSetup           = "setup"
+	optTeardown        = "teardown"
+	optPackage         = "package"
+	optName            = "name"
+	optSummary         = "summary"
+	optRelease         = "release"
+	optVersion         = "version"
+	optDesc            = "desc"
+	optDescLong        = "description"
+	optPriority        = "priority"
+	optSection         = "section"
+	optGroup           = "group"
+	optType            = "type"
+	optOs              = "os"
+	optArch            = "arch"
+	optArchLong        = "architecture"
+	optPreInst         = "pre-install"
+	optPreRem          = "pre-remove"
+	optPostInst        = "post-install"
+	optPostRem         = "post-remove"
+	optCheckPkg        = "check-package"
+)
+
 type Decoder struct {
 	context string
 
@@ -92,7 +148,7 @@ func (d *Decoder) Decode() (*Package, error) {
 		Section:  DefaultSection,
 		Priority: DefaultPriority,
 		License:  DefaultLicense,
-		Arch:     Arch64,
+		Arch:     ArchNo,
 	}
 	return &pkg, d.decode(&pkg)
 }
@@ -132,27 +188,22 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 	return d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "type":
+		case optLicenseType:
 			pkg.License, err = d.decodeString()
-		case "template":
-			_, err = d.decodeString()
-			if err != nil {
-				return err
-			}
-		case "text":
+		case optLicenseText:
 			text, err := d.decodeString()
 			if err != nil {
 				return err
 			}
 			res := Resource{
 				Local:   io.NopCloser(strings.NewReader(text)),
-				Target:  filepath.Join(DirDoc, pkg.Name, "License"),
+				Target:  filepath.Join(DirDoc, pkg.Name, copyrightFile),
 				Perm:    PermFile,
 				Size:    int64(len(text)),
 				Lastmod: time.Now(),
 			}
 			pkg.Files = append(pkg.Files, res)
-		case "file":
+		case optLicenseFile:
 			file, err := d.decodeString()
 			if err != nil {
 				return err
@@ -167,7 +218,7 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 			}
 			res := Resource{
 				Local:   r,
-				Target:  filepath.Join(DirDoc, pkg.Name, "License"),
+				Target:  filepath.Join(DirDoc, pkg.Name, copyrightFile),
 				Perm:    PermFile,
 				Size:    s.Size(),
 				Lastmod: s.ModTime(),
@@ -202,7 +253,7 @@ func (d *Decoder) decodeLicenseFromTemplate(pkg *Package) error {
 
 	file := Resource{
 		Local:   io.NopCloser(&str),
-		Target:  filepath.Join(DirDoc, pkg.Name, "copyright"),
+		Target:  filepath.Join(DirDoc, pkg.Name, copyrightFile),
 		Perm:    PermFile,
 		Size:    int64(str.Len()),
 		Lastmod: time.Now(),
@@ -237,9 +288,9 @@ func (d *Decoder) decodeMaintainer() (Maintainer, error) {
 	return m, d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "name":
+		case optMaintainerName:
 			m.Name, err = d.decodeString()
-		case "email":
+		case optMaintainerEmail:
 			m.Email, err = d.decodeString()
 		default:
 			err = fmt.Errorf("maintainer: %s unsupported option", option)
@@ -254,19 +305,19 @@ func (d *Decoder) decodeChange(pkg *Package) error {
 	err := d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "summary":
+		case optChangeSummary:
 			c.Summary, err = d.decodeString()
-		case "change":
+		case optChangeChange:
 			line, err1 := d.decodeString()
 			if err1 != nil {
 				return err1
 			}
 			c.Changes = append(c.Changes, line)
-		case "version":
+		case optChangeVersion:
 			c.Version, err = d.decodeString()
-		case "date":
+		case optChangeDate:
 			c.When, err = d.decodeDate()
-		case "maintainer":
+		case optMaintainer:
 			c.Maintainer, err = d.decodeMaintainer()
 		default:
 			err = fmt.Errorf("change: %s unsupported option", option)
@@ -285,13 +336,13 @@ func (d *Decoder) decodeDepends(pkg *Package) error {
 	err := d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "package":
+		case optDependsPackage:
 			p.Package, err = d.decodeString()
-		case "type":
+		case optDependsType:
 			p.Type, err = d.decodeString()
-		case "arch":
+		case optDependsArch:
 			p.Arch, err = d.decodeString()
-		case "version":
+		case optDependsVersion:
 			p.Constraint = ConstraintEq
 			p.Version = d.getCurrentLiteral()
 			d.next()
@@ -360,24 +411,65 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 	err := d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "source":
+		case optFileSource:
 			path, err1 := d.decodeString()
 			if err1 != nil {
 				return err1
 			}
 			r.Local, err = d.openFile(path)
-		case "target":
+		case optFileGhost:
+			ok, err := d.decodeBool()
+			if err != nil {
+				return err
+			}
+			if ok {
+				r.Flags |= FileFlagGhost
+			}
+		case optFileDoc:
+			ok, err := d.decodeBool()
+			if err != nil {
+				return err
+			}
+			if ok {
+				r.Flags |= FileFlagDoc
+			}
+		case optFileConf, optFileConfig:
+			ok, err := d.decodeBool()
+			if err != nil {
+				return err
+			}
+			if ok {
+				r.Flags |= FileFlagConf
+			}
+		case optFileLicense:
+			ok, err := d.decodeBool()
+			if err != nil {
+				return err
+			}
+			if ok {
+				r.Flags |= FileFlagLicense
+			}
+		case optFileReadme:
+			ok, err := d.decodeBool()
+			if err != nil {
+				return err
+			}
+			if ok {
+				r.Flags |= FileFlagReadme
+			}
+		case optFileTarget:
 			r.Target, err = d.decodeString()
-		case "perm":
+			if err == nil {
+				r.Target = strings.ReplaceAll(r.Target, "\\", "/")
+			}
+		case optFilePerm:
 			perm, err1 := d.decodeString()
 			if err1 != nil {
 				return err1
 			}
 			r.Perm, err = strconv.ParseInt(perm, 0, 64)
-		case "compress":
+		case optFileCompress:
 			r.Compress, err = d.decodeBool()
-		case "config":
-			r.Config, err = d.decodeBool()
 		default:
 			err = fmt.Errorf("file: %s unsupported option", option)
 		}
@@ -428,9 +520,9 @@ func (d *Decoder) decodeCompilerFromObject(pkg *Package) error {
 	return d.decodeObject(func(option string) error {
 		var err error
 		switch option {
-		case "name":
+		case optCompilerName:
 			pkg.BuildWith.Name, err = d.decodeString()
-		case "version":
+		case optCompilerVersion:
 			pkg.BuildWith.Version, err = d.decodeString()
 		default:
 			return fmt.Errorf("compiler: %s unsupported option", option)
@@ -447,48 +539,51 @@ func (d *Decoder) decodeOption(pkg *Package) error {
 	)
 	d.next()
 	switch option {
-	case "setup":
+	case optSetup:
 		pkg.Setup, err = d.decodeString()
-	case "teardown":
+	case optTeardown:
 		pkg.Teardown, err = d.decodeString()
-	case "package", "name":
+	case optPackage, optName:
 		pkg.Name, err = d.decodeString()
-	case "summary":
+	case optRelease:
+		pkg.Release, err = d.decodeString()
+	case optSummary:
 		pkg.Summary, err = d.decodeString()
-	case "description":
+	case optDesc, optDescLong:
 		pkg.Desc, err = d.decodeString()
-	case "version":
+	case optVersion:
 		pkg.Version, err = d.decodeString()
-	case "priority":
+	case optPriority:
 		pkg.Priority, err = d.decodeString()
-	case "section":
+	case optSection, optGroup:
 		pkg.Section, err = d.decodeString()
-	case "license":
+	case optLicense, optCopyright:
 		err = d.decodeLicense(pkg)
-	case "compiler":
+	case optCompiler:
 		err = d.decodeCompiler(pkg)
-	case "type":
+	case optType:
 		pkg.PackageType, err = d.decodeString()
-	case "os":
+	case optOs:
 		pkg.Os, err = d.decodeString()
-	case "arch", "architecture":
+	case optArch, optArchLong:
 		pkg.Arch, err = d.decodeString()
-	case "maintainer":
+	case optMaintainer:
 		err = d.decodePackageMaintainer(pkg)
-	case "file":
+	case optFile:
 		err = d.decodeFile(pkg)
-	case "changelog":
+	case optChange:
 		err = d.decodeChange(pkg)
-	case "depends":
+	case optDepends:
 		err = d.decodeDepends(pkg)
-	case "pre-install":
+	case optPreInst:
 		pkg.PreInst, err = d.decodeString()
-	case "post-install":
+	case optPostInst:
 		pkg.PostInst, err = d.decodeString()
-	case "pre-remove":
+	case optPreRem:
 		pkg.PreRem, err = d.decodeString()
-	case "post-remove":
+	case optPostRem:
 		pkg.PostRem, err = d.decodeString()
+	case optCheckPkg:
 	default:
 		err = fmt.Errorf("package %s unsupported option", option)
 	}
@@ -615,6 +710,8 @@ func (d *Decoder) decodeMacro() (string, error) {
 		str = Arch64
 	case "arch32":
 		str = Arch32
+	case "noarch":
+		str = ArchNo
 	case "all":
 		str = ArchAll
 	case "etcdir":

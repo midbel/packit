@@ -15,6 +15,7 @@ const (
 	Arch64  = "amd64"
 	Arch32  = "i386"
 	ArchAll = "all"
+	ArchNo  = "noarch"
 )
 
 const (
@@ -32,6 +33,8 @@ const (
 	DirBinUsr = "usr/bin"
 	DirDoc    = "usr/share/doc"
 )
+
+const copyrightFile = "License"
 
 const (
 	EnvMaintainerName = "PACK_MAINTAINER_NAME"
@@ -53,6 +56,8 @@ const (
 	DefaultPriority = "optional"
 	DefaultOS       = "linux"
 	DefaultShell    = "/bin/sh"
+	DefaultUser     = "root"
+	DefaultGroup    = "root"
 )
 
 const (
@@ -62,6 +67,20 @@ const (
 	ConstraintGe = "ge"
 	ConstraintLt = "lt"
 	ConstraintLe = "le"
+)
+
+const (
+	FileFlagConf         = 1 << 0
+	FileFlagDoc          = 1 << 1
+	FileFlagAllowMissing = 1 << 3
+	FileFlagNoReplace    = 1 << 4
+	FileFlagGhost        = 1 << 6
+	FileFlagLicense      = 1 << 7
+	FileFlagReadme       = 1 << 8
+	FileFlagExec         = 1 << 9
+	FileFlagDir          = 1 << 12
+
+	FileFlagRegular = FileFlagConf | FileFlagDoc | FileFlagLicense | FileFlagReadme
 )
 
 func GetPermissionFromPath(file string) int64 {

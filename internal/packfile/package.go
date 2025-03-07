@@ -33,12 +33,25 @@ type Resource struct {
 	Local    io.ReadCloser
 	Target   string
 	Perm     int64
-	Config   bool
 	Compress bool
+
+	Flags int64
 
 	Size    int64
 	Lastmod time.Time
 	Hash    string
+}
+
+func (r Resource) IsConfig() bool {
+	return r.Flags&FileFlagConf == FileFlagConf
+}
+
+func (r Resource) IsRegular() bool {
+	return r.Flags&FileFlagRegular != 0
+}
+
+func (r Resource) IsDirectory() bool {
+	return r.Flags&FileFlagDir == FileFlagDir
 }
 
 type Compiler struct {
@@ -70,10 +83,11 @@ type Package struct {
 
 	License string
 
-	PreInst  string
-	PostInst string
-	PreRem   string
-	PostRem  string
+	PreInst     string
+	PostInst    string
+	PreRem      string
+	PostRem     string
+	CheckScript string
 
 	Maintainer Maintainer
 	Depends    []Dependency

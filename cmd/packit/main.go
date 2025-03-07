@@ -3,56 +3,26 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 
-	"github.com/midbel/packit/internal/deb"
-	"github.com/midbel/packit/internal/packfile"
+	"github.com/midbel/packit/internal/build"
 )
 
 func main() {
 	var (
 		kind = flag.String("k", "", "package type")
-		file = flag.String("f", "", "package file")
-		dist = flag.String("d", "", "directory")
+		file = flag.String("f", "Packfile", "package file")
+		dist = flag.String("d", "", "directory where package will be written")
 	)
 	flag.Parse()
 
-	pkg, err := packfile.Load(*file, flag.Arg(0))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	if *kind == "" {
-		*kind = "deb"
-	}
-
-	name := fmt.Sprintf("%s.%s", pkg.PackageName(), *kind)
-	name = filepath.Join(*dist, name)
-	if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	os.Remove(name)
-	w, err := os.Create(name)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer w.Close()
-
-	builder, err := deb.Build(w)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if flag.NArg() == 0 {
+		fmt.Fprintln(os.Stderr, "no context given")
 		os.Exit(2)
 	}
-	if c, ok := builder.(io.Closer); ok {
-		defer c.Close()
-	}
-	if err := builder.Build(pkg); err != nil {
+
+	err := build.BuildPackage(*file, *dist, *kind, flag.Arg(0))
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

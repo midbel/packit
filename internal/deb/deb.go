@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/midbel/packit/internal/build"
 	"github.com/midbel/packit/internal/packfile"
 	"github.com/midbel/tape"
 	"github.com/midbel/tape/ar"
@@ -47,22 +46,22 @@ var aboutFile string
 //go:embed templates/changelog.tpl
 var changeFile string
 
-type debBuilder struct {
+type DebBuilder struct {
 	writer *ar.Writer
 }
 
-func Build(w io.Writer) (build.Builder, error) {
+func Build(w io.Writer) (*DebBuilder, error) {
 	wr, err := ar.NewWriter(w)
 	if err != nil {
 		return nil, err
 	}
-	b := debBuilder{
+	b := DebBuilder{
 		writer: wr,
 	}
 	return &b, nil
 }
 
-func (d debBuilder) Build(p *packfile.Package) error {
+func (d DebBuilder) Build(p *packfile.Package) error {
 	if err := d.setup(p); err != nil {
 		return err
 	}
@@ -72,7 +71,7 @@ func (d debBuilder) Build(p *packfile.Package) error {
 	return d.teardown(p)
 }
 
-func (d debBuilder) setup(pkg *packfile.Package) error {
+func (d DebBuilder) setup(pkg *packfile.Package) error {
 	if pkg.Setup == "" {
 		return nil
 	}
@@ -86,7 +85,7 @@ func (d debBuilder) setup(pkg *packfile.Package) error {
 	return nil
 }
 
-func (d debBuilder) teardown(pkg *packfile.Package) error {
+func (d DebBuilder) teardown(pkg *packfile.Package) error {
 	if pkg.Teardown == "" {
 		return nil
 	}
@@ -100,7 +99,7 @@ func (d debBuilder) teardown(pkg *packfile.Package) error {
 	return nil
 }
 
-func (d debBuilder) build(p *packfile.Package) error {
+func (d DebBuilder) build(p *packfile.Package) error {
 	defer func() {
 		os.Remove(ControlFile)
 		os.Remove(DataFile)
@@ -126,7 +125,7 @@ func (d debBuilder) build(p *packfile.Package) error {
 	return d.writeData(data)
 }
 
-func (d debBuilder) writeDebian() error {
+func (d DebBuilder) writeDebian() error {
 	h := tape.Header{
 		Filename: debianFile,
 		Uid:      0,
@@ -142,7 +141,7 @@ func (d debBuilder) writeDebian() error {
 	return err
 }
 
-func (d debBuilder) writeControl(r *os.File) error {
+func (d DebBuilder) writeControl(r *os.File) error {
 	if _, err := r.Seek(0, os.SEEK_SET); err != nil {
 		return err
 	}
@@ -157,7 +156,7 @@ func (d debBuilder) writeControl(r *os.File) error {
 	return err
 }
 
-func (d debBuilder) writeData(r *os.File) error {
+func (d DebBuilder) writeData(r *os.File) error {
 	if _, err := r.Seek(0, os.SEEK_SET); err != nil {
 		return err
 	}
@@ -172,7 +171,7 @@ func (d debBuilder) writeData(r *os.File) error {
 	return err
 }
 
-func (d debBuilder) Close() error {
+func (d DebBuilder) Close() error {
 	return d.writer.Close()
 }
 
@@ -233,7 +232,7 @@ func writeConffiles(w *tar.Writer, pkg *packfile.Package) error {
 	}
 	var str bytes.Buffer
 	for _, r := range pkg.Files {
-		if !r.Config {
+		if !r.IsConfig() {
 			continue
 		}
 		target := strings.TrimPrefix(r.Target, "/")
