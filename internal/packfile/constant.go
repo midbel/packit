@@ -34,7 +34,7 @@ const (
 	DirDoc    = "usr/share/doc"
 )
 
-const copyrightFile = "License"
+const copyrightFile = "copyright"
 
 const (
 	EnvMaintainerName = "PACK_MAINTAINER_NAME"

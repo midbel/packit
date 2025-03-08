@@ -8,7 +8,7 @@ import (
 	"crypto/md5"
 	_ "embed"
 	"fmt"
-	"html/template"
+	"text/template"
 	"io"
 	"os"
 	"os/exec"
@@ -463,6 +463,9 @@ func formatPackageDesc(str string) string {
 		if line == "" {
 			wr.WriteRune('.')
 		} else {
+			if strings.HasPrefix(line, "*") || strings.HasPrefix(line, "-") {
+				wr.WriteRune(' ')
+			}
 			wr.WriteString(line)
 		}
 		wr.WriteRune('\n')

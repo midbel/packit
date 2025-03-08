@@ -17,6 +17,5 @@ Installed-Size: {{fmtsize .TotalSize}}
 {{with $e := .Replaces}}Replaces: {{range $i, $c := $e}}{{if gt $i 0 }}, {{end}}{{dependency $c}}{{end}}{{end}}
 {{with $e := .Enhances}}Enhances: {{range $i, $c := $e}}{{if gt $i 0 }}, {{end}}{{dependency $c}}{{end}}{{end}}
 {{with $e := .Provides}}Provides: {{range $i, $c := $e}}{{if gt $i 0 }}, {{end}}{{dependency $c}}{{end}}{{end}}
-{{with .Summary}}Description: {{.}}
-{{- end}}
+{{with .Summary}}Description: {{.}}{{end}}
 {{ fmtdesc .Desc }}

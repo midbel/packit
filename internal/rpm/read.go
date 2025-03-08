@@ -2,6 +2,7 @@ package rpm
 
 import (
 	"os"
+	"io"
 )
 
 func Check(file string) error {
@@ -10,7 +11,7 @@ func Check(file string) error {
 		return err
 	}
 	defer r.Close()
-	
+
 	return nil
 }
 

@@ -6,4 +6,4 @@
 {{range .Changes}}  * {{.}}
 {{end}}
  -- {{with .Maintainer}}{{.Name}}{{if .Email}} <{{.Email}}>{{end}}{{end}}  {{.When.Format "Mon, 02 Jan 2006 15:04:05 -0700"}}
-{{end -}}
+{{end}}
