@@ -94,7 +94,8 @@ type Package struct {
 	Depends    []Dependency
 	Changes    []Change
 
-	Files []Resource
+	Digest int
+	Files  []Resource
 }
 
 func Load(file, context string) (*Package, error) {

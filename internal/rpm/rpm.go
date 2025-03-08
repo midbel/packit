@@ -616,6 +616,14 @@ const (
 	fieldI18NString
 )
 
+const (
+	rpmDigestMd5    = 1
+	rpmDigestSha1   = 2
+	rpmDigestSha256 = 8
+	rpmDigestSha384 = 9
+	rpmDigestSha512 = 10
+)
+
 func writeHashBinary(idx, str *bytes.Buffer, tag, kind int32, val hash.Hash) error {
 	sum := val.Sum(nil)
 	return writeBinaryEntry(idx, str, tag, kind, sum[:])
