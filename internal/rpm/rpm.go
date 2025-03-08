@@ -180,8 +180,8 @@ func (b *RpmBuilder) prepareHeader(p *packfile.Package, ws io.Writer) error {
 	writeIntEntry(&index, &store, rpmTagBuildTime, fieldInt32, b.buildTime.Unix())
 	writeStringEntry(&index, &store, rpmTagBuildHost, fieldString, b.buildHost)
 	writeIntEntry(&index, &store, rpmTagSize, fieldInt32, p.TotalSize())
-	// writeStringEntry(&index, &store, rpmTagDistrib, fieldString, "vendor")
-	// writeStringEntry(&index, &store, rpmTagVendor, fieldString, "vendor")
+	writeStringEntry(&index, &store, rpmTagDistrib, fieldString, p.Distrib)
+	writeStringEntry(&index, &store, rpmTagVendor, fieldString, p.Vendor)
 	writeStringEntry(&index, &store, rpmTagLicense, fieldString, p.License)
 	writeStringEntry(&index, &store, rpmTagPackager, fieldString, p.Maintainer.Name)
 	writeStringEntry(&index, &store, rpmTagGroup, fieldI18NString, p.Section)
@@ -269,6 +269,8 @@ func prepareFiles(p *packfile.Package, index, store *bytes.Buffer) error {
 		sizes   []int64
 		times   []int64
 		digests []string
+		links   []string
+		langs   []string
 		now     = time.Now()
 	)
 	for _, f := range p.Files {
@@ -295,10 +297,12 @@ func prepareFiles(p *packfile.Package, index, store *bytes.Buffer) error {
 			digests = append(digests, "")
 			users = append(users, packfile.DefaultUser)
 			groups = append(groups, packfile.DefaultGroup)
-			flags = append(flags, rpmFileDir)
+			// flags = append(flags, rpmFileDir)
 			devs = append(devs, 0)
 			flags = append(flags, packfile.FileFlagDir)
 			inodes = append(inodes, int64(len(bases))+1)
+			links = append(links, "")
+			langs = append(langs, "")
 		}
 
 		indexes = append(indexes, int64(slices.Index(dirs, dir)))
@@ -312,6 +316,8 @@ func prepareFiles(p *packfile.Package, index, store *bytes.Buffer) error {
 		flags = append(flags, f.Flags)
 		devs = append(devs, 0)
 		inodes = append(inodes, int64(len(bases))+1)
+		links = append(links, "")
+		langs = append(langs, "")
 	}
 
 	writeIntArrayEntry(index, store, rpmTagFileSizes, fieldInt32, sizes)
@@ -325,7 +331,9 @@ func prepareFiles(p *packfile.Package, index, store *bytes.Buffer) error {
 	writeIntArrayEntry(index, store, rpmTagDirIndexes, fieldInt32, indexes)
 	writeStringArrayEntry(index, store, rpmTagBasenames, fieldStrArray, bases)
 	writeStringArrayEntry(index, store, rpmTagDirnames, fieldStrArray, dirs)
-	writeIntArrayEntry(index, store, rpmTagFileClass, fieldInt32, flags)
+	writeIntArrayEntry(index, store, rpmTagFileFlags, fieldInt32, flags)
+	writeStringArrayEntry(index, store, rpmTagFileLinks, fieldStrArray, links)
+	writeStringArrayEntry(index, store, rpmTagFileLangs, fieldStrArray, langs)
 	return nil
 }
 
@@ -530,21 +538,24 @@ const (
 )
 
 const (
-	rpmTagFileSizes   = 1028
-	rpmTagFileModes   = 1030
-	rpmTagFileDevs    = 1033
-	rpmTagFileTimes   = 1034
-	rpmTagFileDigests = 1035
-	rpmTagFileLinks   = 1036
-	rpmTagFileFlags   = 1037
-	rpmTagOwners      = 1039
-	rpmTagGroups      = 1040
-	rpmTagArchiveSize = 1046
-	rpmTagFileInodes  = 1096
-	rpmTagFileLangs   = 1097
-	rpmTagDirIndexes  = 1116
-	rpmTagBasenames   = 1117
-	rpmTagDirnames    = 1118
+	rpmTagFileSizes      = 1028
+	rpmTagFileModes      = 1030
+	rpmTagFileDevs       = 1033
+	rpmTagFileTimes      = 1034
+	rpmTagFileDigests    = 1035
+	rpmTagFileLinks      = 1036
+	rpmTagFileFlags      = 1037
+	rpmTagOwners         = 1039
+	rpmTagGroups         = 1040
+	rpmTagArchiveSize    = 1046
+	rpmTagFileInodes     = 1096
+	rpmTagFileLangs      = 1097
+	rpmTagDirIndexes     = 1116
+	rpmTagBasenames      = 1117
+	rpmTagDirnames       = 1118
+	rpmTagFileRequire    = 5002
+	rpmTagFileProvide    = 5001
+	rpmTagFileDigestAlgo = 5011
 )
 
 const (

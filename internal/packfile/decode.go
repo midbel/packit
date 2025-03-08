@@ -88,6 +88,10 @@ const (
 	optTeardown        = "teardown"
 	optPackage         = "package"
 	optName            = "name"
+	optDistrib         = "distrib"
+	optVendor          = "vendor"
+	optUrl             = "url"
+	optHome            = "home"
 	optSummary         = "summary"
 	optRelease         = "release"
 	optVersion         = "version"
@@ -201,6 +205,7 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 				Perm:    PermFile,
 				Size:    int64(len(text)),
 				Lastmod: time.Now(),
+				Flags:   FileFlagDoc,
 			}
 			pkg.Files = append(pkg.Files, res)
 		case optLicenseFile:
@@ -222,6 +227,7 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 				Perm:    PermFile,
 				Size:    s.Size(),
 				Lastmod: s.ModTime(),
+				Flags:   FileFlagDoc,
 			}
 			pkg.Files = append(pkg.Files, res)
 		default:
@@ -257,6 +263,7 @@ func (d *Decoder) decodeLicenseFromTemplate(pkg *Package) error {
 		Perm:    PermFile,
 		Size:    int64(str.Len()),
 		Lastmod: time.Now(),
+		Flags:   FileFlagDoc,
 	}
 	pkg.Files = append(pkg.Files, file)
 	return nil
@@ -545,6 +552,10 @@ func (d *Decoder) decodeOption(pkg *Package) error {
 		pkg.Teardown, err = d.decodeString()
 	case optPackage, optName:
 		pkg.Name, err = d.decodeString()
+	case optDistrib:
+		pkg.Distrib, err = d.decodeString()
+	case optVendor:
+		pkg.Vendor, err = d.decodeString()
 	case optRelease:
 		pkg.Release, err = d.decodeString()
 	case optSummary:
@@ -561,6 +572,8 @@ func (d *Decoder) decodeOption(pkg *Package) error {
 		err = d.decodeLicense(pkg)
 	case optCompiler:
 		err = d.decodeCompiler(pkg)
+	case optHome, optUrl:
+		pkg.Home, err = d.decodeString()
 	case optType:
 		pkg.PackageType, err = d.decodeString()
 	case optOs:

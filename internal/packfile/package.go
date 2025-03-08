@@ -70,6 +70,7 @@ type Package struct {
 	Release string
 	Home    string
 	Vendor  string
+	Distrib string
 
 	BuildWith   Compiler
 	PackageType string
