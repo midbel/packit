@@ -15,6 +15,17 @@ type Builder interface {
 	Build(*packfile.Package) error
 }
 
+func CheckPackage(file string) error {
+	switch ext := filepath.Ext(file); ext {
+	case ".deb":
+		return deb.Check(file)
+	case ".rpm":
+		return nil
+	default:
+		return fmt.Errorf("%s: package type not supported", ext)
+	}
+}
+
 func BuildPackage(file, dist, kind, context string) error {
 	if context == "" {
 		context = filepath.Dir(file)

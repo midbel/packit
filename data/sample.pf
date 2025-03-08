@@ -9,7 +9,7 @@
 
 .env SHELL TEST
 
-setup "go build -o bin/pack cmd/pack/"
+setup "go build -o bin/pack cmd/pack/main.go"
 
 # package description
 
