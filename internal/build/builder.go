@@ -20,7 +20,7 @@ func CheckPackage(file string) error {
 	case ".deb":
 		return deb.Check(file)
 	case ".rpm":
-		return nil
+		return rpm.Check(file)
 	default:
 		return fmt.Errorf("%s: package type not supported", ext)
 	}
