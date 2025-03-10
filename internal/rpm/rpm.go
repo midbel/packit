@@ -99,18 +99,18 @@ func (b *RpmBuilder) build(p *packfile.Package) error {
 	}
 	var (
 		sh1 = sha1.New()
+		sh2 = sha256.New()
 		hdr bytes.Buffer
 	)
-	if err := b.prepareHeader(p, io.MultiWriter(&hdr, sh1)); err != nil {
+	if err := b.prepareHeader(p, io.MultiWriter(&hdr, sh1, sh2)); err != nil {
 		return err
 	}
 	var (
 		md = md5.New()
-		sh = sha256.New()
 		by = hdr.Bytes()
 	)
-	data.Seek(0, os.SEEK_SET)
-	totalSize, err := io.Copy(io.MultiWriter(md, sh), io.MultiReader(bytes.NewReader(by), data))
+	data.Seek(0, io.SeekStart)
+	totalSize, err := io.Copy(md, io.MultiReader(bytes.NewReader(by), data))
 	if err != nil {
 		return err
 	}
@@ -119,10 +119,10 @@ func (b *RpmBuilder) build(p *packfile.Package) error {
 	if err != nil {
 		return err
 	}
-	if err := b.writeSignatures(stat.Size(), totalSize, md, sh1, sh); err != nil {
+	if err := b.writeSignatures(stat.Size(), totalSize, md, sh1, sh2); err != nil {
 		return err
 	}
-	data.Seek(0, os.SEEK_SET)
+	data.Seek(0, io.SeekStart)
 	_, err = io.Copy(b.writer, io.MultiReader(bytes.NewReader(by), data))
 	return err
 }

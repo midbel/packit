@@ -103,7 +103,7 @@ func (r *rpmSignature) CompareLength(total, data int64) error {
 func (r *rpmSignature) CompareHeaderHash(sum hash.Hash) error {
 	digest := hex.EncodeToString(sum.Sum(nil))
 	if digest != r.HeaderHash {
-		return fmt.Errorf("header: invalid sha1 checksum")
+		return fmt.Errorf("header: invalid sha1 checksum (%s != %s)", r.HeaderHash, digest)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func (r *rpmSignature) CompareHeaderHash(sum hash.Hash) error {
 func (r *rpmSignature) CompareMD5(sum hash.Hash) error {
 	digest := hex.EncodeToString(sum.Sum(nil))
 	if digest != r.DataMD5Hash {
-		return fmt.Errorf("data: invalid md5 checksum")
+		return fmt.Errorf("data: invalid md5 checksum (%s != %s)", r.DataMD5Hash, digest)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (r *rpmSignature) CompareMD5(sum hash.Hash) error {
 func (r *rpmSignature) CompareSha256(sum hash.Hash) error {
 	digest := hex.EncodeToString(sum.Sum(nil))
 	if digest != r.DataSHAHash {
-		return fmt.Errorf("data: invalid sha256 checksum")
+		return fmt.Errorf("data: invalid sha256 checksum (%s != %s)", r.DataSHAHash, digest)
 	}
 	return nil
 }
