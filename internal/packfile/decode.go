@@ -25,10 +25,15 @@ type Environ struct {
 }
 
 func Empty() *Environ {
-	e := Environ{
+	return Enclosed(nil)
+}
+
+func Enclosed(parent *Environ) *Environ {
+	env := Environ{
+		parent: parent,
 		values: make(map[string]any),
 	}
-	return &e
+	return &env
 }
 
 func (e *Environ) Define(ident string, value any) error {
@@ -113,6 +118,7 @@ const (
 
 type Decoder struct {
 	context string
+	file string
 
 	macros map[string]func() (string, error)
 
@@ -127,11 +133,10 @@ type Decoder struct {
 }
 
 func NewDecoder(r io.Reader, context string) (*Decoder, error) {
-	d := Decoder{
-		context: context,
-		scan:    Scan(r),
-		env:     Empty(),
-		macros:  make(map[string]func() (string, error)),
+	d := createDecoder(r, context, nil)
+
+	if n, ok := r.(interface { Name() string }); ok {
+		d.file = n.Name()
 	}
 
 	licenses, err := template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
@@ -142,7 +147,18 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 	d.next()
 	d.next()
 
-	return &d, nil
+	return d, nil
+}
+
+func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
+	d := Decoder{
+		context: context,
+		scan:    Scan(r),
+		env:     Enclosed(env),
+		macros:  make(map[string]func() (string, error)),
+	}
+
+	return &d
 }
 
 func (d *Decoder) Decode() (*Package, error) {
@@ -154,7 +170,11 @@ func (d *Decoder) Decode() (*Package, error) {
 		License:  DefaultLicense,
 		Arch:     ArchNo,
 	}
-	return &pkg, d.decode(&pkg)
+	return &pkg, d.DecodeInto(&pkg)
+}
+
+func (d *Decoder) DecodeInto(pkg *Package) error {
+	return d.decode(pkg)
 }
 
 func (d *Decoder) RegisterMacro(macro string, do func() (string, error)) {
@@ -172,6 +192,7 @@ func (d *Decoder) decode(pkg *Package) error {
 		case d.is(Macro):
 			err = d.decodeMainMacro(pkg)
 		default:
+			fmt.Println(d.file, d.curr, d.peek)
 			err = fmt.Errorf("syntax error: identifier or macro expected")
 		}
 		if err != nil {
@@ -691,7 +712,7 @@ func (d *Decoder) decodeMainMacro(pkg *Package) error {
 	d.next()
 	switch macro {
 	case "include":
-		err = d.executeInclude()
+		err = d.executeInclude(pkg)
 	case "let":
 		err = d.executeLet()
 	case "env":
@@ -802,7 +823,7 @@ func (d *Decoder) executeReadFile() error {
 	return nil
 }
 
-func (d *Decoder) executeInclude() error {
+func (d *Decoder) executeInclude(pkg *Package) error {
 	file, err := d.decodeString()
 	if err != nil {
 		return err
@@ -812,7 +833,13 @@ func (d *Decoder) executeInclude() error {
 		return err
 	}
 	defer r.Close()
-	return nil
+
+	sub := createDecoder(r, d.context, d.env)
+	sub.file = r.Name()
+	sub.licenses = d.licenses
+	sub.next()
+	sub.next()
+	return sub.DecodeInto(pkg)
 }
 
 func (d *Decoder) getCurrentLiteral() string {
