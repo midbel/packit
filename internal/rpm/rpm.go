@@ -109,6 +109,7 @@ func (b *RpmBuilder) build(p *packfile.Package) error {
 		sh = sha256.New()
 		by = hdr.Bytes()
 	)
+	data.Seek(0, os.SEEK_SET)
 	totalSize, err := io.Copy(io.MultiWriter(md, sh), io.MultiReader(bytes.NewReader(by), data))
 	if err != nil {
 		return err

@@ -8,10 +8,13 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/midbel/tape/cpio"
 )
@@ -32,21 +35,51 @@ func Check(file string) error {
 		return err
 	}
 	var (
-		sh1 = sha1.New()
-		sh2 = sha256.New()
-		md  = md5.New()
-		sum = io.MultiWriter(sh1, sh2, md)
+		totalCount counter
+		dataCount  counter
+		sh1        = sha1.New()
+		sh2        = sha256.New()
+		md         = md5.New()
+		sum        = io.MultiWriter(sh1, sh2, md, &totalCount)
 	)
 	_, err = readSums(io.TeeReader(r, sum))
 	if err != nil {
 		return err
 	}
-	sum = io.MultiWriter(sh1, md)
+	sum = io.MultiWriter(sh2, md, &totalCount, &dataCount)
 	if err := checkFiles(io.TeeReader(r, sum), nil); err != nil {
 		return err
 	}
-	_ = sig
+
+	var (
+		err4 = sig.CompareLength(totalCount.Total(), dataCount.Total())
+		err1 = sig.CompareHeaderHash(sh1)
+		err2 = sig.CompareMD5(md)
+		err3 = sig.CompareSha256(sh2)
+	)
+	return hasErrors(err1, err2, err3, err4)
+}
+
+func hasErrors(errs ...error) error {
+	for i := range errs {
+		if errs[i] != nil {
+			return errs[i]
+		}
+	}
 	return nil
+}
+
+type counter struct {
+	total int64
+}
+
+func (c *counter) Total() int64 {
+	return c.total
+}
+
+func (c *counter) Write(b []byte) (int, error) {
+	c.total += int64(len(b))
+	return len(b), nil
 }
 
 type rpmSignature struct {
@@ -55,6 +88,40 @@ type rpmSignature struct {
 	HeaderHash  string
 	DataMD5Hash string
 	DataSHAHash string
+}
+
+func (r *rpmSignature) CompareLength(total, data int64) error {
+	if total != r.TotalLen {
+		return fmt.Errorf("total length mismatched (%d vs %d", total, r.TotalLen)
+	}
+	if data != r.DataLen {
+		return fmt.Errorf("payload length mismatched (%d vs %d", total, r.DataLen)
+	}
+	return nil
+}
+
+func (r *rpmSignature) CompareHeaderHash(sum hash.Hash) error {
+	digest := hex.EncodeToString(sum.Sum(nil))
+	if digest != r.HeaderHash {
+		return fmt.Errorf("header: invalid sha1 checksum")
+	}
+	return nil
+}
+
+func (r *rpmSignature) CompareMD5(sum hash.Hash) error {
+	digest := hex.EncodeToString(sum.Sum(nil))
+	if digest != r.DataMD5Hash {
+		return fmt.Errorf("data: invalid md5 checksum")
+	}
+	return nil
+}
+
+func (r *rpmSignature) CompareSha256(sum hash.Hash) error {
+	digest := hex.EncodeToString(sum.Sum(nil))
+	if digest != r.DataSHAHash {
+		return fmt.Errorf("data: invalid sha256 checksum")
+	}
+	return nil
 }
 
 type rpmFileDigest struct {
@@ -113,22 +180,25 @@ func readSignatures(r io.Reader) (*rpmSignature, error) {
 			if err != nil {
 				return nil, err
 			}
+			sig.HeaderHash = strings.TrimSuffix(sig.HeaderHash, "\x00")
 		case rpmSigSha256:
 			sig.DataSHAHash, err = rs.ReadString(0)
 			if err != nil {
 				return nil, err
 			}
+			sig.DataSHAHash = strings.TrimSuffix(sig.DataSHAHash, "\x00")
 		case rpmSigMD5:
 			buf := make([]byte, int(size))
 			if _, err = io.ReadFull(rs, buf); err != nil {
 				return nil, err
 			}
+			sig.DataMD5Hash = hex.EncodeToString(buf)
 		case rpmSigLength:
 			binary.Read(store, binary.BigEndian, &size)
-			sig.DataLen = int64(size)
+			sig.TotalLen = int64(size)
 		case rpmSigPayload:
 			binary.Read(store, binary.BigEndian, &size)
-			sig.TotalLen = int64(size)
+			sig.DataLen = int64(size)
 		default:
 		}
 	}
@@ -184,6 +254,7 @@ func checkFiles(r io.Reader, digests []rpmFileDigest) error {
 		}
 		io.CopyN(io.Discard, cp, int64(h.Size))
 	}
+	// io.Copy(io.Discard, r)
 	return nil
 }
 

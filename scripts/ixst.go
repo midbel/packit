@@ -154,12 +154,16 @@ func readElement(index io.Reader, store io.ReadSeeker) {
 	}
 	fmt.Printf(">>> %s(%d)\n", name, tag)
 	store.Seek(int64(offset), io.SeekStart)
-	if kind == 6 || kind == 8 || kind == 9 {
+	if kind == 6 || kind == 9 {
 		rs := bufio.NewReader(store)
 		for i := 0; i < int(size); i++ {
 			str, _ := rs.ReadString(0)
-			fmt.Println("*", i+1, str)
+			fmt.Println("* str:", i+1, str)
 		}
+	} else if kind == 7 {
+		buf := make([]byte, int(size))
+		io.ReadFull(store, buf)
+		fmt.Println("bin", buf)
 	} else if kind == 3 {
 		var val int16
 		for i := 0; i < int(size); i++ {
