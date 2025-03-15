@@ -118,7 +118,7 @@ const (
 
 type Decoder struct {
 	context string
-	file string
+	file    string
 
 	macros map[string]func() (string, error)
 
@@ -135,7 +135,7 @@ type Decoder struct {
 func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 	d := createDecoder(r, context, nil)
 
-	if n, ok := r.(interface { Name() string }); ok {
+	if n, ok := r.(interface{ Name() string }); ok {
 		d.file = n.Name()
 	}
 

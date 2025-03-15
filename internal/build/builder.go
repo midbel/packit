@@ -1,10 +1,12 @@
 package build
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"github.com/midbel/packit/internal/deb"
 	"github.com/midbel/packit/internal/packfile"
@@ -13,6 +15,35 @@ import (
 
 type Builder interface {
 	Build(*packfile.Package) error
+}
+
+//go:embed templates/rpm_info.txt
+var rpmInfoFile string
+
+func Info(file string, w io.Writer) error {
+	var (
+		pkg  *packfile.Package
+		err  error
+		info string
+	)
+	switch ext := filepath.Ext(file); ext {
+	case ".deb":
+		// return deb.Info(file)
+		return nil
+	case ".rpm":
+		info = rpmInfoFile
+		pkg, err = rpm.Info(file)
+	default:
+		return fmt.Errorf("%s: package type not supported", ext)
+	}
+	if err != nil {
+		return err
+	}
+	tpl, err := template.New("info").Parse(info)
+	if err != nil {
+		return err
+	}
+	return tpl.Execute(w, pkg)
 }
 
 func CheckPackage(file string) error {

@@ -1,0 +1,17 @@
+Name        : {{.Name}}
+Version     : {{.Version}}
+Release     : {{.Release}}
+Install Date:
+Group       : {{.Section}}
+Size        :
+License     : {{.License}}
+Signature   :
+Architecture: {{.Arch}}
+Build Date  :
+Build Host  :
+Packager    : {{.Maintainer.Name}}
+Vendor      : {{.Vendor}}
+URL         : {{.Home}}
+Summary     : {{.Summary}}
+Description :
+{{.Desc}}

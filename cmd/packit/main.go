@@ -54,7 +54,7 @@ func runInspect(args []string) error {
 	if err := set.Parse(args); err != nil {
 		return err
 	}
-	return nil
+	return build.Info(set.Arg(0), os.Stdout)
 }
 
 func runVerify(args []string) error {
