@@ -22,7 +22,7 @@ var rpmInfoFile string
 
 func Info(file string, w io.Writer) error {
 	var (
-		pkg  *packfile.Package
+		pkg  any
 		err  error
 		info string
 	)

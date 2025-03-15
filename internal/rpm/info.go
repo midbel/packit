@@ -6,11 +6,20 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"time"
 
 	"github.com/midbel/packit/internal/packfile"
 )
 
-func Info(file string) (*packfile.Package, error) {
+type PackageInfo struct {
+	packfile.Package
+
+	Size      int64
+	BuildTime time.Time
+	BuildHost string
+}
+
+func Info(file string) (*PackageInfo, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -33,8 +42,8 @@ func Info(file string) (*packfile.Package, error) {
 	return readPackage(&index, bytes.NewReader(store.Bytes()), index.Len()/16)
 }
 
-func readPackage(index io.Reader, store io.ReadSeeker, total int) (*packfile.Package, error) {
-	var pkg packfile.Package
+func readPackage(index io.Reader, store io.ReadSeeker, total int) (*PackageInfo, error) {
+	var pkg PackageInfo
 
 	for i := 0; i < total; i++ {
 		var (
@@ -76,6 +85,12 @@ func readPackage(index io.Reader, store io.ReadSeeker, total int) (*packfile.Pac
 			pkg.Home, err = readString(store)
 		case rpmTagArch:
 			pkg.Arch, err = readString(store)
+		case rpmTagBuildTime:
+			pkg.BuildTime, err = readTime(store)
+		case rpmTagBuildHost:
+			pkg.BuildHost, err = readString(store)
+		case rpmTagSize:
+			pkg.Size, err = readInt(store)
 		default:
 		}
 		if err != nil {
@@ -84,6 +99,22 @@ func readPackage(index io.Reader, store io.ReadSeeker, total int) (*packfile.Pac
 	}
 
 	return &pkg, nil
+}
+
+func readTime(r io.Reader) (time.Time, error) {
+	unix, err := readInt(r)
+	if err != nil {
+		return time.Now(), err
+	}
+	return time.Unix(unix, 0), nil
+}
+
+func readInt(r io.Reader) (int64, error) {
+	var (
+		val int32
+		err = binary.Read(r, binary.BigEndian, &val)
+	)
+	return int64(val), err
 }
 
 func readString(r io.Reader) (string, error) {
