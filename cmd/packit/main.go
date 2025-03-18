@@ -15,6 +15,7 @@ var commands = map[string]func([]string) error{
 	"show":    runInspect,
 	"check":   runVerify,
 	"verify":  runVerify,
+	"content": runContent,
 }
 
 func main() {
@@ -55,6 +56,14 @@ func runInspect(args []string) error {
 		return err
 	}
 	return build.Info(set.Arg(0), os.Stdout)
+}
+
+func runContent(args []string) error {
+	set := flag.NewFlagSet("content", flag.ExitOnError)
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	return build.Content(set.Arg(0), os.Stdout)
 }
 
 func runVerify(args []string) error {

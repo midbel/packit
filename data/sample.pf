@@ -9,7 +9,7 @@
 
 .env SHELL TEST
 
-setup "go build -o bin/pack cmd/pack/main.go"
+setup "go build -o bin/pack cmd/packit/main.go"
 
 # package description
 
@@ -24,6 +24,12 @@ maintainer {
 license mit
 
 summary "create your package made easy"
+
+desc <<DESC
+pack is a command line tool to create your deb and/or rpm packages easily
+
+with pack you can verify the integrity of packages but also check their content
+DESC
 
 compiler go '1.23.0'
 

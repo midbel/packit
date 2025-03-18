@@ -1,0 +1,10 @@
+Name        : {{.Name}}
+Version     : {{.Version}}
+Group       : {{.Section}}
+Priority    : {{.Priority}}
+Size        : {{.Size}}
+Architecture: {{.Arch}}
+Packager    : {{.Maintainer.Name}}
+Compiler    : {{.BuildWith.Name}}
+Description : {{.Summary}}
+{{.Desc}}
