@@ -1,6 +1,7 @@
 package deb
 
 import (
+	"archive/tar"
 	"bufio"
 	"errors"
 	"fmt"
@@ -58,6 +59,9 @@ func Content(file string) ([]*tape.Header, error) {
 			Uid:      int64(h.Uid),
 			Gid:      int64(h.Gid),
 			ModTime:  h.ModTime,
+		}
+		if h.Typeflag == tar.TypeDir {
+			hdr.Mode |= int64(os.ModeDir)
 		}
 		list = append(list, &hdr)
 	}

@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/user"
 	"path/filepath"
-	"strconv"
 	"text/template"
 
 	"github.com/midbel/packit/internal/deb"
@@ -68,18 +66,8 @@ func Content(file string, w io.Writer) error {
 		return err
 	}
 	for _, h := range list {
-		var (
-			owner string
-			group string
-			when  = h.ModTime.Format("Jan 02 15:04")
-		)
-		if u, err := user.LookupId(strconv.Itoa(int(h.Uid))); err == nil {
-			owner = u.Username
-		}
-		if g, err := user.LookupGroupId(strconv.Itoa(int(h.Gid))); err == nil {
-			group = g.Name
-		}
-		fmt.Fprintf(w, "%s %-8s %-8s %8d %s %s", os.FileMode(h.Mode), owner, group, h.Size, when, h.Filename)
+		when := h.ModTime.Format("Jan 02 15:04")
+		fmt.Fprintf(w, "%s %-8s %-8s %8d %s %s", os.FileMode(h.Mode), h.User(), h.Group(), h.Size, when, h.Filename)
 		fmt.Fprintln(w)
 	}
 	return nil
