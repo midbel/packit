@@ -429,6 +429,7 @@ func writeChangelog(pkg *packfile.Package) (packfile.Resource, error) {
 func makeTarHeaderDir(file string) *tar.Header {
 	h := makeTarHeader(file, 0, packfile.PermDir)
 	h.Typeflag = tar.TypeDir
+	h.Mode |= int64(os.ModeDir)
 	return h
 }
 

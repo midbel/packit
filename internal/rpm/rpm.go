@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -434,9 +435,38 @@ func writeFiles(p *packfile.Package) (*os.File, error) {
 	slices.SortFunc(p.Files, func(a, b packfile.Resource) int {
 		return strings.Compare(a.Target, b.Target)
 	})
+	seen := make(map[string]struct{})
 	for i, r := range p.Files {
+		if r.Target == "" {
+			continue
+		}
+		dir := filepath.Dir(r.Target)
+		if _, ok := seen[dir]; len(dir) > 0 && !ok {
+			paths := strings.Split(dir, string(filepath.Separator))
+			for i := range paths {
+				if paths[i] == "" {
+					continue
+				}
+				target := filepath.Join(paths[:i+1]...)
+				if _, ok := seen[target]; ok {
+					continue
+				}
+				seen[target] = struct{}{}
+				h := tape.Header{
+					Filename: "/" + strings.ReplaceAll(target, "\\", "/"),
+					Mode: r.Perm | int64(os.ModeDir),
+					Uid: 0,
+					Gid: 0,
+					ModTime: time.Now(),
+				}
+				if err := cp.WriteHeader(&h); err != nil {
+					f.Close()
+					return nil, err
+				}
+			}
+		}
 		h := tape.Header{
-			Filename: "./" + strings.ReplaceAll(r.Target, "\\", "/"),
+			Filename: "/" + strings.ReplaceAll(r.Target, "\\", "/"),
 			Mode:     r.Perm,
 			Size:     r.Size,
 			Uid:      0,
