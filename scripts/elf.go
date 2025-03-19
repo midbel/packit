@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 )
 
 const (
@@ -41,6 +41,11 @@ type ELFHeader struct {
 	Sections []SectionHeader
 }
 
+type ELFFile struct {
+	ELFHeader
+	r io.Reader
+}
+
 func (e ELFHeader) Is32() bool {
 	return e.Class == Arch32
 }
@@ -68,6 +73,7 @@ type ProgramHeader struct {
 }
 
 type SectionHeader struct {
+	Label     string
 	Name      uint32
 	Type      uint32
 	Flags     uint64
@@ -121,17 +127,91 @@ func main() {
 	}
 	defer r.Close()
 
-	elf, err := Load(bufio.NewReader(r))
+	elf, err := Load(r)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	printELF(elf)
+	// printELF(elf)
 
-	names, err := readNames(elf, r)
-	for i, sh := range elf.Sections {
-		fmt.Printf("[%2d] %8d %-24s %-12s %#8x %8d\n", i, sh.Name, names[sh.Name], getSectionTypeName(sh), sh.Offset, sh.Size)
+	entries, err := readDynamicEntries(elf, r)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
 	}
+	libs, err := readNeededLibraries(elf, r, entries)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(3)
+	}
+	fmt.Printf("dependencies of %s\n", flag.Arg(0))
+	for i := range libs {
+		fmt.Printf("- %s\n", libs[i])
+	}
+}
+
+type DynamicEntry struct {
+	Tag   uint64
+	Value uint64
+}
+
+func readNeededLibraries(elf *ELFHeader, r io.ReaderAt, entries []DynamicEntry) ([]string, error) {
+	ix := slices.IndexFunc(elf.Sections, func(h SectionHeader) bool {
+		return h.Label == ".dynstr"
+	})
+	if ix < 0 {
+		return nil, fmt.Errorf("dynstr section missing")
+	}
+	sh := elf.Sections[ix]
+	var (
+		buf    = make([]byte, sh.Size)
+		rs     = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
+		offset int
+		list   = make(map[uint32]string)
+	)
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		return nil, err
+	}
+	for {
+		x := bytes.IndexByte(buf[offset:], 0)
+		if x < 0 {
+			break
+		}
+		str := buf[offset : offset+x]
+		list[uint32(offset)] = string((str))
+		offset += x + 1
+	}
+
+	var needed []string
+	for _, e := range entries {
+		if e.Tag != 1 {
+			continue
+		}
+		needed = append(needed, list[uint32(e.Value)])
+	}
+	return needed, nil
+}
+
+func readDynamicEntries(elf *ELFHeader, r io.ReaderAt) ([]DynamicEntry, error) {
+	ix := slices.IndexFunc(elf.Sections, func(sh SectionHeader) bool {
+		return sh.Label == ".dynamic"
+	})
+	if ix < 0 {
+		return nil, fmt.Errorf("dynamic section not found")
+	}
+	var (
+		sh    = elf.Sections[ix]
+		rs    = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
+		count = int(sh.Size) / 16
+	)
+	var list []DynamicEntry
+	for i := 0; i < count; i++ {
+		var e DynamicEntry
+		binary.Read(rs, elf.ByteOrder(), &e.Tag)
+		binary.Read(rs, elf.ByteOrder(), &e.Value)
+		list = append(list, e)
+	}
+	return list, nil
 }
 
 func readNames(elf *ELFHeader, r io.ReaderAt) (map[uint32]string, error) {
@@ -223,20 +303,26 @@ func printELF(elf *ELFHeader) {
 	fmt.Printf("Section header string index: %d\n", elf.NamesIndex)
 }
 
-func Load(r io.Reader) (*ELFHeader, error) {
+func Load(r *os.File) (*ELFHeader, error) {
 	elf, err := readHeader(r)
 	if err != nil {
 		return nil, err
 	}
+	r.Seek(int64(elf.ProgramAddr), io.SeekStart)
 	for i := 0; i < int(elf.PhCount); i++ {
 		if err := readProgramHeader(elf, r); err != nil {
 			return nil, err
 		}
 	}
+	r.Seek(int64(elf.SectionAddr), io.SeekStart)
 	for i := 0; i < int(elf.ShCount); i++ {
 		if err := readSectionHeader(elf, r); err != nil {
 			return nil, err
 		}
+	}
+	names, err := readNames(elf, r)
+	for i, sh := range elf.Sections {
+		elf.Sections[i].Label = names[sh.Name]
 	}
 	return elf, nil
 }

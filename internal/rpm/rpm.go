@@ -454,10 +454,10 @@ func writeFiles(p *packfile.Package) (*os.File, error) {
 				seen[target] = struct{}{}
 				h := tape.Header{
 					Filename: "/" + strings.ReplaceAll(target, "\\", "/"),
-					Mode: r.Perm | int64(os.ModeDir),
-					Uid: 0,
-					Gid: 0,
-					ModTime: time.Now(),
+					Mode:     r.Perm | int64(os.ModeDir),
+					Uid:      0,
+					Gid:      0,
+					ModTime:  time.Now(),
 				}
 				if err := cp.WriteHeader(&h); err != nil {
 					f.Close()
