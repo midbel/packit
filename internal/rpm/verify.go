@@ -46,7 +46,7 @@ func Check(file string) error {
 	if err != nil {
 		return err
 	}
-	sum = io.MultiWriter(sh2, md, &totalCount, &dataCount)
+	sum = io.MultiWriter(md, &totalCount, &dataCount)
 	if err := checkFiles(io.TeeReader(r, sum), nil); err != nil {
 		return err
 	}
