@@ -33,10 +33,10 @@ func readHeader(r io.Reader, index, store io.Writer, padded bool) error {
 	binary.Read(r, binary.BigEndian, &count)
 	binary.Read(r, binary.BigEndian, &size)
 
-	if _, err := io.CopyN(index, r, int64(rpmEntryLen*count)); err != nil {
+	if _, err := io.Copy(index, io.LimitReader(r, int64(rpmEntryLen*count))); err != nil {
 		return err
 	}
-	if _, err := io.CopyN(store, r, int64(size)); err != nil {
+	if _, err := io.Copy(store, io.LimitReader(r, int64(size))); err != nil {
 		return err
 	}
 

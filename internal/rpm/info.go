@@ -3,13 +3,57 @@ package rpm
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
+	"errors"
 	"io"
 	"os"
 	"time"
 
 	"github.com/midbel/packit/internal/packfile"
+	"github.com/midbel/tape"
+	"github.com/midbel/tape/cpio"
 )
+
+func Content(file string) ([]*tape.Header, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if err := readLead(r); err != nil {
+		return nil, err
+	}
+	if err := readHeader(r, io.Discard, io.Discard, true); err != nil {
+		return nil, err
+	}
+	if err := readHeader(r, io.Discard, io.Discard, false); err != nil {
+		return nil, err
+	}
+	z, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		cp   = cpio.NewReader(z)
+		list []*tape.Header
+	)
+	for {
+		h, err := cp.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		if _, err := io.Copy(io.Discard, io.LimitReader(cp, int64(h.Size))); err != nil {
+			return nil, err
+		}
+		list = append(list, h)
+	}
+	return list, nil
+}
 
 type PackageInfo struct {
 	packfile.Package

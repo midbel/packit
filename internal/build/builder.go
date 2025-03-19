@@ -59,6 +59,7 @@ func Content(file string, w io.Writer) error {
 	case ".deb":
 		list, err = deb.Content(file)
 	case ".rpm":
+		list, err = rpm.Content(file)
 	default:
 		return fmt.Errorf("%s: package type not supported", ext)
 	}
