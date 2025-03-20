@@ -8,12 +8,14 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strings"
 )
 
 func main() {
 	var (
 		printHeader   = flag.Bool("h", false, "print ELF header")
 		printSections = flag.Bool("s", false, "print section headers")
+		printSegments = flag.Bool("p", false, "print segments headers")
 	)
 	flag.Parse()
 
@@ -27,15 +29,41 @@ func main() {
 	switch {
 	case *printHeader:
 		printELF(file.ELFHeader)
-	case *printSections:
-		for i, sh := range file.Sections {
-			fmt.Printf("[%2d] %-24s %-12s %#8x %8d\n", i, sh.Label, getSectionTypeName(sh), sh.Offset, sh.Size)
+	case *printSegments:
+		var size int64
+		slices.SortFunc(file.Programs, func(a, b ProgramHeader) int {
+			return int(a.Offset) - int(b.Offset)
+		})
+		for _, ph := range file.Programs {
+			// fmt.Printf("%#8x %#08x -> %#08x %8d\n", ph.Type, ph.Offset, ph.Offset+ph.SegmentSizeFile, ph.SegmentSizeFile)
+			fmt.Printf("%#8x %d -> %d %8d\n", ph.Type, ph.Offset, ph.Offset+ph.SegmentSizeFile, ph.SegmentSizeFile)
+			size += int64(ph.SegmentSizeFile)
 		}
+		fmt.Printf("segments size: %d (bytes)\n", file.PhSize*file.PhCount)
+		fmt.Printf("total size   : %d (bytes)\n", size)
+	case *printSections:
+		var size int64
+		slices.SortFunc(file.Sections, func(a, b SectionHeader) int {
+			return int(a.Offset) - int(b.Offset)
+		})
+		for i, sh := range file.Sections {
+			// fmt.Printf("[%2d] %-24s %-12s %#8x -> %#8x %8d => %d\n", i, sh.Label, getSectionTypeName(sh), sh.Offset, sh.Offset+sh.Size, sh.Size, sh.Link)
+			fmt.Printf("[%2d] %-24s %-12s %d -> %d %8d => %d\n", i, sh.Label, getSectionTypeName(sh), sh.Offset, sh.Offset+sh.Size, sh.Size, sh.Link)
+			size += int64(sh.Size)
+		}
+		fmt.Printf("section size: %d (bytes)\n", file.ShSize*file.ShCount)
+		fmt.Printf("total size  : %d (bytes)\n", size)
 	default:
 		fmt.Printf("dependencies of %s\n", flag.Arg(0))
 		for _, i := range file.Libs() {
 			fmt.Printf("- %s\n", i)
 		}
+	}
+	fmt.Println(">>> size:", file.TotalSize())
+	fmt.Println(">>> static:", file.Static())
+	fmt.Println(">>> linker:", file.Linker())
+	if err := file.Strip(flag.Arg(0) + ".out"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
@@ -54,7 +82,7 @@ type File struct {
 func Open(file string) (*File, error) {
 	r, err := os.Open(file)
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 	hdr, err := load(r)
 	if err != nil {
@@ -62,13 +90,97 @@ func Open(file string) (*File, error) {
 	}
 	elf := File{
 		ELFHeader: hdr,
-		file: r,
+		file:      r,
 	}
 	return &elf, nil
 }
 
-func (f *File) Strip() (*File, error) {
-	return nil, nil
+func (f *File) TotalSize() int64 {
+	var size int64
+	size += int64(f.Size)
+	size += int64(f.PhSize) * int64(f.PhCount)
+	size += int64(f.ShSize) * int64(f.ShCount)
+
+	for i := range f.Programs {
+		size += int64(f.Programs[i].SegmentSizeFile)
+	}
+	for i := range f.Sections {
+		size += int64(f.Sections[i].Size)
+	}
+	return size
+}
+
+func (f *File) Strip(target string) error {
+	if target == "" {
+		target = f.file.Name() + ".strip"
+	}
+	w, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	var (
+		sections  = f.getStrippableSections()
+		totalSize int64
+	)
+	totalSize += int64(f.Size)
+	totalSize += int64(f.PhSize) * int64(f.PhCount)
+	for i := range f.Programs {
+		totalSize += int64(f.Programs[i].SegmentSizeFile)
+	}
+	totalSize += int64(f.ShSize) * int64(len(sections))
+	for i := range sections {
+		totalSize += int64(sections[i].Size)
+	}
+	if err := w.Truncate(totalSize); err != nil {
+		return err
+	}
+
+	var tmp bytes.Buffer
+
+	namesIndex := slices.IndexFunc(sections, func(sh SectionHeader) bool {
+		return sh.Label == ".shstrtab"
+	})
+	if namesIndex < 0 {
+		return fmt.Errorf("missing shstrtab section")
+	}
+
+	tmp.Write(magic)
+	binary.Write(&tmp, binary.BigEndian, f.Class)
+	binary.Write(&tmp, binary.BigEndian, f.Endianness)
+	binary.Write(&tmp, binary.BigEndian, f.Version)
+	binary.Write(&tmp, binary.BigEndian, f.AbiOs)
+	binary.Write(&tmp, binary.BigEndian, f.AbiVersion)
+
+	tmp.Write(make([]byte, 7))
+
+	binary.Write(&tmp, f.ByteOrder(), f.Type)
+	binary.Write(&tmp, f.ByteOrder(), f.Machine)
+	binary.Write(&tmp, f.ByteOrder(), f.ElfVersion)
+
+	if f.Is32() {
+		binary.Write(&tmp, f.ByteOrder(), uint32(f.EntryAddr))
+		binary.Write(&tmp, f.ByteOrder(), uint32(f.ProgramAddr))
+		binary.Write(&tmp, f.ByteOrder(), uint32(f.SectionAddr))
+	} else {
+		binary.Write(&tmp, f.ByteOrder(), f.EntryAddr)
+		binary.Write(&tmp, f.ByteOrder(), f.ProgramAddr)
+		binary.Write(&tmp, f.ByteOrder(), f.SectionAddr)
+	}
+	binary.Write(&tmp, f.ByteOrder(), f.Flags)
+	binary.Write(&tmp, f.ByteOrder(), f.Size)
+	binary.Write(&tmp, f.ByteOrder(), f.PhSize)
+	binary.Write(&tmp, f.ByteOrder(), f.PhCount)
+	binary.Write(&tmp, f.ByteOrder(), f.ShSize)
+	binary.Write(&tmp, f.ByteOrder(), uint16(len(sections)))
+	binary.Write(&tmp, f.ByteOrder(), uint16(namesIndex))
+
+	if _, err := io.Copy(w, &tmp); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f *File) Names() []string {
@@ -77,6 +189,18 @@ func (f *File) Names() []string {
 		list = append(list, sh.Label)
 	}
 	return list
+}
+
+func (f *File) Static() bool {
+	ix := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
+		return sh.Label == ".dynamic" || sh.Label == ".interp"
+	})
+	return ix < 0
+}
+
+func (f *File) Linker() string {
+	name, _ := f.getInterp()
+	return name
 }
 
 func (f *File) Libs() []string {
@@ -128,6 +252,24 @@ func (f *File) getLibraries(entries []DynamicEntry) []string {
 	return needed
 }
 
+func (f *File) getInterp() (string, error) {
+	ix := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
+		return sh.Label == ".interp"
+	})
+	if ix < 0 {
+		return "", fmt.Errorf(".interp section not found")
+	}
+	var (
+		sh  = f.Sections[ix]
+		rs  = io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		buf = make([]byte, sh.Size)
+	)
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		return "", err
+	}
+	return string(buf[:len(buf)-1]), nil
+}
+
 func (f *File) getDynEntries() ([]DynamicEntry, error) {
 	ix := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
 		return sh.Label == ".dynamic"
@@ -169,6 +311,17 @@ func (f *File) getNames() []string {
 		str := buf[offset : offset+x]
 		list = append(list, string(str))
 		offset += x + 1
+	}
+	return list
+}
+
+func (f *File) getStrippableSections() []SectionHeader {
+	var list []SectionHeader
+	for _, sh := range f.Sections {
+		if sh.canStrip() {
+			continue
+		}
+		list = append(list, sh)
 	}
 	return list
 }
@@ -218,14 +371,14 @@ type DynamicEntry struct {
 }
 
 type ProgramHeader struct {
-	Type            int32
-	Flags           int32
-	Offset          int64
-	VirtualAddr     int64
-	PhysicalAddr    int64
-	SegmentSizeFile int64
-	SegmentSizeMem  int64
-	Alignment       int64
+	Type            uint32
+	Flags           uint32
+	Offset          uint64
+	VirtualAddr     uint64
+	PhysicalAddr    uint64
+	SegmentSizeFile uint64
+	SegmentSizeMem  uint64
+	Alignment       uint64
 }
 
 type SectionHeader struct {
@@ -240,6 +393,16 @@ type SectionHeader struct {
 	Info      uint32
 	AddrAlign uint64
 	EntSize   uint64
+}
+
+func (s SectionHeader) canStrip() bool {
+	if strings.HasPrefix(s.Label, ".debug") {
+		return true
+	}
+	if strings.HasPrefix(s.Label, ".note") {
+		return true
+	}
+	return s.Label == ".comment" || s.Label == ".symtab" || s.Label == ".strtab"
 }
 
 func getSectionTypeName(sh SectionHeader) string {
@@ -393,13 +556,13 @@ func readProgramHeader(elf *ELFHeader, r io.Reader) error {
 	binary.Read(r, elf.ByteOrder(), &ph.Type)
 	if elf.Is32() {
 		var (
-			offset       int32
-			virtualAddr  int32
-			physicalAddr int32
-			sizeFile     int32
-			sizeMem      int32
-			flags        int32
-			align        int32
+			offset       uint32
+			virtualAddr  uint32
+			physicalAddr uint32
+			sizeFile     uint32
+			sizeMem      uint32
+			flags        uint32
+			align        uint32
 		)
 		binary.Read(r, elf.ByteOrder(), &offset)
 		binary.Read(r, elf.ByteOrder(), &virtualAddr)
@@ -409,12 +572,12 @@ func readProgramHeader(elf *ELFHeader, r io.Reader) error {
 		binary.Read(r, elf.ByteOrder(), &flags)
 		binary.Read(r, elf.ByteOrder(), &align)
 
-		ph.Offset = int64(offset)
-		ph.VirtualAddr = int64(virtualAddr)
-		ph.PhysicalAddr = int64(physicalAddr)
-		ph.SegmentSizeFile = int64(sizeFile)
-		ph.SegmentSizeMem = int64(sizeMem)
-		ph.Alignment = int64(align)
+		ph.Offset = uint64(offset)
+		ph.VirtualAddr = uint64(virtualAddr)
+		ph.PhysicalAddr = uint64(physicalAddr)
+		ph.SegmentSizeFile = uint64(sizeFile)
+		ph.SegmentSizeMem = uint64(sizeMem)
+		ph.Alignment = uint64(align)
 		ph.Flags = flags
 	} else {
 		binary.Read(r, elf.ByteOrder(), &ph.Flags)
