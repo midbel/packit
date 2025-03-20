@@ -10,12 +10,168 @@ import (
 	"slices"
 )
 
+func main() {
+	var (
+		printHeader   = flag.Bool("h", false, "print ELF header")
+		printSections = flag.Bool("s", false, "print section headers")
+	)
+	flag.Parse()
+
+	file, err := Open(flag.Arg(0))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	defer file.Close()
+
+	switch {
+	case *printHeader:
+		printELF(file.ELFHeader)
+	case *printSections:
+		for i, sh := range file.Sections {
+			fmt.Printf("[%2d] %-24s %-12s %#8x %8d\n", i, sh.Label, getSectionTypeName(sh), sh.Offset, sh.Size)
+		}
+	default:
+		fmt.Printf("dependencies of %s\n", flag.Arg(0))
+		for _, i := range file.Libs() {
+			fmt.Printf("- %s\n", i)
+		}
+	}
+}
+
 const (
 	Arch32 = 1
 	Arch64 = 2
 )
 
 var magic = []byte{0x7F, 0x45, 0x4c, 0x46}
+
+type File struct {
+	*ELFHeader
+	file *os.File
+}
+
+func Open(file string) (*File, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return  nil, err
+	}
+	hdr, err := load(r)
+	if err != nil {
+		return nil, err
+	}
+	elf := File{
+		ELFHeader: hdr,
+		file: r,
+	}
+	return &elf, nil
+}
+
+func (f *File) Strip() (*File, error) {
+	return nil, nil
+}
+
+func (f *File) Names() []string {
+	var list []string
+	for _, sh := range f.Sections {
+		list = append(list, sh.Label)
+	}
+	return list
+}
+
+func (f *File) Libs() []string {
+	entries, err := f.getDynEntries()
+	if err != nil {
+		return nil
+	}
+	return f.getLibraries(entries)
+}
+
+func (f *File) Close() error {
+	return f.file.Close()
+}
+
+func (f *File) getLibraries(entries []DynamicEntry) []string {
+	ix := slices.IndexFunc(f.Sections, func(h SectionHeader) bool {
+		return h.Label == ".dynstr"
+	})
+	if ix < 0 {
+		return nil
+	}
+	sh := f.Sections[ix]
+	var (
+		buf    = make([]byte, sh.Size)
+		rs     = io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		offset int
+		list   = make(map[uint32]string)
+	)
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		return nil
+	}
+	for {
+		x := bytes.IndexByte(buf[offset:], 0)
+		if x < 0 {
+			break
+		}
+		str := buf[offset : offset+x]
+		list[uint32(offset)] = string((str))
+		offset += x + 1
+	}
+
+	var needed []string
+	for _, e := range entries {
+		if e.Tag != 1 {
+			continue
+		}
+		needed = append(needed, list[uint32(e.Value)])
+	}
+	return needed
+}
+
+func (f *File) getDynEntries() ([]DynamicEntry, error) {
+	ix := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
+		return sh.Label == ".dynamic"
+	})
+	if ix < 0 {
+		return nil, fmt.Errorf("dynamic section not found")
+	}
+	var (
+		sh    = f.Sections[ix]
+		rs    = io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		count = int(sh.Size) / 16
+	)
+	var list []DynamicEntry
+	for i := 0; i < count; i++ {
+		var e DynamicEntry
+		binary.Read(rs, f.ByteOrder(), &e.Tag)
+		binary.Read(rs, f.ByteOrder(), &e.Value)
+		list = append(list, e)
+	}
+	return list, nil
+}
+
+func (f *File) getNames() []string {
+	var (
+		sh     = f.Sections[f.NamesIndex]
+		buf    = make([]byte, sh.Size)
+		rs     = io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		list   []string
+		offset int
+	)
+	if _, err := io.ReadFull(rs, buf); err != nil {
+		return nil
+	}
+	for {
+		x := bytes.IndexByte(buf[offset:], 0)
+		if x < 0 {
+			break
+		}
+		str := buf[offset : offset+x]
+		list = append(list, string(str))
+		offset += x + 1
+	}
+	return list
+}
 
 type ELFHeader struct {
 	Class       uint8
@@ -41,11 +197,6 @@ type ELFHeader struct {
 	Sections []SectionHeader
 }
 
-type ELFFile struct {
-	ELFHeader
-	r io.Reader
-}
-
 func (e ELFHeader) Is32() bool {
 	return e.Class == Arch32
 }
@@ -59,6 +210,11 @@ func (e ELFHeader) ByteOrder() binary.ByteOrder {
 		return binary.LittleEndian
 	}
 	return binary.BigEndian
+}
+
+type DynamicEntry struct {
+	Tag   uint64
+	Value uint64
 }
 
 type ProgramHeader struct {
@@ -117,103 +273,6 @@ func getSectionTypeName(sh SectionHeader) string {
 	}
 }
 
-func main() {
-	flag.Parse()
-
-	r, err := os.Open(flag.Arg(0))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer r.Close()
-
-	elf, err := Load(r)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	// printELF(elf)
-
-	entries, err := readDynamicEntries(elf, r)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	libs, err := readNeededLibraries(elf, r, entries)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(3)
-	}
-	fmt.Printf("dependencies of %s\n", flag.Arg(0))
-	for i := range libs {
-		fmt.Printf("- %s\n", libs[i])
-	}
-}
-
-type DynamicEntry struct {
-	Tag   uint64
-	Value uint64
-}
-
-func readNeededLibraries(elf *ELFHeader, r io.ReaderAt, entries []DynamicEntry) ([]string, error) {
-	ix := slices.IndexFunc(elf.Sections, func(h SectionHeader) bool {
-		return h.Label == ".dynstr"
-	})
-	if ix < 0 {
-		return nil, fmt.Errorf("dynstr section missing")
-	}
-	sh := elf.Sections[ix]
-	var (
-		buf    = make([]byte, sh.Size)
-		rs     = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
-		offset int
-		list   = make(map[uint32]string)
-	)
-	if _, err := io.ReadFull(rs, buf); err != nil {
-		return nil, err
-	}
-	for {
-		x := bytes.IndexByte(buf[offset:], 0)
-		if x < 0 {
-			break
-		}
-		str := buf[offset : offset+x]
-		list[uint32(offset)] = string((str))
-		offset += x + 1
-	}
-
-	var needed []string
-	for _, e := range entries {
-		if e.Tag != 1 {
-			continue
-		}
-		needed = append(needed, list[uint32(e.Value)])
-	}
-	return needed, nil
-}
-
-func readDynamicEntries(elf *ELFHeader, r io.ReaderAt) ([]DynamicEntry, error) {
-	ix := slices.IndexFunc(elf.Sections, func(sh SectionHeader) bool {
-		return sh.Label == ".dynamic"
-	})
-	if ix < 0 {
-		return nil, fmt.Errorf("dynamic section not found")
-	}
-	var (
-		sh    = elf.Sections[ix]
-		rs    = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
-		count = int(sh.Size) / 16
-	)
-	var list []DynamicEntry
-	for i := 0; i < count; i++ {
-		var e DynamicEntry
-		binary.Read(rs, elf.ByteOrder(), &e.Tag)
-		binary.Read(rs, elf.ByteOrder(), &e.Value)
-		list = append(list, e)
-	}
-	return list, nil
-}
-
 func readNames(elf *ELFHeader, r io.ReaderAt) (map[uint32]string, error) {
 	var (
 		ns     = elf.Sections[elf.NamesIndex]
@@ -237,52 +296,6 @@ func readNames(elf *ELFHeader, r io.ReaderAt) (map[uint32]string, error) {
 	return list, nil
 }
 
-func getClassName(elf *ELFHeader) string {
-	if elf.Is32() {
-		return "ELF32"
-	}
-	return "ELF64"
-}
-
-func getEndiannessName(elf *ELFHeader) string {
-	if elf.Endianness == 1 {
-		return "little endian"
-	}
-	return "big endian"
-}
-
-func getVersionName(elf *ELFHeader) string {
-	if elf.Version == 1 {
-		return "current"
-	}
-	return ""
-}
-
-func getAbiOS(elf *ELFHeader) string {
-	return "xxx"
-}
-
-func getTypeName(elf *ELFHeader) string {
-	switch elf.Type {
-	case 0x00:
-		return "unknown"
-	case 0x01:
-		return "relocatable file"
-	case 0x02:
-		return "executable file"
-	case 0x03:
-		return "shared object"
-	case 0x04:
-		return "core file"
-	default:
-		return "other"
-	}
-}
-
-func getMachineName(elf *ELFHeader) string {
-	return "xxx"
-}
-
 func printELF(elf *ELFHeader) {
 	fmt.Printf("Class                      : %s\n", getClassName(elf))
 	fmt.Printf("Data                       : %s\n", getEndiannessName(elf))
@@ -303,7 +316,7 @@ func printELF(elf *ELFHeader) {
 	fmt.Printf("Section header string index: %d\n", elf.NamesIndex)
 }
 
-func Load(r *os.File) (*ELFHeader, error) {
+func load(r *os.File) (*ELFHeader, error) {
 	elf, err := readHeader(r)
 	if err != nil {
 		return nil, err
@@ -471,4 +484,50 @@ func readHeader(rs io.Reader) (*ELFHeader, error) {
 	binary.Read(rs, elf.ByteOrder(), &elf.NamesIndex)
 
 	return &elf, nil
+}
+
+func getAbiOS(elf *ELFHeader) string {
+	return "xxx"
+}
+
+func getTypeName(elf *ELFHeader) string {
+	switch elf.Type {
+	case 0x00:
+		return "unknown"
+	case 0x01:
+		return "relocatable file"
+	case 0x02:
+		return "executable file"
+	case 0x03:
+		return "shared object"
+	case 0x04:
+		return "core file"
+	default:
+		return "other"
+	}
+}
+
+func getMachineName(elf *ELFHeader) string {
+	return "xxx"
+}
+
+func getClassName(elf *ELFHeader) string {
+	if elf.Is32() {
+		return "ELF32"
+	}
+	return "ELF64"
+}
+
+func getEndiannessName(elf *ELFHeader) string {
+	if elf.Endianness == 1 {
+		return "little endian"
+	}
+	return "big endian"
+}
+
+func getVersionName(elf *ELFHeader) string {
+	if elf.Version == 1 {
+		return "current"
+	}
+	return ""
 }
