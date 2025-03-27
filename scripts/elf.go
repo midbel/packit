@@ -15,6 +15,7 @@ import (
 func main() {
 	var (
 		orderBy       = flag.String("o", "", "order headers by given field")
+		printNames    = flag.Bool("n", false, "print list of section names")
 		printHeader   = flag.Bool("h", false, "print ELF header")
 		printSections = flag.Bool("s", false, "print section headers")
 		printSegments = flag.Bool("p", false, "print segments headers")
@@ -31,56 +32,15 @@ func main() {
 
 	switch {
 	case *printHeader:
-		printELF(file.ELFHeader)
+		printELF(file)
+	case *printNames:
+		for _, n := range file.Names() {
+			fmt.Println(n)
+		}
 	case *printSegments:
-		if *orderBy != "" {
-			slices.SortFunc(file.Programs, func(a, b ProgramHeader) int {
-				return int(a.Offset) - int(b.Offset)
-			})
-		}
-		var size int64
-		for i, ph := range file.Programs {
-			// fmt.Printf("%#8x %#08x -> %#08x %8d\n", ph.Type, ph.Offset, ph.Offset+ph.FileSize, ph.FileSize)
-			var (
-				starts = formatNumber(int64(ph.Offset))
-				ends   = formatNumber(int64(ph.Offset + ph.FileSize))
-				sz     = formatNumber(int64(ph.FileSize))
-			)
-			fmt.Printf("[%2d] %-12s %12s -> %12s %12s\n", i, getProgramTypeName(ph), starts, ends, sz)
-			size += int64(ph.FileSize)
-		}
-
-		var (
-			starts = formatNumber(int64(file.ProgramAddr))
-			ends   = formatNumber(int64(file.ProgramAddr + uint64(file.PhSize*file.PhCount)))
-		)
-		fmt.Printf("address      : %s -> %s\n", starts, ends)
-		fmt.Printf("segments size: %s (bytes)\n", formatNumber(int64(file.PhSize*file.PhCount)))
-		fmt.Printf("total size   : %s (bytes)\n", formatNumber(int64(size)))
+		printFileSegments(file, *orderBy)
 	case *printSections:
-		if *orderBy != "" {
-			slices.SortFunc(file.Sections, func(a, b SectionHeader) int {
-				return int(a.Offset) - int(b.Offset)
-			})
-		}
-		var size int64
-		for i, sh := range file.Sections {
-			// fmt.Printf("[%2d] %-24s %-12s %#8x -> %#8x %8d => %d\n", i, sh.Label, getSectionTypeName(sh), sh.Offset, sh.Offset+sh.Size, sh.Size, sh.Link)
-			var (
-				starts = formatNumber(int64(sh.Offset))
-				ends   = formatNumber(int64(sh.Offset + sh.Size))
-				sz     = formatNumber(int64(sh.Size))
-			)
-			fmt.Printf("[%2d] %-24s %-12s %12s -> %12s %12s => %d\n", i, sh.Label, getSectionTypeName(sh), starts, ends, sz, sh.Link)
-			size += int64(sh.Size)
-		}
-		var (
-			starts = formatNumber(int64(file.SectionAddr))
-			ends   = formatNumber(int64(file.SectionAddr + uint64(file.ShSize*file.ShCount)))
-		)
-		fmt.Printf("address     : %s -> %s\n", starts, ends)
-		fmt.Printf("section size: %s (bytes)\n", formatNumber(int64(file.ShSize*file.ShCount)))
-		fmt.Printf("total size  : %s (bytes)\n", formatNumber(int64(size)))
+		printFileSections(file, *orderBy)
 	case *strippedFile:
 		if err := file.Strip(flag.Arg(0) + ".out"); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -91,6 +51,105 @@ func main() {
 			fmt.Printf("- %s\n", i)
 		}
 	}
+}
+
+func printELF(file *File) {
+	fmt.Printf("Class                      : %s\n", getClassName(file.ELFHeader))
+	fmt.Printf("Data                       : %s\n", getEndiannessName(file.ELFHeader))
+	fmt.Printf("Version                    : %s\n", getVersionName(file.ELFHeader))
+	fmt.Printf("OS/ABI                     : %s\n", getAbiOS(file.ELFHeader))
+	fmt.Printf("OS/Version                 : %d\n", file.AbiVersion)
+	fmt.Printf("Type                       : %s\n", getTypeName(file.ELFHeader))
+	fmt.Printf("Machine                    : %s\n", getMachineName(file.ELFHeader))
+	fmt.Printf("Version                    : %#x\n", file.Version)
+	fmt.Printf("Entry point address        : %#x\n", file.EntryAddr)
+	fmt.Printf("Start of program headers   : %d\n", file.ProgramAddr)
+	fmt.Printf("Start of section headers   : %d\n", file.SectionAddr)
+	fmt.Printf("Size of ELF Header         : %d\n", file.Size)
+	fmt.Printf("Number of program headers  : %d\n", file.PhCount)
+	fmt.Printf("Size of program headers    : %d\n", file.PhSize)
+	fmt.Printf("Number of section headers  : %d\n", file.ShCount)
+	fmt.Printf("Size of section headers    : %d\n", file.ShSize)
+	fmt.Printf("Section header string index: %d\n", file.NamesIndex)
+}
+
+func printFileSections(file *File, orderBy string) {
+	if orderBy != "" {
+		slices.SortFunc(file.Sections, func(a, b SectionHeader) int {
+			return int(a.Offset) - int(b.Offset)
+		})
+	}
+	var size int64
+	for i, sh := range file.Sections {
+		var (
+			starts = formatNumber(int64(sh.Offset))
+			ends   = formatNumber(int64(sh.Offset + sh.Size))
+			sz     = formatNumber(int64(sh.Size))
+		)
+		fmt.Printf("[%2d] %-24s %-12s %2d %12s -> %12s %12s => %d\n", i, sh.Label, getSectionTypeName(sh), sh.AddrAlign, starts, ends, sz, sh.Link)
+		size += int64(sh.Size)
+	}
+	var (
+		starts = formatNumber(int64(file.SectionAddr))
+		ends   = formatNumber(int64(file.SectionAddr + uint64(file.ShSize*file.ShCount)))
+	)
+	fmt.Printf("address     : %s -> %s\n", starts, ends)
+	fmt.Printf("section size: %s (bytes)\n", formatNumber(int64(file.ShSize*file.ShCount)))
+	fmt.Printf("total size  : %s (bytes)\n", formatNumber(int64(size)))
+}
+
+func printFileSegments(file *File, orderBy string) {
+	if orderBy != "" {
+		slices.SortFunc(file.Programs, func(a, b ProgramHeader) int {
+			return int(a.Offset) - int(b.Offset)
+		})
+	}
+	var size int64
+	for i, ph := range file.Programs {
+		var (
+			starts = formatNumber(int64(ph.Offset))
+			ends   = formatNumber(int64(ph.Offset + ph.FileSize))
+			sz     = formatNumber(int64(ph.FileSize))
+			mz     = formatNumber(int64(ph.MemSize))
+		)
+		fmt.Printf("[%2d] %-12s %12s -> %12s %12s (%12s)\n", i, getProgramTypeName(ph), starts, ends, sz, mz)
+		size += int64(ph.FileSize)
+	}
+
+	var (
+		starts = formatNumber(int64(file.ProgramAddr))
+		ends   = formatNumber(int64(file.ProgramAddr + uint64(file.PhSize*file.PhCount)))
+	)
+	fmt.Printf("address      : %s -> %s\n", starts, ends)
+	fmt.Printf("segments size: %s (bytes)\n", formatNumber(int64(file.PhSize*file.PhCount)))
+	fmt.Printf("total size   : %s (bytes)\n", formatNumber(int64(size)))
+	fmt.Println()
+	fmt.Println("segments sections")
+	groups := getSectionsForSegments(file)
+	for i, gs := range groups {
+		fmt.Printf("[%02d] %s\n", i, strings.Join(gs, " "))
+	}
+}
+
+func getSectionsForSegments(f *File) [][]string {
+	var all [][]string
+	for _, ph := range f.Programs {
+		var (
+			list   []string
+			starts = ph.Offset
+			ends   = ph.Offset + ph.MemSize
+		)
+		for _, sh := range f.Sections {
+			if sh.Type == 0 {
+				continue
+			}
+			if sh.Offset >= starts && sh.Offset < ends {
+				list = append(list, sh.Label)
+			}
+		}
+		all = append(all, list)
+	}
+	return all
 }
 
 func formatNumber(val int64) string {
@@ -170,29 +229,43 @@ func (f *File) Strip(target string) error {
 	}
 	others := slices.Clone(f.Sections)
 	slices.SortFunc(others, func(a, b SectionHeader) int {
+		if a.isTLS() {
+			return 1
+		}
+		if b.isTLS() {
+			return -1
+		}
 		return int(a.Offset) - int(b.Offset)
 	})
 	for i, sh := range others {
 		offset := sh.Offset
-		if i > 0 {
-			ix := slices.IndexFunc(f.Sections, func(other SectionHeader) bool {
-				return other.Label == sh.Label
-			})
-			f.Sections[ix].Offset = others[i-1].Offset + others[i-1].Size
-			offset = f.Sections[ix].Offset
+		// if i > 0 && others[i-1].Offset > 0 {
+		// 	offset = others[i-1].Offset + others[i-1].Size
+		// }
+		if offset > 0 {
+			if mod := offset % sh.AddrAlign; mod != 0 {
+				offset += sh.AddrAlign - mod
+			}
 		}
+		fmt.Printf("[%2d] %-24s: %12s => %12s\n", i, sh.Label, formatNumber(int64(offset)), formatNumber(int64(offset+sh.Size)))
+		ix := slices.IndexFunc(f.Sections, func(other SectionHeader) bool {
+			return other.Label == sh.Label
+		})
+		others[i].Offset = offset
+		f.Sections[ix].Offset = offset
+
 		r := io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
 		pos, err := w.Seek(0, io.SeekCurrent)
 		if err != nil {
 			return err
 		}
-		if diff := int64(offset) - pos; diff > 0 {
-			null = make([]byte, diff)
-			if _, err := w.Write(null); err != nil {
+		if pos < int64(offset) {
+			null = make([]byte, int64(offset)-pos)
+			if _, err = w.Write(null); err != nil {
 				return err
 			}
 		}
-		if _, err := io.Copy(w, r); err != nil {
+		if _, err = io.Copy(w, r); err != nil {
 			return err
 		}
 	}
@@ -201,9 +274,6 @@ func (f *File) Strip(target string) error {
 		return err
 	}
 	if _, err = io.Copy(w, tmp); err != nil {
-		return err
-	}
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 	namesIndex := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
@@ -216,8 +286,15 @@ func (f *File) Strip(target string) error {
 	if tmp, err = writeHeader(&x); err != nil {
 		return err
 	}
+
+	if _, err = w.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
 	if _, err = io.Copy(w, tmp); err != nil {
 		return err
+	}
+	for i, ph := range f.Programs {
+		_, _ = i, ph
 	}
 	if tmp, err = writeProgramHeaders(f); err != nil {
 		return err
@@ -547,6 +624,22 @@ type SectionHeader struct {
 	EntSize   uint64
 }
 
+func (s SectionHeader) isLoadable() bool {
+	return s.Type == 0x1 || s.Type == 0x5
+}
+
+func (s SectionHeader) isDynamic() bool {
+	return s.Type == 0x6
+}
+
+func (s SectionHeader) isTLS() bool {
+	return s.Flags&0x400 == 0x400
+}
+
+func (s SectionHeader) isNote() bool {
+	return s.Type == 0x7
+}
+
 func (s SectionHeader) canStrip() bool {
 	if strings.HasPrefix(s.Label, ".debug") {
 		return true
@@ -564,7 +657,7 @@ func getProgramTypeName(ph ProgramHeader) string {
 	case 0x1:
 		return "LOAD"
 	case 0x2:
-		return "INTERP"
+		return "DYNAMIC"
 	case 0x3:
 		return "INTERP"
 	case 0x4:
@@ -574,7 +667,7 @@ func getProgramTypeName(ph ProgramHeader) string {
 	case 0x6:
 		return "SELF"
 	case 0x7:
-		return "LOCAL"
+		return "TLS"
 	case 0x6474e551:
 		return "GNU-PTR"
 	default:
@@ -613,47 +706,26 @@ func getSectionTypeName(sh SectionHeader) string {
 	}
 }
 
-func readNames(elf *ELFHeader, r io.ReaderAt) (map[uint32]string, error) {
+func setLabels(elf *ELFHeader, r io.ReaderAt) error {
 	var (
-		ns     = elf.Sections[elf.NamesIndex]
-		buf    = make([]byte, ns.Size)
-		rs     = io.NewSectionReader(r, int64(ns.Offset), int64(ns.Size))
-		list   = make(map[uint32]string)
-		offset int
+		ns  = elf.Sections[elf.NamesIndex]
+		buf = make([]byte, ns.Size)
+		rs  = io.NewSectionReader(r, int64(ns.Offset), int64(ns.Size))
 	)
 	if _, err := io.ReadFull(rs, buf); err != nil {
-		return nil, err
+		return err
 	}
-	for {
-		x := bytes.IndexByte(buf[offset:], 0)
-		if x < 0 {
-			break
+	for i, sh := range elf.Sections {
+		if uint64(sh.Name) >= ns.Size {
+			continue
 		}
-		str := buf[offset : offset+x]
-		list[uint32(offset)] = string((str))
-		offset += x + 1
+		ix := bytes.IndexByte(buf[sh.Name:], 0)
+		if ix < 0 {
+			continue
+		}
+		elf.Sections[i].Label = string(buf[sh.Name : int(sh.Name)+ix])
 	}
-	return list, nil
-}
-
-func printELF(elf *ELFHeader) {
-	fmt.Printf("Class                      : %s\n", getClassName(elf))
-	fmt.Printf("Data                       : %s\n", getEndiannessName(elf))
-	fmt.Printf("Version                    : %s\n", getVersionName(elf))
-	fmt.Printf("OS/ABI                     : %s\n", getAbiOS(elf))
-	fmt.Printf("OS/Version                 : %d\n", elf.AbiVersion)
-	fmt.Printf("Type                       : %s\n", getTypeName(elf))
-	fmt.Printf("Machine                    : %s\n", getMachineName(elf))
-	fmt.Printf("Version                    : %#x\n", elf.Version)
-	fmt.Printf("Entry point address        : %#x\n", elf.EntryAddr)
-	fmt.Printf("Start of program headers   : %d\n", elf.ProgramAddr)
-	fmt.Printf("Start of section headers   : %d\n", elf.SectionAddr)
-	fmt.Printf("Size of ELF Header         : %d\n", elf.Size)
-	fmt.Printf("Number of program headers  : %d\n", elf.PhCount)
-	fmt.Printf("Size of program headers    : %d\n", elf.PhSize)
-	fmt.Printf("Number of section headers  : %d\n", elf.ShCount)
-	fmt.Printf("Size of section headers    : %d\n", elf.ShSize)
-	fmt.Printf("Section header string index: %d\n", elf.NamesIndex)
+	return nil
 }
 
 func load(r *os.File) (*ELFHeader, error) {
@@ -673,11 +745,7 @@ func load(r *os.File) (*ELFHeader, error) {
 			return nil, err
 		}
 	}
-	names, err := readNames(elf, r)
-	for i, sh := range elf.Sections {
-		elf.Sections[i].Label = names[sh.Name]
-	}
-	return elf, nil
+	return elf, setLabels(elf, r)
 }
 
 func readSectionHeader(elf *ELFHeader, r io.Reader) error {
