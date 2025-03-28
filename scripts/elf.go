@@ -15,6 +15,7 @@ import (
 func main() {
 	var (
 		orderBy       = flag.String("o", "", "order headers by given field")
+		printAll      = flag.Bool("x", false, "print all headers")
 		printNames    = flag.Bool("n", false, "print list of section names")
 		printHeader   = flag.Bool("h", false, "print ELF header")
 		printSections = flag.Bool("s", false, "print section headers")
@@ -33,6 +34,12 @@ func main() {
 	switch {
 	case *printHeader:
 		printELF(file)
+	case *printAll:
+		printELF(file)
+		fmt.Println()
+		printFileSegments(file, *orderBy)
+		fmt.Println()
+		printFileSections(file, *orderBy)
 	case *printNames:
 		for _, n := range file.Names() {
 			fmt.Println(n)
@@ -112,7 +119,7 @@ func printFileSegments(file *File, orderBy string) {
 			sz     = formatNumber(int64(ph.FileSize))
 			mz     = formatNumber(int64(ph.MemSize))
 		)
-		fmt.Printf("[%2d] %-12s %12s -> %12s %12s (%12s)\n", i, getProgramTypeName(ph), starts, ends, sz, mz)
+		fmt.Printf("[%2d] %-12s %8d %12s -> %12s %12s (%12s)\n", i, getProgramTypeName(ph), ph.Align, starts, ends, sz, mz)
 		size += int64(ph.FileSize)
 	}
 
@@ -218,15 +225,12 @@ func (f *File) Strip(target string) error {
 	}
 	defer w.Close()
 
-	var (
-		null   []byte
-		tmp    io.Reader
-		offset int64
-	)
+	return f.strip(w)
+}
+
+func (f *File) strip(w io.WriteSeeker) error {
 	f.Sections = f.getStrippableSections()
-	if err != nil {
-		return err
-	}
+
 	others := slices.Clone(f.Sections)
 	slices.SortFunc(others, func(a, b SectionHeader) int {
 		if a.isTLS() {
@@ -238,44 +242,63 @@ func (f *File) Strip(target string) error {
 		return int(a.Offset) - int(b.Offset)
 	})
 	for i, sh := range others {
+		if sh.isNull() {
+			continue
+		}
 		offset := sh.Offset
-		// if i > 0 && others[i-1].Offset > 0 {
-		// 	offset = others[i-1].Offset + others[i-1].Size
-		// }
-		if offset > 0 {
-			if mod := offset % sh.AddrAlign; mod != 0 {
-				offset += sh.AddrAlign - mod
+		if i > 0 {
+			if others[i-1].isEmpty() {
+				offset = others[i-1].StartAt()
+			} else if sh.isEmpty() && !others[i-1].isEmpty() {
+				offset = others[i-1].EndAt()
+				if i == len(others)-1 && sh.AddrAlign > 1 {
+					offset = others[i-1].StartAt()
+					offset += sh.AddrAlign - (offset % sh.AddrAlign)
+				}
 			}
 		}
-		fmt.Printf("[%2d] %-24s: %12s => %12s\n", i, sh.Label, formatNumber(int64(offset)), formatNumber(int64(offset+sh.Size)))
+
 		ix := slices.IndexFunc(f.Sections, func(other SectionHeader) bool {
 			return other.Label == sh.Label
 		})
 		others[i].Offset = offset
-		f.Sections[ix].Offset = offset
+		f.Sections[ix].Offset = others[i].Offset
 
-		r := io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		if sh.isEmpty() {
+			continue
+		}
+
+		var r io.Reader
+		if sh.isName() {
+			buf := writeNames(f)
+			r = bytes.NewReader(buf)
+
+			f.Sections[ix].Size = uint64(len(buf))
+			others[i].Size = f.Sections[ix].Size
+			sh.Size = f.Sections[ix].Size
+		} else {
+			r = io.NewSectionReader(f.file, int64(sh.Offset), int64(sh.Size))
+		}
+
 		pos, err := w.Seek(0, io.SeekCurrent)
 		if err != nil {
 			return err
 		}
 		if pos < int64(offset) {
-			null = make([]byte, int64(offset)-pos)
+			null := make([]byte, int64(offset)-pos)
 			if _, err = w.Write(null); err != nil {
 				return err
 			}
 		}
-		if _, err = io.Copy(w, r); err != nil {
+		if _, err := io.Copy(w, r); err != nil {
 			return err
 		}
 	}
-	offset, _ = w.Seek(0, io.SeekCurrent)
-	if tmp, err = writeSectionHeaders(f); err != nil {
+	offset, _ := w.Seek(0, io.SeekCurrent)
+	if err := writeSectionHeaders(f, w); err != nil {
 		return err
 	}
-	if _, err = io.Copy(w, tmp); err != nil {
-		return err
-	}
+
 	namesIndex := slices.IndexFunc(f.Sections, func(sh SectionHeader) bool {
 		return sh.Label == ".shstrtab"
 	})
@@ -283,34 +306,22 @@ func (f *File) Strip(target string) error {
 	x.ShCount = uint16(len(f.Sections))
 	x.SectionAddr = uint64(offset)
 	x.NamesIndex = uint16(namesIndex)
-	if tmp, err = writeHeader(&x); err != nil {
-		return err
-	}
 
-	if _, err = w.Seek(0, io.SeekStart); err != nil {
+	if _, err := w.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
-	if _, err = io.Copy(w, tmp); err != nil {
+	if err := writeFileHeader(&x, w); err != nil {
 		return err
 	}
-	for i, ph := range f.Programs {
-		_, _ = i, ph
-	}
-	if tmp, err = writeProgramHeaders(f); err != nil {
+	if err := writeProgramHeaders(f, w); err != nil {
 		return err
 	}
-	if _, err = io.Copy(w, tmp); err != nil {
-		return err
-	}
-
-	null = make([]byte, f.ShCount*f.ShSize)
-	if _, err = w.Write(null); err != nil {
-		return err
-	}
+	null := make([]byte, f.ShCount*f.ShSize)
+	_, err := w.Write(null)
 	return err
 }
 
-func writeSectionHeaders(f *File) (io.Reader, error) {
+func writeSectionHeaders(f *File, w io.Writer) error {
 	var tmp bytes.Buffer
 	for _, sh := range f.Sections {
 		binary.Write(&tmp, f.ByteOrder(), sh.Name)
@@ -335,10 +346,11 @@ func writeSectionHeaders(f *File) (io.Reader, error) {
 			binary.Write(&tmp, f.ByteOrder(), sh.EntSize)
 		}
 	}
-	return &tmp, nil
+	_, err := io.Copy(w, &tmp)
+	return err
 }
 
-func writeProgramHeaders(f *File) (io.Reader, error) {
+func writeProgramHeaders(f *File, w io.Writer) error {
 	var tmp bytes.Buffer
 	for _, ph := range f.Programs {
 		binary.Write(&tmp, f.ByteOrder(), ph.Type)
@@ -349,7 +361,7 @@ func writeProgramHeaders(f *File) (io.Reader, error) {
 			binary.Write(&tmp, f.ByteOrder(), uint32(ph.FileSize))
 			binary.Write(&tmp, f.ByteOrder(), uint32(ph.MemSize))
 			binary.Write(&tmp, f.ByteOrder(), uint32(ph.Flags))
-			binary.Write(&tmp, f.ByteOrder(), uint32(ph.Alignment))
+			binary.Write(&tmp, f.ByteOrder(), uint32(ph.Align))
 		} else {
 			binary.Write(&tmp, f.ByteOrder(), ph.Flags)
 			binary.Write(&tmp, f.ByteOrder(), ph.Offset)
@@ -357,13 +369,14 @@ func writeProgramHeaders(f *File) (io.Reader, error) {
 			binary.Write(&tmp, f.ByteOrder(), ph.PhysicalAddr)
 			binary.Write(&tmp, f.ByteOrder(), ph.FileSize)
 			binary.Write(&tmp, f.ByteOrder(), ph.MemSize)
-			binary.Write(&tmp, f.ByteOrder(), ph.Alignment)
+			binary.Write(&tmp, f.ByteOrder(), ph.Align)
 		}
 	}
-	return &tmp, nil
+	_, err := io.Copy(w, &tmp)
+	return err
 }
 
-func writeHeader(f *File) (io.Reader, error) {
+func writeFileHeader(f *File, w io.Writer) error {
 	var tmp bytes.Buffer
 
 	tmp.Write(magic)
@@ -396,7 +409,8 @@ func writeHeader(f *File) (io.Reader, error) {
 	binary.Write(&tmp, f.ByteOrder(), f.ShCount)
 	binary.Write(&tmp, f.ByteOrder(), f.NamesIndex)
 
-	return &tmp, nil
+	_, err := io.Copy(w, &tmp)
+	return err
 }
 
 func (f *File) Names() []string {
@@ -555,6 +569,26 @@ func (f *File) getStrippableSections() []SectionHeader {
 	return list
 }
 
+func writeNames(file *File) []byte {
+	var (
+		buf  []byte
+		seen = make(map[string]int)
+	)
+	buf = append(buf, 0)
+	seen[""] = 0
+	for i, sh := range file.Sections {
+		ix, ok := seen[sh.Label]
+		if ok {
+			file.Sections[i].Name = uint32(ix)
+		} else {
+			file.Sections[i].Name = uint32(len(buf))
+			buf = append(buf, sh.Label...)
+			buf = append(buf, 0)
+		}
+	}
+	return buf
+}
+
 type ELFHeader struct {
 	Class       uint8
 	Endianness  uint8
@@ -607,7 +641,7 @@ type ProgramHeader struct {
 	PhysicalAddr uint64
 	FileSize     uint64
 	MemSize      uint64
-	Alignment    uint64
+	Align        uint64
 }
 
 type SectionHeader struct {
@@ -622,6 +656,26 @@ type SectionHeader struct {
 	Info      uint32
 	AddrAlign uint64
 	EntSize   uint64
+}
+
+func (s SectionHeader) StartAt() uint64 {
+	return s.Offset
+}
+
+func (s SectionHeader) EndAt() uint64 {
+	return s.Offset + s.Size
+}
+
+func (s SectionHeader) isName() bool {
+	return s.Label == ".shstrtab"
+}
+
+func (s SectionHeader) isNull() bool {
+	return s.Type == 0x0
+}
+
+func (s SectionHeader) isEmpty() bool {
+	return s.Type == 0x08
 }
 
 func (s SectionHeader) isLoadable() bool {
@@ -822,7 +876,7 @@ func readProgramHeader(elf *ELFHeader, r io.Reader) error {
 		ph.PhysicalAddr = uint64(physicalAddr)
 		ph.FileSize = uint64(sizeFile)
 		ph.MemSize = uint64(sizeMem)
-		ph.Alignment = uint64(align)
+		ph.Align = uint64(align)
 		ph.Flags = flags
 	} else {
 		binary.Read(r, elf.ByteOrder(), &ph.Flags)
@@ -831,7 +885,7 @@ func readProgramHeader(elf *ELFHeader, r io.Reader) error {
 		binary.Read(r, elf.ByteOrder(), &ph.PhysicalAddr)
 		binary.Read(r, elf.ByteOrder(), &ph.FileSize)
 		binary.Read(r, elf.ByteOrder(), &ph.MemSize)
-		binary.Read(r, elf.ByteOrder(), &ph.Alignment)
+		binary.Read(r, elf.ByteOrder(), &ph.Align)
 	}
 	elf.Programs = append(elf.Programs, ph)
 	return nil
