@@ -1,11 +1,11 @@
 # variable definitions
-.let package pack
+.let package  pack
 .let doc      `usr/share/doc/$package`
-.let etc      `etc/$package`
-.let examples `usr/share/doc/$package/examples`
-.let bin     .usrbindir
-.let author  midbel
-.let mail    'noreply@midbel.org'
+.let etc      `$etcdir/$package`
+.let examples `$docdir/$package/examples`
+.let bin      $usrbindir
+.let author   midbel
+.let mail     'noreply@midbel.org'
 
 .env SHELL TEST
 

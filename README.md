@@ -82,3 +82,4 @@ dist/pack-0.1.0.rpm: package is valid
 3. support for `APK` packages
 4. linting Packfile and/or build packages
 5. converting existing `.deb`/`.rpm` packages to other packages format
+6. support for zstd compression

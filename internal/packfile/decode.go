@@ -20,8 +20,9 @@ import (
 var licenseFiles embed.FS
 
 type Environ struct {
-	parent *Environ
-	values map[string]any
+	parent   *Environ
+	values   map[string]any
+	readonly bool
 }
 
 func Empty() *Environ {
@@ -37,6 +38,9 @@ func Enclosed(parent *Environ) *Environ {
 }
 
 func (e *Environ) Define(ident string, value any) error {
+	if e.readonly {
+		return fmt.Errorf("%s can not be modified as it is readonly")
+	}
 	_, ok := e.values[ident]
 	if ok {
 		return fmt.Errorf("identifier %q already defined", ident)
@@ -54,6 +58,25 @@ func (e *Environ) Resolve(ident string) (any, error) {
 		return e.parent.Resolve(ident)
 	}
 	return nil, fmt.Errorf("undefined variable %s", ident)
+}
+
+func defaultEnv() *Environ {
+	env := Empty()
+
+	env.Define("arch64", Arch64)
+	env.Define("arch32", Arch32)
+	env.Define("noarch", ArchNo)
+	env.Define("archall", ArchAll)
+	env.Define("etcdir", DirEtc)
+	env.Define("vardir", DirVar)
+	env.Define("logdir", DirLog)
+	env.Define("optdir", DirOpt)
+	env.Define("bindir", DirBin)
+	env.Define("usrbindir", DirBinUsr)
+	env.Define("docdir", DirDoc)
+
+	env.readonly = true
+	return env
 }
 
 const (
@@ -133,7 +156,7 @@ type Decoder struct {
 }
 
 func NewDecoder(r io.Reader, context string) (*Decoder, error) {
-	d := createDecoder(r, context, nil)
+	d := createDecoder(r, context, defaultEnv())
 
 	if n, ok := r.(interface{ Name() string }); ok {
 		d.file = n.Name()
@@ -149,6 +172,10 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 
 	return d, nil
 }
+
+// func NewDecoderWithEnv(r io.Reader, context string, env *Environ) (*Decoder, error) {
+	
+// }
 
 func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 	d := Decoder{
@@ -255,7 +282,7 @@ func (d *Decoder) decodeLicenseFromObject(pkg *Package) error {
 			err = fmt.Errorf("license: %s unsupported option", option)
 		}
 		return err
-	})
+	}, false)
 }
 
 func (d *Decoder) decodeLicenseFromTemplate(pkg *Package) error {
@@ -324,7 +351,7 @@ func (d *Decoder) decodeMaintainer() (Maintainer, error) {
 			err = fmt.Errorf("maintainer: %s unsupported option", option)
 		}
 		return err
-	})
+	}, false)
 }
 
 func (d *Decoder) decodeChange(pkg *Package) error {
@@ -351,7 +378,7 @@ func (d *Decoder) decodeChange(pkg *Package) error {
 			err = fmt.Errorf("change: %s unsupported option", option)
 		}
 		return err
-	})
+	}, true)
 	if err == nil {
 		pkg.Changes = append(pkg.Changes, c)
 	}
@@ -387,7 +414,7 @@ func (d *Decoder) decodeDepends(pkg *Package) error {
 			err = fmt.Errorf("dependency: %s unsupported option", option)
 		}
 		return err
-	})
+	}, false)
 	if err == nil {
 		pkg.Depends = append(pkg.Depends, p)
 	}
@@ -502,7 +529,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			err = fmt.Errorf("file: %s unsupported option", option)
 		}
 		return err
-	})
+	}, false)
 	if err == nil {
 		file := r.Local.(*os.File)
 		s, err := file.Stat()
@@ -556,7 +583,7 @@ func (d *Decoder) decodeCompilerFromObject(pkg *Package) error {
 			return fmt.Errorf("compiler: %s unsupported option", option)
 		}
 		return err
-	})
+	}, false)
 	return nil
 }
 
@@ -672,22 +699,22 @@ func (d *Decoder) decodeDate() (time.Time, error) {
 	return time.Parse("2006-01-02", str)
 }
 
-func (d *Decoder) decodeObject(do func(option string) error) error {
+func (d *Decoder) decodeObject(do func(option string) error, allowDuplicates bool) error {
 	if !d.is(BegObj) {
 		return fmt.Errorf("object: missing opening brace")
 	}
 	d.next()
 
-	// seen := make(map[string]struct{})
+	seen := make(map[string]struct{})
 	for !d.done() && !d.is(EndObj) {
 		if !d.is(Literal) {
 			return fmt.Errorf("object property must be literal string")
 		}
 		option := d.getCurrentLiteral()
-		// if _, ok := seen[option]; ok {
-		// 	return fmt.Errorf("object: duplicate option %s", option)
-		// }
-		// seen[option] = struct{}{}
+		if _, ok := seen[option]; ok && !allowDuplicates {
+			return fmt.Errorf("object: duplicate option %s", option)
+		}
+		seen[option] = struct{}{}
 		d.next()
 		if err := do(option); err != nil {
 			return err
@@ -717,8 +744,6 @@ func (d *Decoder) decodeMainMacro(pkg *Package) error {
 		err = d.executeLet()
 	case "env":
 		err = d.executeEnv()
-	case "define":
-	case "apply":
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
@@ -740,28 +765,6 @@ func (d *Decoder) decodeMacro() (string, error) {
 		err = d.executeReadFile()
 	case "exec":
 		err = d.executeExec()
-	case "arch64":
-		str = Arch64
-	case "arch32":
-		str = Arch32
-	case "noarch":
-		str = ArchNo
-	case "all":
-		str = ArchAll
-	case "etcdir":
-		str = DirEtc
-	case "vardir":
-		str = DirVar
-	case "logdir":
-		str = DirLog
-	case "optdir":
-		str = DirOpt
-	case "bindir":
-		str = DirBin
-	case "usrbindir":
-		str = DirBinUsr
-	case "docdir":
-		str = DirDoc
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}

@@ -13,6 +13,7 @@ var commands = map[string]func([]string) error{
 	"make":    runBuild,
 	"inspect": runInspect,
 	"show":    runInspect,
+	"info":    runInspect,
 	"check":   runVerify,
 	"verify":  runVerify,
 	"content": runContent,
