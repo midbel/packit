@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
-	"maps"
 
-	"github.com/midbel/packit/internal/build"
 	"github.com/midbel/distance"
+	"github.com/midbel/packit/internal/build"
 )
 
 var commands = map[string]func([]string) error{
@@ -23,7 +23,23 @@ var commands = map[string]func([]string) error{
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stdout, "build, inspect and verify deb and/rpm packages easily")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "available commands:")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "  build     create rpm/deb packages (alias: make)")
+		fmt.Fprintln(os.Stdout, "  inspect   display package information (alias: info, show)")
+		fmt.Fprintln(os.Stdout, "  verify    check integrity of a package (alias: check)")
+		fmt.Fprintln(os.Stdout, "  content   list of files in a package")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "usage: packit <command> [<args>]")
+	}
 	flag.Parse()
+	if flag.NArg() == 0 {
+		flag.Usage()
+		return
+	}
 	cmd, ok := commands[flag.Arg(0)]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "packit %s is not a packit command!", flag.Arg(0))
@@ -56,6 +72,9 @@ func runBuild(args []string) error {
 		file = set.String("f", "Packfile", "package file")
 		dist = set.String("d", "", "directory where package will be written")
 	)
+	set.Usage = func() {
+
+	}
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -68,6 +87,9 @@ func runBuild(args []string) error {
 
 func runInspect(args []string) error {
 	set := flag.NewFlagSet("inspect", flag.ExitOnError)
+	set.Usage = func() {
+
+	}
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -76,6 +98,9 @@ func runInspect(args []string) error {
 
 func runContent(args []string) error {
 	set := flag.NewFlagSet("content", flag.ExitOnError)
+	set.Usage = func() {
+
+	}
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -84,6 +109,9 @@ func runContent(args []string) error {
 
 func runVerify(args []string) error {
 	set := flag.NewFlagSet("verify", flag.ExitOnError)
+	set.Usage = func() {
+
+	}
 	if err := set.Parse(args); err != nil {
 		return err
 	}
