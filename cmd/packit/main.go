@@ -24,7 +24,7 @@ var commands = map[string]func([]string) error{
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stdout, "build, inspect and verify deb and/rpm packages easily")
+		fmt.Fprintln(os.Stdout, "build, inspect and verify deb and/or rpm packages easily")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "available commands:")
 		fmt.Fprintln(os.Stdout)
