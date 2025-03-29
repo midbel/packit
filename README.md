@@ -74,3 +74,10 @@ To verify the integrity of your package or a third-party package, this can be do
 $ packit verify dist/angle-0.1.0.rpm
 dist/pack-0.1.0.rpm: package is valid
 ```
+
+## Next steps
+
+1. automatic dependencies resolution by inspecting ELF binaries
+2. automatically stripping the binary
+3. support for `APK` packages
+4. linting Packfile and/or build packages
