@@ -174,7 +174,7 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 }
 
 // func NewDecoderWithEnv(r io.Reader, context string, env *Environ) (*Decoder, error) {
-	
+
 // }
 
 func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
@@ -704,6 +704,12 @@ func (d *Decoder) decodeObject(do func(option string) error, allowDuplicates boo
 		return fmt.Errorf("object: missing opening brace")
 	}
 	d.next()
+
+	current := d.env
+	d.env = Enclosed(d.env)
+	defer func() {
+		d.env = current
+	}()
 
 	seen := make(map[string]struct{})
 	for !d.done() && !d.is(EndObj) {
