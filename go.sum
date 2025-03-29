@@ -1,3 +1,5 @@
+github.com/midbel/distance v0.1.0 h1:AuhNiidCDy2Sxb9FMdFUuFasOIYIhFH0ADNTB8PyJk0=
+github.com/midbel/distance v0.1.0/go.mod h1:HhnNVr4IVXXDr7Xfp+38z+nPWNpo1EjOnX4qfLQHl08=
 github.com/midbel/tape v0.2.5 h1:+KIfI+cX4iLW/tOgNoBTy5TFFt6Ryxu5PQ5OwJRA7bc=
 github.com/midbel/tape v0.2.5/go.mod h1:V9eHCQqrF/Oc54CcvjErElDjjtE6+2uk1zQ6npRc1Qo=
 github.com/midbel/textwrap v0.3.0 h1:EtrQfMEpBYYE4K8sMzA2us7e03Kq1GsxX8fCAev/zg0=

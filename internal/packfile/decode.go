@@ -60,6 +60,13 @@ func (e *Environ) Resolve(ident string) (any, error) {
 	return nil, fmt.Errorf("undefined variable %s", ident)
 }
 
+func (e *Environ) unwrap() *Environ {
+	if e.parent == nil {
+		return e
+	}
+	return e.parent
+}
+
 func defaultEnv() *Environ {
 	env := Empty()
 
@@ -705,10 +712,9 @@ func (d *Decoder) decodeObject(do func(option string) error, allowDuplicates boo
 	}
 	d.next()
 
-	current := d.env
 	d.env = Enclosed(d.env)
 	defer func() {
-		d.env = current
+		d.env = d.env.unwrap()
 	}()
 
 	seen := make(map[string]struct{})

@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
+	"maps"
 
 	"github.com/midbel/packit/internal/build"
+	"github.com/midbel/distance"
 )
 
 var commands = map[string]func([]string) error{
@@ -23,8 +26,20 @@ func main() {
 	flag.Parse()
 	cmd, ok := commands[flag.Arg(0)]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "command %s not supported", flag.Arg(0))
+		fmt.Fprintf(os.Stderr, "packit %s is not a packit command!", flag.Arg(0))
 		fmt.Fprintln(os.Stderr)
+
+		it := maps.Keys(commands)
+		others := distance.Levenshtein(flag.Arg(0), slices.Collect(it))
+		if len(others) > 0 {
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "The most similar commands are:")
+		}
+		for i := range others {
+			fmt.Fprintf(os.Stderr, "- %s", others[i])
+			fmt.Fprintln(os.Stderr)
+		}
+
 		os.Exit(3)
 	}
 	args := flag.Args()
