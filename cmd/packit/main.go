@@ -96,12 +96,20 @@ func runBuild(args []string) error {
 }
 
 func runInspect(args []string) error {
-	set := flag.NewFlagSet("inspect", flag.ExitOnError)
+	var (
+		set       = flag.NewFlagSet("inspect", flag.ExitOnError)
+		printAll  = set.Bool("a", false, "print all informations of package")
+		printDeps = setBool("d", false, "print only dependencies of package")
+	)
 	set.Usage = func() {
 		fmt.Fprintln("display information of the given package")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "Aliases:")
 		fmt.Fprintln(os.Stdout, "  packit show, packit info")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Options:")
+		fmt.Fprintln(os.Stdout, "  -d  print only the dependencies of the given package")
+		fmt.Fprintln(os.Stdout, "  -a  print information and dependencies of the given package")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "Usage: packit inspect <PACKAGE>")
 	}

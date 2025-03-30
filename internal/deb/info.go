@@ -94,6 +94,10 @@ func Info(file string) (*PackageInfo, error) {
 	return parseControl(control)
 }
 
+func Dependencies(file string) ([]string, error) {
+	return nil, nil
+}
+
 func parseControl(r io.Reader) (*PackageInfo, error) {
 	var (
 		scan = bufio.NewScanner(r)

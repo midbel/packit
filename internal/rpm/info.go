@@ -86,6 +86,10 @@ func Info(file string) (*PackageInfo, error) {
 	return readPackage(&index, bytes.NewReader(store.Bytes()), index.Len()/16)
 }
 
+func Dependencies(file string) ([]string, error) {
+	return nil, nil
+}
+
 func readPackage(index io.Reader, store io.ReadSeeker, total int) (*PackageInfo, error) {
 	var pkg PackageInfo
 

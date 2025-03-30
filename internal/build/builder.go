@@ -24,7 +24,43 @@ var rpmInfoFile string
 //go:embed templates/deb_info.txt
 var debInfoFile string
 
-func Info(file string, w io.Writer) error {
+func Info(file string, all, deps bool, w io.Writer) error {
+	if deps && !all {
+		return getPackageDeps(file, w)
+	}
+	if err := getPackageInfos(file, w); err != nil {
+		return err
+	}
+	if all {
+		return getPackageDeps(file, w)
+	}
+	return nil
+}
+
+func getPackageDeps(file string, w io.Writer) error {
+	var (
+		list []string
+		err  error
+	)
+	switch ext := filepath.Ext(file); ext {
+	case ".deb":
+		list, err = deb.Dependencies(file)
+	case ".rpm":
+		list, err = rpm.Dependencies(file)
+	default:
+		return fmt.Errorf("%s: package type not supported", ext)
+	}
+	if err != nil || len(list) == 0 {
+		return err
+	}
+	fmt.Fprintln("Dependencies:")
+	for _, d := range list {
+		fmt.Fprintln(w, "- " + d)
+	}
+	return nil
+}
+
+func getPackageInfos(file string, w io.Writer) error {
 	var (
 		pkg  any
 		err  error
