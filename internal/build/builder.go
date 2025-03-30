@@ -53,7 +53,7 @@ func getPackageDeps(file string, w io.Writer) error {
 	if err != nil || len(list) == 0 {
 		return err
 	}
-	fmt.Fprintln("Dependencies:")
+	fmt.Fprintln(w, "Dependencies:")
 	for _, d := range list {
 		fmt.Fprintln(w, "- " + d)
 	}

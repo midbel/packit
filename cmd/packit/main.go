@@ -99,10 +99,10 @@ func runInspect(args []string) error {
 	var (
 		set       = flag.NewFlagSet("inspect", flag.ExitOnError)
 		printAll  = set.Bool("a", false, "print all informations of package")
-		printDeps = setBool("d", false, "print only dependencies of package")
+		printDeps = set.Bool("d", false, "print only dependencies of package")
 	)
 	set.Usage = func() {
-		fmt.Fprintln("display information of the given package")
+		fmt.Fprintln(os.Stdout, "display information of the given package")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "Aliases:")
 		fmt.Fprintln(os.Stdout, "  packit show, packit info")
@@ -116,13 +116,13 @@ func runInspect(args []string) error {
 	if err := set.Parse(args); err != nil {
 		return err
 	}
-	return build.Info(set.Arg(0), os.Stdout)
+	return build.Info(set.Arg(0), *printAll, *printDeps, os.Stdout)
 }
 
 func runContent(args []string) error {
 	set := flag.NewFlagSet("content", flag.ExitOnError)
 	set.Usage = func() {
-		fmt.Fprintln("display files and directories of the given package")
+		fmt.Fprintln(os.Stdout, "display files and directories of the given package")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "Usage: packit content <PACKAGE>")
 	}
@@ -135,7 +135,7 @@ func runContent(args []string) error {
 func runVerify(args []string) error {
 	set := flag.NewFlagSet("verify", flag.ExitOnError)
 	set.Usage = func() {
-		fmt.Fprintln("verify integrity of the given package")
+		fmt.Fprintln(os.Stdout, "verify integrity of the given package")
 		fmt.Fprintln(os.Stdout)
 		fmt.Fprintln(os.Stdout, "Aliases:")
 		fmt.Fprintln(os.Stdout, "  packit check")
