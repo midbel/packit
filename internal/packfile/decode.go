@@ -150,6 +150,8 @@ type Decoder struct {
 	context string
 	file    string
 
+	ignore Accepter
+
 	macros map[string]func() (string, error)
 
 	scan         *Scanner
@@ -187,6 +189,7 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 	d := Decoder{
 		context: context,
+		ignore: acceptAll(),
 		scan:    Scan(r),
 		env:     Enclosed(env),
 		macros:  make(map[string]func() (string, error)),
@@ -477,6 +480,9 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			path, err1 := d.decodeString()
 			if err1 != nil {
 				return err1
+			}
+			if !d.ignore.Accept(path) {
+				return ErrIgnore
 			}
 			r.Local, err = d.openFile(path)
 		case optFileGhost:
