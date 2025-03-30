@@ -75,11 +75,16 @@ $ packit verify dist/angle-0.1.0.rpm
 dist/pack-0.1.0.rpm: package is valid
 ```
 
+## Packfile
+
 ## Next steps
 
-1. automatic dependencies resolution by inspecting ELF binaries
-2. automatically stripping the binary
-3. support for `APK` packages
-4. linting Packfile and/or build packages
-5. converting existing `.deb`/`.rpm` packages to other packages format
-6. support for zstd compression
+* ignore file
+* pattern in path for file section
+* include files from directory specify in path section
+* automatic dependencies resolution by inspecting ELF binaries
+* automatically stripping the binary
+* support for `APK` packages
+* linting Packfile and/or build packages
+* converting existing `.deb`/`.rpm` packages to other packages format
+* support for zstd compression

@@ -73,7 +73,17 @@ func runBuild(args []string) error {
 		dist = set.String("d", "", "directory where package will be written")
 	)
 	set.Usage = func() {
-
+		fmt.Fprintln(os.Stdout, "build a new package")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Aliases:")
+		fmt.Fprintln(os.Stdout, "  packit make")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Options:")
+		fmt.Fprintln(os.Stdout, "  -k  specify type of package to build - rpm or deb")
+		fmt.Fprintln(os.Stdout, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stdout, "  -d  folder where the final package will be saved")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Usage: packit build [OPTIONS] <CONTEXT>")
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -88,7 +98,12 @@ func runBuild(args []string) error {
 func runInspect(args []string) error {
 	set := flag.NewFlagSet("inspect", flag.ExitOnError)
 	set.Usage = func() {
-
+		fmt.Fprintln("display information of the given package")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Aliases:")
+		fmt.Fprintln(os.Stdout, "  packit show, packit info")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Usage: packit inspect <PACKAGE>")
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -99,7 +114,9 @@ func runInspect(args []string) error {
 func runContent(args []string) error {
 	set := flag.NewFlagSet("content", flag.ExitOnError)
 	set.Usage = func() {
-
+		fmt.Fprintln("display files and directories of the given package")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Usage: packit content <PACKAGE>")
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -110,7 +127,12 @@ func runContent(args []string) error {
 func runVerify(args []string) error {
 	set := flag.NewFlagSet("verify", flag.ExitOnError)
 	set.Usage = func() {
-
+		fmt.Fprintln("verify integrity of the given package")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Aliases:")
+		fmt.Fprintln(os.Stdout, "  packit check")
+		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout, "Usage: packit verify <PACKAGE>")
 	}
 	if err := set.Parse(args); err != nil {
 		return err
