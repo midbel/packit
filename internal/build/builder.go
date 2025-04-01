@@ -55,7 +55,7 @@ func getPackageDeps(file string, w io.Writer) error {
 	}
 	fmt.Fprintln(w, "Dependencies:")
 	for _, d := range list {
-		fmt.Fprintln(w, "- " + d)
+		fmt.Fprintln(w, "- "+d)
 	}
 	return nil
 }

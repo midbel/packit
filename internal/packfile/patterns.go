@@ -10,7 +10,7 @@ type Accepter interface {
 	Accept(string) bool
 }
 
-type all struct {}
+type all struct{}
 
 func (_ all) Accept(_ string) bool {
 	return true

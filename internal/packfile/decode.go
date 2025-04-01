@@ -189,7 +189,7 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 	d := Decoder{
 		context: context,
-		ignore: acceptAll(),
+		ignore:  acceptAll(),
 		scan:    Scan(r),
 		env:     Enclosed(env),
 		macros:  make(map[string]func() (string, error)),
