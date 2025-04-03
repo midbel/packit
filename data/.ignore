@@ -1,3 +1,7 @@
 # comment
 bin/*.exe
-script/*.go
+scripts/*.go
+
+internal/**/*.go
+# !scripts/*.go
+internal/packfile/*/*.tpl

@@ -6,52 +6,112 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
+	"iter"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 var ErrPattern = errors.New("invalid pattern")
 
 func main() {
+	walk := flag.Bool("w", false, "walk")
 	flag.Parse()
 
-	r, err := os.Open(flag.Arg(0))
+	ignore, err := Open(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
+		os.Exit(1)
+	}
+
+	if *walk {
+		for path := range ignore.Walk(flag.Arg(1)) {
+			fmt.Println(path)
+		}
+	} else {
+		for i := 1; i < flag.NArg(); i++ {
+			name := filepath.Clean(flag.Arg(i))
+			name = filepath.ToSlash(name)
+
+			ok := ignore.Match(name)
+			fmt.Println(">>", name, ok)
+		}
+	}
+
+}
+
+type IgnoreFile struct {
+	matchers []Matcher
+}
+
+func Open(file string) (*IgnoreFile, error) {
+	r, err := os.Open(file)
+	if err != nil {
+		return nil, err
 	}
 	defer r.Close()
 
 	var (
-		scan = bufio.NewScanner(r)
-		list []Matcher
+		scan   = bufio.NewScanner(r)
+		ignore IgnoreFile
 	)
 	for scan.Scan() {
 		line := strings.TrimSpace(scan.Text())
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
+		var reverse bool
+		if reverse = strings.HasPrefix(line, "!"); reverse {
+			line = line[1:]
+		}
 		line = filepath.Clean(line)
 		line = filepath.ToSlash(line)
 		line = strings.TrimPrefix(line, "/")
-		fmt.Println(line)
 
 		mt, err := Parse(line)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return nil, err
 		}
-		list = append(list, mt)
+		if reverse {
+			mt = Invert(mt)
+		}
+		ignore.matchers = append(ignore.matchers, mt)
 	}
-	for i := 1; i < flag.NArg(); i++ {
-		name := filepath.Clean(flag.Arg(i))
-		name = filepath.ToSlash(name)
-		fmt.Println(">>", name, len(list))
-		for j := range list {
-			fmt.Println(name, list[j].Match(name))
+	return &ignore, nil
+}
+
+func (i *IgnoreFile) Walk(dir string) iter.Seq[string] {
+	it := func(yield func(string) bool) {
+		root := os.DirFS(dir)
+		fs.WalkDir(root, ".", func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if i.Match(path) {
+				if !yield(path) {
+					return fs.SkipAll
+				}
+			}
+			return nil
+		})
+	}
+	return it
+}
+
+func (i *IgnoreFile) Match(file string) bool {
+	for j := range i.matchers {
+		if i.matchers[j].Match(file) {
+			return true
 		}
 	}
+	return false
+}
+
+func (i *IgnoreFile) match(rs io.RuneScanner) bool {
+	return false
 }
 
 type Matcher interface {
@@ -69,6 +129,11 @@ func Parse(line string) (Matcher, error) {
 		c, _, _ := rs.ReadRune()
 		switch c {
 		case '*':
+			if c, _, _ := rs.ReadRune(); c == '*' {
+				curr = append(curr, newSegment(nil))
+				break
+			}
+			rs.UnreadRune()
 			m, err := parseStar(rs)
 			if err != nil {
 				return nil, err
@@ -122,6 +187,7 @@ func parseStar(rs *strings.Reader) (Matcher, error) {
 	var res Matcher
 	switch ch {
 	case '/':
+		rs.UnreadRune()
 		res = newDrainer()
 	case '[':
 		res, err = parseChoice(rs)
@@ -133,10 +199,45 @@ func parseStar(rs *strings.Reader) (Matcher, error) {
 	return newStar(res), err
 }
 
+func parseChoice2(rs io.RuneScanner, first rune) (Matcher, error) {
+	ch, _, err := rs.ReadRune()
+	if err != nil {
+		return nil, ErrPattern
+	}
+	var chars []rune
+	if ch == '-' {
+		last, _, err := rs.ReadRune()
+		if err != nil {
+			return nil, ErrPattern
+		}
+		for i := first; i <= last; i++ {
+			chars = append(chars, i)
+		}
+	} else {
+		rs.UnreadRune()
+		chars = append(chars, first)
+		for {
+			ch, _, err := rs.ReadRune()
+			if err != nil {
+				return nil, ErrPattern
+			}
+			if ch == ']' {
+				rs.UnreadRune()
+				break
+			}
+			chars = append(chars, ch)
+		}
+	}
+	if len(chars) == 0 {
+		return nil, ErrPattern
+	}
+	return newChoice(string(chars)), nil
+}
+
 func parseChoice(rs io.RuneScanner) (Matcher, error) {
 	ch, _, err := rs.ReadRune()
 	if err != nil {
-		return nil, err
+		return nil, ErrPattern
 	}
 	var (
 		reverse bool
@@ -148,43 +249,16 @@ func parseChoice(rs io.RuneScanner) (Matcher, error) {
 	for {
 		first, _, err := rs.ReadRune()
 		if err != nil {
-			return nil, err
+			return nil, ErrPattern
 		}
 		if first == ']' {
 			break
 		}
-		ch, _, err := rs.ReadRune()
+		mt, err := parseChoice2(rs, first)
 		if err != nil {
 			return nil, err
 		}
-		var chars []rune
-		if ch == '-' {
-			last, _, err := rs.ReadRune()
-			if err != nil {
-				return nil, err
-			}
-			for i := first; i <= last; i++ {
-				chars = append(chars, i)
-			}
-		} else {
-			rs.UnreadRune()
-			chars = append(chars, first)
-			for {
-				ch, _, err := rs.ReadRune()
-				if err != nil {
-					return nil, err
-				}
-				if ch == ']' {
-					rs.UnreadRune()
-					break
-				}
-				chars = append(chars, ch)
-			}
-		}
-		if len(chars) == 0 {
-			return ErrPattern
-		}
-		list = append(list, newChoice(string(chars)))
+		list = append(list, mt)
 	}
 	if len(list) == 0 {
 		return nil, ErrPattern
@@ -218,43 +292,86 @@ func parseLiteral(r io.RuneScanner, ch rune) Matcher {
 	return newLiteral(string(chars))
 }
 
-type patternMatcher struct {
+type pathMatcher struct {
 	matchers []Matcher
 }
 
 func newMatcher(list []Matcher) Matcher {
-	p := patternMatcher{
+	p := pathMatcher{
 		matchers: slices.Clone(list),
 	}
 	return p
 }
 
-func (p patternMatcher) Match(value string) bool {
-	parts := strings.Split(value, "/")
-	if len(parts) != len(p.matchers) {
-		return false
+func (p pathMatcher) Match(value string) bool {
+	value = filepath.Clean(value)
+	value = filepath.ToSlash(value)
+	return p.Match2(value)
+}
+
+func (p pathMatcher) String() string {
+	var w strings.Builder
+	for i := range p.matchers {
+		if i > 0 {
+			w.WriteString("/")
+		}
+		str, ok := p.matchers[i].(fmt.Stringer)
+		if ok {
+			w.WriteString(str.String())
+		} else {
+			w.WriteString("@")
+		}
 	}
-	for i := range parts {
-		ok := p.matchers[i].Match(parts[i])
+	return fmt.Sprintf("path(%s)", w.String())
+}
+
+func (p pathMatcher) Match2(value string) bool {
+	var (
+		parts  = strings.Split(value, "/")
+		offset int
+	)
+	for i, mt := range p.matchers {
+		if offset >= len(parts) {
+			return false
+		}
+		if s, ok := mt.(segment); ok && s.any() {
+			pm := pathMatcher{
+				matchers: slices.Clone(p.matchers[i+1:]),
+			}
+			if ok := pm.matchList(parts[offset:]); ok {
+				return true
+			}
+			return false
+		}
+		ok := mt.Match(parts[offset])
 		if !ok {
 			return ok
 		}
+		offset++
 	}
 	return true
 }
 
-func (p patternMatcher) match(rs io.RuneScanner) bool {
+func (p pathMatcher) matchList(list []string) bool {
+	return false
+}
+
+func (p pathMatcher) match(rs io.RuneScanner) bool {
 	return false
 }
 
 type drainer struct{}
 
+func newDrainer() Matcher {
+	return drainer{}
+}
+
 func (d drainer) Match(value string) bool {
 	return d.match(strings.NewReader(value))
 }
 
-func newDrainer() Matcher {
-	return drainer{}
+func (d drainer) String() string {
+	return "$"
 }
 
 func (d drainer) match(rs io.RuneScanner) bool {
@@ -278,11 +395,31 @@ func newStar(next Matcher) Matcher {
 	return s
 }
 
+func (s star) String() string {
+	return fmt.Sprintf("*%s", s.next)
+}
+
 func (s star) Match(value string) bool {
 	return s.match(strings.NewReader(value))
 }
 
 func (s star) match(rs io.RuneScanner) bool {
+	for {
+		ch, _, err := rs.ReadRune()
+		if err != nil {
+			return s.next == nil
+		}
+		var valid bool
+		if t, ok := s.next.(interface{ test(rune) bool }); ok {
+			valid = t.test(ch)
+		} else {
+			valid = s.next.match(strings.NewReader(string(ch)))
+		}
+		if valid {
+			rs.UnreadRune()
+			return s.next.match(rs)
+		}
+	}
 	return false
 }
 
@@ -301,12 +438,37 @@ func (m multichoice) Match(value string) bool {
 	return m.match(strings.NewReader(value))
 }
 
+func (m multichoice) String() string {
+	var w strings.Builder
+	w.WriteRune('[')
+	for i := range m.values {
+		str, ok := m.values[i].(fmt.Stringer)
+		if ok {
+			w.WriteString(str.String())
+		} else {
+			w.WriteString("@")
+		}
+	}
+	w.WriteRune(']')
+	return w.String()
+}
+
 func (m multichoice) match(rs io.RuneScanner) bool {
 	for i := range m.values {
 		if m.values[i].match(rs) {
 			return true
 		}
 		rs.UnreadRune()
+	}
+	return false
+}
+
+func (m multichoice) test(ch rune) bool {
+	for i := range m.values {
+		t, ok := m.values[i].(interface{ test(rune) bool })
+		if ok && t.test(ch) {
+			return true
+		}
 	}
 	return false
 }
@@ -326,11 +488,19 @@ func (c choice) Match(value string) bool {
 	return c.match(strings.NewReader(value))
 }
 
+func (c choice) String() string {
+	return c.values
+}
+
 func (c choice) match(rs io.RuneScanner) bool {
 	ch, _, err := rs.ReadRune()
 	if err != nil {
 		return false
 	}
+	return c.test(ch)
+}
+
+func (c choice) test(ch rune) bool {
 	return strings.IndexRune(c.values, ch) >= 0
 }
 
@@ -345,7 +515,11 @@ func (a any) Match(value string) bool {
 	return a.match(strings.NewReader(value))
 }
 
-func (a any) match(rs io.RuneScanner) bool {
+func (_ any) String() string {
+	return "?"
+}
+
+func (_ any) match(rs io.RuneScanner) bool {
 	_, _, err := rs.ReadRune()
 	if err != nil {
 		return false
@@ -353,8 +527,16 @@ func (a any) match(rs io.RuneScanner) bool {
 	return true
 }
 
+func (_ any) test(_ rune) bool {
+	return true
+}
+
 type invert struct {
 	inner Matcher
+}
+
+func Invert(mt Matcher) Matcher {
+	return newInvert(mt)
 }
 
 func newInvert(mt Matcher) Matcher {
@@ -366,6 +548,10 @@ func newInvert(mt Matcher) Matcher {
 
 func (i invert) Match(value string) bool {
 	return i.match(strings.NewReader(value))
+}
+
+func (i invert) String() string {
+	return fmt.Sprintf("!%s", i.inner)
 }
 
 func (i invert) match(rs io.RuneScanner) bool {
@@ -388,6 +574,22 @@ func (s segment) Match(value string) bool {
 	return s.match(rs)
 }
 
+func (s segment) String() string {
+	if len(s.all) == 0 {
+		return "**"
+	}
+	var w strings.Builder
+	for i := range s.all {
+		str, ok := s.all[i].(fmt.Stringer)
+		if ok {
+			w.WriteString(str.String())
+		} else {
+			w.WriteString("@")
+		}
+	}
+	return w.String()
+}
+
 func (s segment) match(r io.RuneScanner) bool {
 	for i := range s.all {
 		if !s.all[i].match(r) {
@@ -395,6 +597,10 @@ func (s segment) match(r io.RuneScanner) bool {
 		}
 	}
 	return true
+}
+
+func (s segment) any() bool {
+	return len(s.all) == 0
 }
 
 type literal struct {
@@ -410,6 +616,10 @@ func newLiteral(str string) Matcher {
 
 func (i literal) Match(value string) bool {
 	return i.match(strings.NewReader(value))
+}
+
+func (i literal) String() string {
+	return i.str
 }
 
 func (i literal) match(rs io.RuneScanner) bool {
@@ -429,4 +639,9 @@ func (i literal) match(rs io.RuneScanner) bool {
 		}
 	}
 	return true
+}
+
+func (i literal) test(ch rune) bool {
+	other, _ := utf8.DecodeRuneInString(i.str)
+	return other == ch
 }
