@@ -67,6 +67,7 @@ func Open(file string) (*IgnoreFile, error) {
 		if reverse = strings.HasPrefix(line, "!"); reverse {
 			line = line[1:]
 		}
+
 		line = filepath.Clean(line)
 		line = filepath.ToSlash(line)
 		line = strings.TrimPrefix(line, "/")
@@ -130,7 +131,13 @@ func Parse(line string) (Matcher, error) {
 		switch c {
 		case '*':
 			if c, _, _ := rs.ReadRune(); c == '*' {
-				curr = append(curr, newSegment(nil))
+				if len(curr) != 0 {
+					return nil, ErrPattern
+				}
+				if c, _, _ = rs.ReadRune(); c != '/' {
+					return nil, ErrPattern
+				}
+				all = append(all, newSegment(nil))
 				break
 			}
 			rs.UnreadRune()
@@ -353,6 +360,12 @@ func (p pathMatcher) Match2(value string) bool {
 }
 
 func (p pathMatcher) matchList(list []string) bool {
+	for i := range list {
+		if p.matchers[0].Match(list[i]) {
+			mt := newMatcher(p.matchers[1:])
+			return mt.Match(strings.Join(list[i+1:], "/"))
+		}
+	}
 	return false
 }
 
