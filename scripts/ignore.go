@@ -338,35 +338,33 @@ func (p pathMatcher) Match2(value string) bool {
 		offset int
 	)
 	for i, mt := range p.matchers {
+		if s, ok := mt.(segment); ok && s.any() {
+			next := i + 1
+			if next >= len(p.matchers) {
+				return true
+			}
+			var result bool
+			for x := range parts[offset:] {
+				result = p.matchers[next].Match(parts[offset+x])
+				if result {
+					offset += x
+					break
+				}
+			}
+			if !result {
+				return result
+			}
+			continue
+		}
 		if offset >= len(parts) {
 			return false
 		}
-		if s, ok := mt.(segment); ok && s.any() {
-			pm := pathMatcher{
-				matchers: slices.Clone(p.matchers[i+1:]),
-			}
-			if ok := pm.matchList(parts[offset:]); ok {
-				return true
-			}
-			return false
-		}
-		ok := mt.Match(parts[offset])
-		if !ok {
+		if ok := mt.Match(parts[offset]); !ok {
 			return ok
 		}
 		offset++
 	}
 	return true
-}
-
-func (p pathMatcher) matchList(list []string) bool {
-	for i := range list {
-		if p.matchers[0].Match(list[i]) {
-			mt := newMatcher(p.matchers[1:])
-			return mt.Match(strings.Join(list[i+1:], "/"))
-		}
-	}
-	return false
 }
 
 func (p pathMatcher) match(rs io.RuneScanner) bool {
