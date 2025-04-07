@@ -1,9 +1,4 @@
-# comment
-*.exe
-scripts/*.go
-
+# ignore git directory
+.git
+bin/*.exe
 internal/**/*.go
-# !scripts/*.go
-internal/packfile/*/*.tpl
-
-!tmp

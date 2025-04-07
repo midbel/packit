@@ -78,8 +78,7 @@ func Open(file string) (*PatternFile, error) {
 		absOnly = strings.HasPrefix(line, "/")
 		_, _ = dirOnly, absOnly
 
-		line = strings.TrimFunc(line, func(r rune) bool { return r == '/'})
-
+		line = strings.TrimFunc(line, func(r rune) bool { return r == '/' })
 
 		mt, err := Parse(line)
 		if err != nil {
@@ -589,11 +588,6 @@ func newSegment(all []Matcher) Matcher {
 	return s
 }
 
-func (s segment) Match(value string) bool {
-	rs := strings.NewReader(value)
-	return s.match(rs)
-}
-
 func (s segment) String() string {
 	if len(s.all) == 0 {
 		return "**"
@@ -608,6 +602,11 @@ func (s segment) String() string {
 		}
 	}
 	return w.String()
+}
+
+func (s segment) Match(value string) bool {
+	rs := strings.NewReader(value)
+	return s.match(rs)
 }
 
 func (s segment) match(r io.RuneScanner) bool {

@@ -3,6 +3,7 @@ package packfile
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -146,11 +147,18 @@ const (
 	optCheckPkg        = "check-package"
 )
 
+var errSkip = errors.New("skip")
+
+func defaultChecker(err error) error {
+	return err
+}
+
 type Decoder struct {
 	context string
 	file    string
 
-	ignore Accepter
+	ignore       Matcher
+	errorChecker func(error) error
 
 	macros map[string]func() (string, error)
 
@@ -182,17 +190,14 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 	return d, nil
 }
 
-// func NewDecoderWithEnv(r io.Reader, context string, env *Environ) (*Decoder, error) {
-
-// }
-
 func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 	d := Decoder{
-		context: context,
-		ignore:  acceptAll(),
-		scan:    Scan(r),
-		env:     Enclosed(env),
-		macros:  make(map[string]func() (string, error)),
+		context:      context,
+		errorChecker: defaultChecker,
+		ignore:       keepAll(),
+		scan:         Scan(r),
+		env:          Enclosed(env),
+		macros:       make(map[string]func() (string, error)),
 	}
 
 	return &d
@@ -473,6 +478,16 @@ func (d *Decoder) openFile(file string) (io.ReadCloser, error) {
 func (d *Decoder) decodeFile(pkg *Package) error {
 	var r Resource
 
+	d.errorChecker = func(err error) error {
+		if errors.Is(err, ErrIgnore) {
+			return nil
+		}
+		return err
+	}
+	defer func() {
+		d.errorChecker = defaultChecker
+	}()
+
 	err := d.decodeObject(func(option string) error {
 		var err error
 		switch option {
@@ -481,7 +496,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			if err1 != nil {
 				return err1
 			}
-			if !d.ignore.Accept(path) {
+			if err := d.ignore.Match(path); err != nil {
 				return ErrIgnore
 			}
 			r.Local, err = d.openFile(path)
@@ -723,6 +738,12 @@ func (d *Decoder) decodeObject(do func(option string) error, allowDuplicates boo
 		d.env = d.env.unwrap()
 	}()
 
+	skip := func() {
+		for !d.done() && !d.is(EndObj) {
+			d.next()
+		}
+	}
+
 	seen := make(map[string]struct{})
 	for !d.done() && !d.is(EndObj) {
 		if !d.is(Literal) {
@@ -735,6 +756,11 @@ func (d *Decoder) decodeObject(do func(option string) error, allowDuplicates boo
 		seen[option] = struct{}{}
 		d.next()
 		if err := do(option); err != nil {
+			err = d.errorChecker(err)
+			if errors.Is(err, errSkip) {
+				skip()
+				break
+			}
 			return err
 		}
 	}
