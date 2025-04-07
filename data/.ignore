@@ -5,3 +5,5 @@ scripts/*.go
 internal/**/*.go
 # !scripts/*.go
 internal/packfile/*/*.tpl
+
+!tmp

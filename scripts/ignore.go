@@ -43,11 +43,11 @@ func main() {
 
 }
 
-type IgnoreFile struct {
+type PatternFile struct {
 	matchers []Matcher
 }
 
-func Open(file string) (*IgnoreFile, error) {
+func Open(file string) (*PatternFile, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -56,21 +56,30 @@ func Open(file string) (*IgnoreFile, error) {
 
 	var (
 		scan   = bufio.NewScanner(r)
-		ignore IgnoreFile
+		ignore PatternFile
 	)
 	for scan.Scan() {
 		line := strings.TrimSpace(scan.Text())
 		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		var reverse bool
+		var (
+			reverse bool
+			dirOnly bool
+			absOnly bool
+		)
 		if reverse = strings.HasPrefix(line, "!"); reverse {
 			line = line[1:]
 		}
-
 		line = filepath.Clean(line)
 		line = filepath.ToSlash(line)
-		line = strings.TrimPrefix(line, "/")
+
+		dirOnly = strings.HasSuffix(line, "/")
+		absOnly = strings.HasPrefix(line, "/")
+		_, _ = dirOnly, absOnly
+
+		line = strings.TrimFunc(line, func(r rune) bool { return r == '/'})
+
 
 		mt, err := Parse(line)
 		if err != nil {
@@ -84,7 +93,7 @@ func Open(file string) (*IgnoreFile, error) {
 	return &ignore, nil
 }
 
-func (i *IgnoreFile) Walk(dir string) iter.Seq[string] {
+func (i *PatternFile) Walk(dir string) iter.Seq[string] {
 	it := func(yield func(string) bool) {
 		root := os.DirFS(dir)
 		fs.WalkDir(root, ".", func(path string, entry fs.DirEntry, err error) error {
@@ -102,7 +111,7 @@ func (i *IgnoreFile) Walk(dir string) iter.Seq[string] {
 	return it
 }
 
-func (i *IgnoreFile) Match(file string) bool {
+func (i *PatternFile) Match(file string) bool {
 	for j := range i.matchers {
 		if i.matchers[j].Match(file) {
 			return true
@@ -111,7 +120,7 @@ func (i *IgnoreFile) Match(file string) bool {
 	return false
 }
 
-func (i *IgnoreFile) match(rs io.RuneScanner) bool {
+func (i *PatternFile) match(rs io.RuneScanner) bool {
 	return false
 }
 
@@ -310,12 +319,6 @@ func newMatcher(list []Matcher) Matcher {
 	return p
 }
 
-func (p pathMatcher) Match(value string) bool {
-	value = filepath.Clean(value)
-	value = filepath.ToSlash(value)
-	return p.Match2(value)
-}
-
 func (p pathMatcher) String() string {
 	var w strings.Builder
 	for i := range p.matchers {
@@ -330,6 +333,12 @@ func (p pathMatcher) String() string {
 		}
 	}
 	return fmt.Sprintf("path(%s)", w.String())
+}
+
+func (p pathMatcher) Match(value string) bool {
+	value = filepath.Clean(value)
+	value = filepath.ToSlash(value)
+	return p.Match2(value)
 }
 
 func (p pathMatcher) Match2(value string) bool {
@@ -557,16 +566,16 @@ func newInvert(mt Matcher) Matcher {
 	return i
 }
 
-func (i invert) Match(value string) bool {
-	return i.match(strings.NewReader(value))
+func (i invert) String() string {
+	return fmt.Sprintf("not(%s)", i.inner)
 }
 
-func (i invert) String() string {
-	return fmt.Sprintf("!%s", i.inner)
+func (i invert) Match(value string) bool {
+	return !i.inner.Match(value)
 }
 
 func (i invert) match(rs io.RuneScanner) bool {
-	return !i.inner.match(rs)
+	return false
 }
 
 type segment struct {
