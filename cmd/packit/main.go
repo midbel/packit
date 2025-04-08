@@ -13,15 +13,15 @@ import (
 )
 
 var commands = map[string]func([]string) error{
-	"build":   runBuild,
-	"make":    runBuild,
-	"inspect": runInspect,
-	"show":    runInspect,
-	"info":    runInspect,
-	"check":   runVerify,
-	"verify":  runVerify,
-	"content": runContent,
-	"show-files": runFiles,
+	"build":             runBuild,
+	"make":              runBuild,
+	"inspect":           runInspect,
+	"show":              runInspect,
+	"info":              runInspect,
+	"check":             runVerify,
+	"verify":            runVerify,
+	"content":           runContent,
+	"show-files":        runFiles,
 	"show-dependencies": runDependencies,
 }
 
@@ -70,7 +70,7 @@ func main() {
 
 func runDependencies(args []string) error {
 	var (
-		set = flag.NewFlagSet("show-dependencies", flag.ExitOnError)
+		set  = flag.NewFlagSet("show-dependencies", flag.ExitOnError)
 		file = set.String("f", "Packfile", "package file")
 	)
 	set.Usage = func() {
@@ -92,14 +92,14 @@ func runDependencies(args []string) error {
 	pkg, err := packfile.Load(*file, set.Arg(0))
 	if err != nil {
 		return err
-	}	
+	}
 	_ = pkg
 	return nil
 }
 
 func runFiles(args []string) error {
 	var (
-		set = flag.NewFlagSet("show-files", flag.ExitOnError)
+		set  = flag.NewFlagSet("show-files", flag.ExitOnError)
 		file = set.String("f", "Packfile", "package file")
 	)
 	set.Usage = func() {

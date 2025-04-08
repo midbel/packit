@@ -15,6 +15,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/midbel/packit/internal/glob"
 )
 
 //go:embed licenses/*
@@ -157,7 +159,7 @@ type Decoder struct {
 	context string
 	file    string
 
-	ignore       Matcher
+	ignore       glob.Matcher
 	errorChecker func(error) error
 
 	macros map[string]func() (string, error)
@@ -194,7 +196,7 @@ func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 	d := Decoder{
 		context:      context,
 		errorChecker: defaultChecker,
-		ignore:       keepAll(),
+		ignore:       glob.Default(),
 		scan:         Scan(r),
 		env:          Enclosed(env),
 		macros:       make(map[string]func() (string, error)),
@@ -479,7 +481,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 	var r Resource
 
 	d.errorChecker = func(err error) error {
-		if errors.Is(err, ErrIgnore) {
+		if errors.Is(err, glob.ErrIgnore) {
 			return nil
 		}
 		return err
