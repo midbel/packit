@@ -499,6 +499,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			if err := d.ignore.Match(path); err != nil {
 				return ErrIgnore
 			}
+			r.Path = path
 			r.Local, err = d.openFile(path)
 		case optFileGhost:
 			ok, err := d.decodeBool()

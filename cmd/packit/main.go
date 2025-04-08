@@ -9,6 +9,7 @@ import (
 
 	"github.com/midbel/distance"
 	"github.com/midbel/packit/internal/build"
+	"github.com/midbel/packit/internal/packfile"
 )
 
 var commands = map[string]func([]string) error{
@@ -20,20 +21,23 @@ var commands = map[string]func([]string) error{
 	"check":   runVerify,
 	"verify":  runVerify,
 	"content": runContent,
+	"show-files": runFiles,
+	"show-dependencies": runDependencies,
 }
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stdout, "build, inspect and verify deb and/or rpm packages easily")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "available commands:")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "  build     create rpm/deb packages (alias: make)")
-		fmt.Fprintln(os.Stdout, "  inspect   display package information (alias: info, show)")
-		fmt.Fprintln(os.Stdout, "  verify    check integrity of a package (alias: check)")
-		fmt.Fprintln(os.Stdout, "  content   list of files in a package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "usage: packit <command> [<args>]")
+		fmt.Fprintln(os.Stderr, "build, inspect and verify deb and/or rpm packages easily")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "available commands:")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "  build     create rpm/deb packages (alias: make)")
+		fmt.Fprintln(os.Stderr, "  inspect   display package information (alias: info, show)")
+		fmt.Fprintln(os.Stderr, "  verify    check integrity of a package (alias: check)")
+		fmt.Fprintln(os.Stderr, "  content   list of files in a package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "usage: packit <command> [<args>]")
+		os.Exit(2)
 	}
 	flag.Parse()
 	if flag.NArg() == 0 {
@@ -55,7 +59,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "- %s", others[i])
 			fmt.Fprintln(os.Stderr)
 		}
-
 		os.Exit(3)
 	}
 	args := flag.Args()
@@ -63,6 +66,66 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func runDependencies(args []string) error {
+	var (
+		set = flag.NewFlagSet("show-dependencies", flag.ExitOnError)
+		file = set.String("f", "Packfile", "package file")
+	)
+	set.Usage = func() {
+		fmt.Fprintln(os.Stderr, "show dependencies required by the final package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Options:")
+		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
+		fmt.Fprintln(os.Stderr)
+		os.Exit(2)
+	}
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	if set.NArg() == 0 {
+		return fmt.Errorf("missing context")
+	}
+	pkg, err := packfile.Load(*file, set.Arg(0))
+	if err != nil {
+		return err
+	}	
+	_ = pkg
+	return nil
+}
+
+func runFiles(args []string) error {
+	var (
+		set = flag.NewFlagSet("show-files", flag.ExitOnError)
+		file = set.String("f", "Packfile", "package file")
+	)
+	set.Usage = func() {
+		fmt.Fprintln(os.Stderr, "show files that will be included into the final package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Options:")
+		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
+		fmt.Fprintln(os.Stderr)
+		os.Exit(2)
+	}
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	if set.NArg() == 0 {
+		return fmt.Errorf("missing context")
+	}
+	pkg, err := packfile.Load(*file, set.Arg(0))
+	if err != nil {
+		return err
+	}
+	for _, r := range pkg.Files {
+		fmt.Fprintln(os.Stdout, r.Path)
+	}
+	return nil
 }
 
 func runBuild(args []string) error {
@@ -73,17 +136,18 @@ func runBuild(args []string) error {
 		dist = set.String("d", "", "directory where package will be written")
 	)
 	set.Usage = func() {
-		fmt.Fprintln(os.Stdout, "build a new package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Aliases:")
-		fmt.Fprintln(os.Stdout, "  packit make")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Options:")
-		fmt.Fprintln(os.Stdout, "  -k  specify type of package to build - rpm or deb")
-		fmt.Fprintln(os.Stdout, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
-		fmt.Fprintln(os.Stdout, "  -d  folder where the final package will be saved")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Usage: packit build [OPTIONS] <CONTEXT>")
+		fmt.Fprintln(os.Stderr, "build a new package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Aliases:")
+		fmt.Fprintln(os.Stderr, "  packit make")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Options:")
+		fmt.Fprintln(os.Stderr, "  -k  specify type of package to build - rpm or deb")
+		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr, "  -d  folder where the final package will be saved")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit build [OPTIONS] <CONTEXT>")
+		os.Exit(2)
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -102,16 +166,17 @@ func runInspect(args []string) error {
 		printDeps = set.Bool("d", false, "print only dependencies of package")
 	)
 	set.Usage = func() {
-		fmt.Fprintln(os.Stdout, "display information of the given package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Aliases:")
-		fmt.Fprintln(os.Stdout, "  packit show, packit info")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Options:")
-		fmt.Fprintln(os.Stdout, "  -d  print only the dependencies of the given package")
-		fmt.Fprintln(os.Stdout, "  -a  print information and dependencies of the given package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Usage: packit inspect <PACKAGE>")
+		fmt.Fprintln(os.Stderr, "display information of the given package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Aliases:")
+		fmt.Fprintln(os.Stderr, "  packit show, packit info")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Options:")
+		fmt.Fprintln(os.Stderr, "  -d  print only the dependencies of the given package")
+		fmt.Fprintln(os.Stderr, "  -a  print information and dependencies of the given package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit inspect <PACKAGE>")
+		os.Exit(2)
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -122,9 +187,10 @@ func runInspect(args []string) error {
 func runContent(args []string) error {
 	set := flag.NewFlagSet("content", flag.ExitOnError)
 	set.Usage = func() {
-		fmt.Fprintln(os.Stdout, "display files and directories of the given package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Usage: packit content <PACKAGE>")
+		fmt.Fprintln(os.Stderr, "display files and directories of the given package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit content <PACKAGE>")
+		os.Exit(2)
 	}
 	if err := set.Parse(args); err != nil {
 		return err
@@ -135,12 +201,13 @@ func runContent(args []string) error {
 func runVerify(args []string) error {
 	set := flag.NewFlagSet("verify", flag.ExitOnError)
 	set.Usage = func() {
-		fmt.Fprintln(os.Stdout, "verify integrity of the given package")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Aliases:")
-		fmt.Fprintln(os.Stdout, "  packit check")
-		fmt.Fprintln(os.Stdout)
-		fmt.Fprintln(os.Stdout, "Usage: packit verify <PACKAGE>")
+		fmt.Fprintln(os.Stderr, "verify integrity of the given package")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Aliases:")
+		fmt.Fprintln(os.Stderr, "  packit check")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Usage: packit verify <PACKAGE>")
+		os.Exit(2)
 	}
 	if err := set.Parse(args); err != nil {
 		return err

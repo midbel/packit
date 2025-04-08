@@ -30,6 +30,7 @@ type Change struct {
 }
 
 type Resource struct {
+	Path string
 	Local    io.ReadCloser
 	Target   string
 	Perm     int64
