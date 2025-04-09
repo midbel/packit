@@ -19,11 +19,16 @@ var (
 
 type Matcher interface {
 	Match(string) error
+	match(io.RuneScanner) error
 }
 
 type all struct{}
 
 func (_ all) Match(_ string) error {
+	return nil
+}
+
+func (_ all) match(_ io.RuneScanner) error {
 	return nil
 }
 
@@ -65,7 +70,7 @@ func Parse(file string) (Matcher, error) {
 			return nil, err
 		}
 		if reverse {
-			mt = Invert(mt)
+			mt = newInvert(mt)
 		}
 		set.patterns = append(set.patterns, mt)
 
@@ -81,6 +86,33 @@ func (m matcherSet) Match(file string) error {
 		}
 	}
 	return ErrIgnore
+}
+
+func (_ matcherSet) match(_ io.RuneScanner) error {
+	return nil
+}
+
+type invert struct {
+	inner Matcher
+}
+
+func newInvert(mt Matcher) Matcher {
+	i := invert{
+		inner: mt,
+	}
+	return i
+}
+
+func (i invert) String() string {
+	return fmt.Sprintf("not(%s)", i.inner)
+}
+
+func (i invert) Match(value string) error {
+	return i.inner.Match(value)
+}
+
+func (_ invert) match(_ io.RuneScanner) error {
+	return nil
 }
 
 type pathMatcher struct {
@@ -148,18 +180,22 @@ func (p pathMatcher) Match(value string) error {
 	return nil
 }
 
+func (_ pathMatcher) match(_ io.RuneScanner) error {
+	return nil
+}
+
 type drainer struct{}
 
 func newDrainer() Matcher {
 	return drainer{}
 }
 
-func (d drainer) Match(value string) error {
-	return d.match(strings.NewReader(value))
-}
-
 func (d drainer) String() string {
 	return "$"
+}
+
+func (d drainer) Match(value string) error {
+	return d.match(strings.NewReader(value))
 }
 
 func (d drainer) match(rs io.RuneScanner) error {
@@ -332,33 +368,6 @@ func (_ any) test(_ rune) bool {
 	return true
 }
 
-type invert struct {
-	inner Matcher
-}
-
-func Invert(mt Matcher) Matcher {
-	return newInvert(mt)
-}
-
-func newInvert(mt Matcher) Matcher {
-	i := invert{
-		inner: mt,
-	}
-	return i
-}
-
-func (i invert) String() string {
-	return fmt.Sprintf("not(%s)", i.inner)
-}
-
-func (i invert) Match(value string) error {
-	return i.inner.Match(value)
-}
-
-func (i invert) match(rs io.RuneScanner) error {
-	return nil
-}
-
 type segment struct {
 	all []Matcher
 }
@@ -391,9 +400,9 @@ func (s segment) Match(value string) error {
 	return s.match(rs)
 }
 
-func (s segment) match(r io.RuneScanner) error {
+func (s segment) match(rs io.RuneScanner) error {
 	for i := range s.all {
-		if err := s.all[i].match(r); err != nil {
+		if err := s.all[i].match(rs); err != nil {
 			return ErrIgnore
 		}
 	}

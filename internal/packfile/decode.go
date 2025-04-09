@@ -478,7 +478,10 @@ func (d *Decoder) openFile(file string) (io.ReadCloser, error) {
 }
 
 func (d *Decoder) decodeFile(pkg *Package) error {
-	var r Resource
+	var (
+		all []Resource
+		res Resource
+	)
 
 	d.errorChecker = func(err error) error {
 		if errors.Is(err, glob.ErrIgnore) {
@@ -498,18 +501,23 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			if err1 != nil {
 				return err1
 			}
-			if err := d.ignore.Match(path); err != nil {
-				return ErrIgnore
+			paths, err := glob.Walk(path, d.context)
+			if err != nil {
+				return err
 			}
-			r.Path = path
-			r.Local, err = d.openFile(path)
+			for i := range paths {
+				r := Resource{
+					Path: paths[i],
+				}
+				all = append(all, r)
+			}
 		case optFileGhost:
 			ok, err := d.decodeBool()
 			if err != nil {
 				return err
 			}
 			if ok {
-				r.Flags |= FileFlagGhost
+				res.Flags |= FileFlagGhost
 			}
 		case optFileDoc:
 			ok, err := d.decodeBool()
@@ -517,7 +525,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 				return err
 			}
 			if ok {
-				r.Flags |= FileFlagDoc
+				res.Flags |= FileFlagDoc
 			}
 		case optFileConf, optFileConfig:
 			ok, err := d.decodeBool()
@@ -525,7 +533,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 				return err
 			}
 			if ok {
-				r.Flags |= FileFlagConf
+				res.Flags |= FileFlagConf
 			}
 		case optFileLicense:
 			ok, err := d.decodeBool()
@@ -533,7 +541,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 				return err
 			}
 			if ok {
-				r.Flags |= FileFlagLicense
+				res.Flags |= FileFlagLicense
 			}
 		case optFileReadme:
 			ok, err := d.decodeBool()
@@ -541,27 +549,41 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 				return err
 			}
 			if ok {
-				r.Flags |= FileFlagReadme
+				res.Flags |= FileFlagReadme
 			}
 		case optFileTarget:
-			r.Target, err = d.decodeString()
+			res.Target, err = d.decodeString()
 			if err == nil {
-				r.Target = strings.ReplaceAll(r.Target, "\\", "/")
+				res.Target = filepath.Clean(res.Target)
+				res.Target = filepath.ToSlash(res.Target)
+				// res.Target = strings.ReplaceAll(res.Target, "\\", "/")
 			}
 		case optFilePerm:
 			perm, err1 := d.decodeString()
 			if err1 != nil {
 				return err1
 			}
-			r.Perm, err = strconv.ParseInt(perm, 0, 64)
+			res.Perm, err = strconv.ParseInt(perm, 0, 64)
 		case optFileCompress:
-			r.Compress, err = d.decodeBool()
+			res.Compress, err = d.decodeBool()
 		default:
 			err = fmt.Errorf("file: %s unsupported option", option)
 		}
 		return err
 	}, false)
-	if err == nil {
+	if err != nil {
+		return err
+	}
+	for _, r := range all {
+		r.Local, err = d.openFile(r.Path)
+		if err != nil {
+			return err
+		}
+		r.Target = res.Target
+		r.Perm = res.Perm
+		r.Compress = res.Compress
+		r.Flags = res.Flags
+
 		file := r.Local.(*os.File)
 		s, err := file.Stat()
 		if err != nil {
@@ -577,7 +599,7 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 		}
 		pkg.Files = append(pkg.Files, r)
 	}
-	return err
+	return nil
 }
 
 func (d *Decoder) decodeCompiler(pkg *Package) error {
