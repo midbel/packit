@@ -101,12 +101,16 @@ func runFiles(args []string) error {
 	var (
 		set  = flag.NewFlagSet("show-files", flag.ExitOnError)
 		file = set.String("f", "Packfile", "package file")
+		ignore = set.String("i", ".pktignore", "file with patterns to use")
+		noignore = set.Bool("no-ignore", false, "don't use any ignore files present in context directory")
 	)
 	set.Usage = func() {
 		fmt.Fprintln(os.Stderr, "show files that will be included into the final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Options:")
-		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr, "  -f           path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr, "  -i           path to a file with path specs that should be ignored when building package")
+		fmt.Fprintln(os.Stderr, "  --no-ignore  tell packit to not ignore any files even if present in a .pktignore file")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
 		fmt.Fprintln(os.Stderr)
