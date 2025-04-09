@@ -2,34 +2,38 @@ package glob
 
 import (
 	"errors"
-	"strings"
 	"io/fs"
+	"iter"
 	"os"
+	"slices"
+	"strings"
 )
 
-func Walk(pattern, root string) ([]string, error) {
+func Walk(pattern, root string) (iter.Seq[string], error) {
 	if !hasSpecial(pattern) {
-		return []string{pattern}, nil
+		return slices.Values([]string{pattern}), nil
 	}
 	pt, err := parseLine(pattern)
 	if err != nil {
 		return nil, err
 	}
-	var list []string
-	fs.WalkDir(os.DirFS(root), ".", func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
+	it := func(yield func(string) bool) {
+
+		fs.WalkDir(os.DirFS(root), ".", func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			err = pt.Match(path)
+			if errors.Is(err, ErrIgnore) {
+				return nil
+			}
+			if !yield(path) {
+				return fs.SkipAll
+			}
 			return err
-		}
-		err = pt.Match(path); 
-		if err == nil {
-			list = append(list, path)
-		}
-		if errors.Is(err, ErrIgnore) {
-			err = nil
-		}
-		return err
-	})
-	return list, nil
+		})
+	}
+	return it, nil
 }
 
 func hasSpecial(str string) bool {

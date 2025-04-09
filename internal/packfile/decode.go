@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -179,6 +180,15 @@ func NewDecoder(r io.Reader, context string) (*Decoder, error) {
 
 	if n, ok := r.(interface{ Name() string }); ok {
 		d.file = n.Name()
+	}
+
+	ignoreFile := filepath.Join(context, ".pkignore")
+	if r, err := os.Open(ignoreFile); err == nil {
+		mt, err := glob.Parse(r)
+		if err != nil {
+			return nil, err
+		}
+		d.ignore = mt
 	}
 
 	licenses, err := template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
@@ -505,9 +515,12 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			if err != nil {
 				return err
 			}
-			for i := range paths {
+			for _, p := range slices.Collect(paths) {
+				if err := d.ignore.Match(p); err != nil {
+					continue
+				}
 				r := Resource{
-					Path: paths[i],
+					Path: p,
 				}
 				all = append(all, r)
 			}
@@ -580,6 +593,9 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			return err
 		}
 		r.Target = res.Target
+		if len(all) > 1 {
+			res.Target = filepath.Join(res.Target, filepath.Base(r.Path))
+		}
 		r.Perm = res.Perm
 		r.Compress = res.Compress
 		r.Flags = res.Flags

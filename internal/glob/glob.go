@@ -40,13 +40,16 @@ type matcherSet struct {
 	patterns []Matcher
 }
 
-func Parse(file string) (Matcher, error) {
+func ParseFile(file string) (Matcher, error) {
 	r, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Close()
+	return Parse(r)	
+}
 
+func Parse(r io.Reader) (Matcher, error) {
 	var (
 		scan = bufio.NewScanner(r)
 		set  matcherSet
