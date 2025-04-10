@@ -99,9 +99,9 @@ func runDependencies(args []string) error {
 
 func runFiles(args []string) error {
 	var (
-		set  = flag.NewFlagSet("show-files", flag.ExitOnError)
-		file = set.String("f", "Packfile", "package file")
-		ignore = set.String("i", ".pktignore", "file with patterns to use")
+		set      = flag.NewFlagSet("show-files", flag.ExitOnError)
+		file     = set.String("f", "Packfile", "package file")
+		ignore   = set.String("i", ".pktignore", "file with patterns to use")
 		noignore = set.Bool("no-ignore", false, "don't use any ignore files present in context directory")
 	)
 	set.Usage = func() {

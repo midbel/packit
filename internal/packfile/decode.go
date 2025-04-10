@@ -156,6 +156,26 @@ func defaultChecker(err error) error {
 	return err
 }
 
+type DecoderConfig struct {
+	NoIgnore   bool
+	DryRun     bool
+	IgnoreFile string
+	Packfile   string
+}
+
+func (d DecoderConfig) getMatcher() (glob.Matcher, error) {
+	if d.NoIgnore {
+		return glob.Default()
+	}
+	r, err := os.Open(d.IgnoreFile)
+	if err != nil && d.IgnoreFile != "" {
+		return nil, err
+	}
+	defer r.Close()
+
+	return glob.Parse(r)
+}
+
 type Decoder struct {
 	context string
 	file    string

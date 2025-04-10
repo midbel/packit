@@ -46,7 +46,7 @@ func ParseFile(file string) (Matcher, error) {
 		return nil, err
 	}
 	defer r.Close()
-	return Parse(r)	
+	return Parse(r)
 }
 
 func Parse(r io.Reader) (Matcher, error) {
