@@ -106,7 +106,11 @@ func Load(file, context string) (*Package, error) {
 	}
 	defer r.Close()
 
-	d, err := NewDecoder(r, context)
+	cfg := DecoderConfig{
+		Packfile: file,
+	}
+
+	d, err := NewDecoder(context, &cfg)
 	if err != nil {
 		return nil, err
 	}

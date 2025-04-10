@@ -94,11 +94,12 @@ type DecoderConfig struct {
 	DryRun     bool
 	IgnoreFile string
 	Packfile   string
+	Type       string
 }
 
 func (d DecoderConfig) getMatcher() (glob.Matcher, error) {
 	if d.NoIgnore {
-		return glob.Default()
+		return glob.Default(), nil
 	}
 	r, err := os.Open(d.IgnoreFile)
 	if err != nil && d.IgnoreFile != "" {
@@ -116,8 +117,6 @@ type Decoder struct {
 	ignore       glob.Matcher
 	errorChecker func(error) error
 
-	macros map[string]func() (string, error)
-
 	scan         *Scanner
 	curr         Token
 	peek         Token
@@ -128,21 +127,18 @@ type Decoder struct {
 	env *Environ
 }
 
-func NewDecoder(r io.Reader, context string) (*Decoder, error) {
+func NewDecoder(context string, config *DecoderConfig) (*Decoder, error) {
+	if context == "" {
+		return nil, fmt.Errorf("context missing")
+	}
+	r, err := os.Open(config.Packfile)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
 	d := createDecoder(r, context, defaultEnv())
-
-	if n, ok := r.(interface{ Name() string }); ok {
-		d.file = n.Name()
-	}
-
-	ignoreFile := filepath.Join(context, ".pkignore")
-	if r, err := os.Open(ignoreFile); err == nil {
-		mt, err := glob.Parse(r)
-		if err != nil {
-			return nil, err
-		}
-		d.ignore = mt
-	}
+	d.file = r.Name()
 
 	licenses, err := template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
 	if err != nil {
@@ -162,7 +158,6 @@ func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 		ignore:       glob.Default(),
 		scan:         Scan(r),
 		env:          Enclosed(env),
-		macros:       make(map[string]func() (string, error)),
 	}
 
 	return &d
@@ -184,10 +179,6 @@ func (d *Decoder) DecodeInto(pkg *Package) error {
 	return d.decode(pkg)
 }
 
-func (d *Decoder) RegisterMacro(macro string, do func() (string, error)) {
-	d.macros[macro] = do
-}
-
 func (d *Decoder) decode(pkg *Package) error {
 	for !d.done() {
 		d.skipComment()
@@ -199,7 +190,6 @@ func (d *Decoder) decode(pkg *Package) error {
 		case d.is(Macro):
 			err = d.decodeMainMacro(pkg)
 		default:
-			fmt.Println(d.file, d.curr, d.peek)
 			err = fmt.Errorf("syntax error: identifier or macro expected")
 		}
 		if err != nil {
@@ -795,9 +785,6 @@ func (d *Decoder) decodeMacro() (string, error) {
 		str   string
 	)
 	d.next()
-	if fn, ok := d.macros[macro]; ok {
-		return fn()
-	}
 	switch macro {
 	case "readfile":
 		err = d.executeReadFile()
@@ -896,6 +883,9 @@ func (d *Decoder) is(kind rune) bool {
 }
 
 func (d *Decoder) skipEOL() {
+	if d.done() {
+		return
+	}
 	for d.isEOL() {
 		d.next()
 		if d.done() {

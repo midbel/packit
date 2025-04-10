@@ -82,6 +82,9 @@ func Parse(r io.Reader) (Matcher, error) {
 }
 
 func (m matcherSet) Match(file string) error {
+	if len(m.patterns) == 0 {
+		return nil
+	}
 	for i := range m.patterns {
 		err := m.patterns[i].Match(file)
 		if err == nil {

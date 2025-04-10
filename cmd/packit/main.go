@@ -31,10 +31,12 @@ func main() {
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "available commands:")
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "  build     create rpm/deb packages (alias: make)")
-		fmt.Fprintln(os.Stderr, "  inspect   display package information (alias: info, show)")
-		fmt.Fprintln(os.Stderr, "  verify    check integrity of a package (alias: check)")
-		fmt.Fprintln(os.Stderr, "  content   list of files in a package")
+		fmt.Fprintln(os.Stderr, "  build               create rpm/deb packages (alias: make)")
+		fmt.Fprintln(os.Stderr, "  inspect             display package information (alias: info, show)")
+		fmt.Fprintln(os.Stderr, "  verify              check integrity of a package (alias: check)")
+		fmt.Fprintln(os.Stderr, "  content             list of files in a package")
+		fmt.Fprintln(os.Stderr, "  show-files          list of files that will be included in package")
+		fmt.Fprintln(os.Stderr, "  show-dependencies   list of dependencies required by package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "usage: packit <command> [<args>]")
 		os.Exit(2)
@@ -77,7 +79,9 @@ func runDependencies(args []string) error {
 		fmt.Fprintln(os.Stderr, "show dependencies required by the final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Options:")
-		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
+		fmt.Fprintln(os.Stderr, "  -f                 Packfile used to build the package")
+		fmt.Fprintln(os.Stderr, "  --no-ignore        keep all files even if present in a .pktignore file")
+		fmt.Fprintln(os.Stderr, "  -i, --ignore-file  file with patterns to be excluded from final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
 		fmt.Fprintln(os.Stderr)
@@ -86,31 +90,24 @@ func runDependencies(args []string) error {
 	if err := set.Parse(args); err != nil {
 		return err
 	}
-	if set.NArg() == 0 {
-		return fmt.Errorf("missing context")
-	}
-	pkg, err := packfile.Load(*file, set.Arg(0))
-	if err != nil {
-		return err
-	}
-	_ = pkg
 	return nil
 }
 
 func runFiles(args []string) error {
 	var (
-		set      = flag.NewFlagSet("show-files", flag.ExitOnError)
-		file     = set.String("f", "Packfile", "package file")
-		ignore   = set.String("i", ".pktignore", "file with patterns to use")
-		noignore = set.Bool("no-ignore", false, "don't use any ignore files present in context directory")
+		set = flag.NewFlagSet("show-files", flag.ExitOnError)
+		cfg packfile.DecoderConfig
 	)
+	set.StringVar(&cfg.Packfile, "f", "Packfile", "package file")
+	set.StringVar(&cfg.IgnoreFile, "i", ".pktignore", "file with patterns to use")
+	set.BoolVar(&cfg.NoIgnore, "no-ignore", false, "don't use any ignore files present in context directory")
 	set.Usage = func() {
 		fmt.Fprintln(os.Stderr, "show files that will be included into the final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Options:")
-		fmt.Fprintln(os.Stderr, "  -f           path to the Packfile used to build the package - default to Packfile in the current working directory")
-		fmt.Fprintln(os.Stderr, "  -i           path to a file with path specs that should be ignored when building package")
-		fmt.Fprintln(os.Stderr, "  --no-ignore  tell packit to not ignore any files even if present in a .pktignore file")
+		fmt.Fprintln(os.Stderr, "  -f                 Packfile used to build the package")
+		fmt.Fprintln(os.Stderr, "  --no-ignore        keep all files even if present in a .pktignore file")
+		fmt.Fprintln(os.Stderr, "  -i, --ignore-file  file with patterns to be excluded from final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
 		fmt.Fprintln(os.Stderr)
@@ -119,10 +116,7 @@ func runFiles(args []string) error {
 	if err := set.Parse(args); err != nil {
 		return err
 	}
-	if set.NArg() == 0 {
-		return fmt.Errorf("missing context")
-	}
-	pkg, err := packfile.Load(*file, set.Arg(0))
+	pkg, err := decodePackage(set.Arg(0), &cfg)
 	if err != nil {
 		return err
 	}
@@ -146,9 +140,10 @@ func runBuild(args []string) error {
 		fmt.Fprintln(os.Stderr, "  packit make")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Options:")
-		fmt.Fprintln(os.Stderr, "  -k  specify type of package to build - rpm or deb")
-		fmt.Fprintln(os.Stderr, "  -f  path to the Packfile used to build the package - default to Packfile in the current working directory")
-		fmt.Fprintln(os.Stderr, "  -d  folder where the final package will be saved")
+		fmt.Fprintln(os.Stderr, "  -k                 type of package to build (rpm or deb)")
+		fmt.Fprintln(os.Stderr, "  -f                 the Packfile used to build the package")
+		fmt.Fprintln(os.Stderr, "  -d                 folder where the final package will be saved")
+		fmt.Fprintln(os.Stderr, "  -i, --ignore-file  file with patterns to be excluded from final package")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage: packit build [OPTIONS] <CONTEXT>")
 		os.Exit(2)
@@ -222,4 +217,15 @@ func runVerify(args []string) error {
 		fmt.Fprintln(os.Stdout)
 	}
 	return err
+}
+
+func decodePackage(context string, config *packfile.DecoderConfig) (*packfile.Package, error) {
+	if context == "" {
+		return nil, fmt.Errorf("no context given")
+	}
+	d, err := packfile.NewDecoder(context, config)
+	if err != nil {
+		return nil, err
+	}
+	return d.Decode()
 }

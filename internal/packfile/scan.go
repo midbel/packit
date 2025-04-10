@@ -408,7 +408,7 @@ func (s *Scanner) peek() rune {
 }
 
 func (s *Scanner) done() bool {
-	return s.char == utf8.RuneError
+	return s.char == utf8.RuneError || s.char == 0
 }
 
 func (s *Scanner) skip(ok func(rune) bool) {

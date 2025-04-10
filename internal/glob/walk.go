@@ -18,7 +18,6 @@ func Walk(pattern, root string) (iter.Seq[string], error) {
 		return nil, err
 	}
 	it := func(yield func(string) bool) {
-
 		fs.WalkDir(os.DirFS(root), ".", func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				return err
