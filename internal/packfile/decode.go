@@ -90,11 +90,14 @@ func defaultChecker(err error) error {
 }
 
 type DecoderConfig struct {
-	NoIgnore   bool
-	DryRun     bool
-	IgnoreFile string
-	Packfile   string
-	Type       string
+	NoIgnore    bool
+	DryRun      bool
+	IgnoreFile  string
+	Packfile    string
+	Type        string
+	LicensesDir string
+
+	EnvFile string
 }
 
 func (d DecoderConfig) getMatcher() (glob.Matcher, error) {
@@ -772,6 +775,8 @@ func (d *Decoder) decodeMainMacro(pkg *Package) error {
 		err = d.executeLet()
 	case "env":
 		err = d.executeEnv()
+	case "echo":
+		err = d.executeEcho()
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
@@ -822,6 +827,20 @@ func (d *Decoder) executeLet() error {
 		err = d.env.Define(ident, value)
 	}
 	return err
+}
+
+func (d *Decoder) executeEcho() error {
+	var parts []string
+	for !d.isEOL() && !d.done() {
+		parts = append(parts, d.getCurrentLiteral())
+		d.next()
+	}
+	fmt.Fprintln(os.Stdout, strings.Join(parts, " "))
+	if !d.isEOL() {
+		return fmt.Errorf("missing eol after echo")
+	}
+	d.skipEOL()
+	return nil
 }
 
 func (d *Decoder) executeExec() error {

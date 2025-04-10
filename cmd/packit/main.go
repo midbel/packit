@@ -72,9 +72,10 @@ func main() {
 
 func runDependencies(args []string) error {
 	var (
-		set  = flag.NewFlagSet("show-dependencies", flag.ExitOnError)
-		file = set.String("f", "Packfile", "package file")
+		set = flag.NewFlagSet("show-dependencies", flag.ExitOnError)
+		cfg packfile.DecoderConfig
 	)
+	set.StringVar(&cfg.Packfile, "f", "Packfile", "package file")
 	set.Usage = func() {
 		fmt.Fprintln(os.Stderr, "show dependencies required by the final package")
 		fmt.Fprintln(os.Stderr)
@@ -83,11 +84,15 @@ func runDependencies(args []string) error {
 		fmt.Fprintln(os.Stderr, "  --no-ignore        keep all files even if present in a .pktignore file")
 		fmt.Fprintln(os.Stderr, "  -i, --ignore-file  file with patterns to be excluded from final package")
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, "Usage: packit show-files [OPTIONS] <CONTEXT>")
+		fmt.Fprintln(os.Stderr, "Usage: packit show-dependencies [OPTIONS] <CONTEXT>")
 		fmt.Fprintln(os.Stderr)
 		os.Exit(2)
 	}
 	if err := set.Parse(args); err != nil {
+		return err
+	}
+	_, err := decodePackage(set.Arg(0), &cfg)
+	if err != nil {
 		return err
 	}
 	return nil
