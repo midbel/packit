@@ -95,7 +95,7 @@ type DecoderConfig struct {
 	IgnoreFile  string
 	Packfile    string
 	Type        string
-	LicensesDir string
+	Licenses string
 
 	EnvFile string
 }
@@ -142,12 +142,19 @@ func NewDecoder(context string, config *DecoderConfig) (*Decoder, error) {
 
 	d := createDecoder(r, context, defaultEnv())
 	d.file = r.Name()
-
-	licenses, err := template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
+	d.ignore, err = config.getMatcher()
 	if err != nil {
 		return nil, err
 	}
-	d.licenses = licenses
+
+	if config.Licenses != "" {
+		d.licenses, err = template.New("license").ParseGlob(config.Licenses)
+	} else {
+		d.licenses, err = template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
+	}
+	if err != nil {
+		return nil, err
+	}
 	d.next()
 	d.next()
 
@@ -515,7 +522,6 @@ func (d *Decoder) decodeFile(pkg *Package) error {
 			if err == nil {
 				res.Target = filepath.Clean(res.Target)
 				res.Target = filepath.ToSlash(res.Target)
-				// res.Target = strings.ReplaceAll(res.Target, "\\", "/")
 			}
 		case optFilePerm:
 			perm, err1 := d.decodeString()

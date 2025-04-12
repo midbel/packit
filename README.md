@@ -77,6 +77,16 @@ dist/pack-0.1.0.rpm: package is valid
 
 ## Packfile
 
+### Package information
+
+### Files
+
+#### Special case: License
+
+### Change
+
+### Dependency
+
 ## Next steps
 
 * ignore file
