@@ -77,6 +77,21 @@ dist/pack-0.1.0.rpm: package is valid
 
 ## Packfile
 
+### What is a Packfile
+
+A Packfile is the primary configuration file that contains all the essential information required to build a software package.
+
+The format draws inspiration from both the Nginx configuration syntax and the Universal Configuration Language (UCL), making it both human-readable and flexible.
+
+A typical Packfile is organized into the following sections - some are optional, some have to be present:
+
+1. Basic information about the package, such as its name, version, and maintainer
+2. A list of files and directories that should be included in the final package
+3. A declaration of other packages or libraries required for this package to run
+4. Changelog entries that describe changes across different versions of the package
+
+### Packfile basics
+
 ### Package information
 
 ### Files
@@ -89,8 +104,6 @@ dist/pack-0.1.0.rpm: package is valid
 
 ## Next steps
 
-* ignore file
-* pattern in path for file section
 * include files from directory specify in path section
 * automatic dependencies resolution by inspecting ELF binaries
 * automatically stripping the binary
