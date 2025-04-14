@@ -90,12 +90,12 @@ func defaultChecker(err error) error {
 }
 
 type DecoderConfig struct {
-	NoIgnore    bool
-	DryRun      bool
-	IgnoreFile  string
-	Packfile    string
-	Type        string
-	Licenses string
+	NoIgnore   bool
+	DryRun     bool
+	IgnoreFile string
+	Packfile   string
+	Type       string
+	Licenses   string
 
 	EnvFile string
 }
@@ -147,10 +147,10 @@ func NewDecoder(context string, config *DecoderConfig) (*Decoder, error) {
 		return nil, err
 	}
 
-	if config.Licenses != "" {
-		d.licenses, err = template.New("license").ParseGlob(config.Licenses)
+	if tpl := template.New("license"); config.Licenses != "" {
+		d.licenses, err = tpl.ParseGlob(config.Licenses)
 	} else {
-		d.licenses, err = template.New("license").ParseFS(licenseFiles, "licenses/*.tpl")
+		d.licenses, err = tpl.ParseFS(licenseFiles, "licenses/*.tpl")
 	}
 	if err != nil {
 		return nil, err
