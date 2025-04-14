@@ -224,7 +224,21 @@ func (s *Scanner) scanHex(tok *Token) {
 	s.read()
 	s.write()
 	s.read()
-	for !s.done() && isHexa(s.char) {
+
+	accept := func() bool {
+		return s.char == '_' || isHexa(s.char)
+	}
+
+	for !s.done() && accept() {
+		if s.char == '_' {
+			s.read()
+			if !isHexa(s.char) {
+				tok.Literal = s.literal()
+				tok.Type = Invalid
+				return
+			}
+			continue
+		}
 		s.write()
 		s.read()
 	}
@@ -237,7 +251,21 @@ func (s *Scanner) scanOctal(tok *Token) {
 	s.read()
 	s.write()
 	s.read()
-	for !s.done() && isOctal(s.char) {
+
+	accept := func() bool {
+		return s.char == '_' || isOctal(s.char)
+	}
+
+	for !s.done() && accept() {
+		if s.char == '_' {
+			s.read()
+			if !isOctal(s.char) {
+				tok.Literal = s.literal()
+				tok.Type = Invalid
+				return
+			}
+			continue
+		}
 		s.write()
 		s.read()
 	}
@@ -261,7 +289,20 @@ func (s *Scanner) scanNumber(tok *Token) {
 			return
 		}
 	}
-	for !s.done() && isDigit(s.char) {
+	accept := func() bool {
+		return s.char == '_' || isDigit(s.char)
+	}
+
+	for !s.done() && accept() {
+		if s.char == '_' {
+			s.read()
+			if !isDigit(s.char) {
+				tok.Literal = s.literal()
+				tok.Type = Invalid
+				return
+			}
+			continue
+		}
 		s.write()
 		s.read()
 	}
@@ -271,8 +312,22 @@ func (s *Scanner) scanNumber(tok *Token) {
 		return
 	}
 	s.write()
+	if s.char == '_' {
+		tok.Literal = s.literal()
+		tok.Type = Invalid
+		return
+	}
 	s.read()
-	for !s.done() && isDigit(s.char) {
+	for !s.done() && accept() {
+		if s.char == '_' {
+			s.read()
+			if !isDigit(s.char) {
+				tok.Literal = s.literal()
+				tok.Type = Invalid
+				return
+			}
+			continue
+		}
 		s.write()
 		s.read()
 	}
