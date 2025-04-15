@@ -129,7 +129,7 @@ func (s *Scanner) Scan() Token {
 	}
 	s.skipBlank()
 	switch {
-	case isDigit(s.char):
+	case isDigit(s.char) || (isSign(s.char) && isDigit(s.peek())):
 		s.scanNumber(&tok)
 	case isQuote(s.char):
 		s.scanQuote(&tok)
@@ -274,6 +274,11 @@ func (s *Scanner) scanOctal(tok *Token) {
 }
 
 func (s *Scanner) scanNumber(tok *Token) {
+	var signed bool
+	if signed = isSign(s.char); signed {
+		s.write()
+		s.read()
+	}
 	if s.char == '0' {
 		var next func(*Token)
 		if k := s.peek(); k == 'x' {
@@ -285,6 +290,10 @@ func (s *Scanner) scanNumber(tok *Token) {
 			return
 		}
 		if next != nil {
+			if signed {
+				tok.Type = Invalid
+				return
+			}
 			next(tok)
 			return
 		}
@@ -543,6 +552,10 @@ func isLower(r rune) bool {
 
 func isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
+}
+
+func isSign(r rune) bool {
+	return r == '-' || r == '+'
 }
 
 func isOctal(r rune) bool {
