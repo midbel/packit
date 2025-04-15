@@ -92,6 +92,82 @@ A typical Packfile is organized into the following sections - some are optional,
 
 ### Packfile basics
 
+#### Comments
+
+Comment are written by using two consecutive slash characters. Comments can be used at the beginning of the line or after a value.
+
+```
+// this is a comment
+
+option value // another comment
+```
+
+#### Option
+
+the primary building block of a Packfile is the key/value pair only separated by one or multiple blank characters which together form the option and its value. It is invalid to have an option without at least one value.
+
+```
+key value 
+``` 
+
+In some cases, option in a Packfile can have multiple values. This can be written as the name of the option and multiple values after delimited  by one or multiple whitespace characters
+
+```
+option value1 valueN
+```
+
+or by using the same option key multiple times
+
+```
+option value1
+option valueN
+```
+
+An option (the key/value pair) ends with the EOL (`\n` or `\r\n`) character or a comment.
+
+#### Macros
+
+There are two type of macros supported by Packfile. The first type is used for static operations such as defining variables, including external files. The second type enables assignment to value(s) for example by invoking external process or reading from file, etc.
+
+Both macro types follow a syntax similar to option declarations: the macro name is prefixed with a dot (`.`), followed by its argument list.
+
+```
+.macro_name <arg1> ... <argN>
+```
+
+##### .include
+##### .let
+##### .env
+##### .echo
+##### .readfile
+##### .exec
+
+#### Variables
+
+Packfile can use two kind of variables:
+
+1. local variables
+2. environment variables
+
+#### Values and their type
+
+In a Packfile, value may be represented in multiple forms determined by its data type. The Packfile supports four primitive value types:
+
+1. Literal: unquoted, raw token interpreted verbatim
+2. String: sequence of characters enclosed in single or double quotes
+3. Numeric: integer and floating-point representations
+4. Boolean: true/false, on/off
+
+The format supports also explicity an object type similar to object in JSON. The supports for an array type is implicit by using an option multiple times and/or using multiple values when defining it.
+
+##### Literal
+##### String
+##### Multiline string
+##### Template string
+##### Number
+##### Boolean
+##### Object
+
 ### Package information
 
 ### Files
