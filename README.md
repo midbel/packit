@@ -162,10 +162,52 @@ The format supports also explicity an object type similar to object in JSON. The
 
 ##### Literal
 ##### String
+
+Strings must be enclosed in either double quotes (`"`) or single quotes (`'`). Escape sequences are not supported; the content between the delimiters must consist solely of valid UTF-8 characters.
+
+```
+doube "this is a string surrounded by double 'quote'! single quote can be used inside"
+single 'this is a string surrounded by single "quote"! double quote can be used inside' 
+``` 
+
 ##### Multiline string
+
+When a string exceeds a single line, Packfile supports multi-line string definitions using a syntax similar to heredoc. This allows strings to span multiple lines without requiring explicit line continuation characters. 
+
+All content between the heredoc opening delimiter and the designated end marker is read and preserved exactly as written. The decoder processes this content literally, without applying any escape mechanisms or transformations.
+
+```
+multiline <<EOF
+the quick brown fox
+jumps over
+the lazy dog
+EOF
+```
+
 ##### Template string
+
 ##### Number
+
+Numeric values in Packfile may be represented as either whole integers or floating-point numbers. Scientific notation (e.g., 1e6) is not supported. For integer values, alternative bases are supported via standard prefixes: binary (`0b`), octal (`0o`), and hexadecimal (`0x`).
+
+```
+integer 42
+float   0.42
+hex     0xdeadcafe
+binary  0b010
+```
+
+To improve readability, underscores (`_`) may be inserted between digits in both integer and floating-point literals. However, underscores are not permitted at the start or end of the number, nor at the beginning or end of the integral or fractional part in floating-point representations.
+
+```
+integer 1_042
+float   1_042.1_1
+```
+
 ##### Boolean
+
+
+
 ##### Object
 
 ### Package information
