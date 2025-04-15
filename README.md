@@ -186,6 +186,19 @@ EOF
 
 ##### Template string
 
+Template strings are string literals enclosed in backticks (`` ` ``) that support variable substitution. They enable dynamic content generation by allowing the inclusion of variable references directly within the string.
+
+Within a template string, both local variables and environment variables can be referenced and expanded during evaluation.
+
+```
+.let docdir /usr/share/docs/foobar
+
+file {
+	source data/Packfile
+	target `$docdir/Packfile.sample`
+}
+```
+
 ##### Number
 
 Numeric values in Packfile may be represented as either whole integers or floating-point numbers. Scientific notation (e.g., 1e6) is not supported. For integer values, alternative bases are supported via standard prefixes: binary (`0b`), octal (`0o`), and hexadecimal (`0x`).
