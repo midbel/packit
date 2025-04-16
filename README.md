@@ -94,12 +94,12 @@ A typical Packfile is organized into the following sections - some are optional,
 
 #### Comments
 
-Comment are written by using two consecutive slash characters. Comments can be used at the beginning of the line or after a value.
+Comment are written with a pound character (`#`). Comments can be used at the beginning of the line or after a value.
 
 ```
-// this is a comment
+# this is a comment
 
-option value // another comment
+option value # another comment
 ```
 
 #### Option
@@ -219,6 +219,7 @@ float   1_042.1_1
 
 ##### Boolean
 
+Boolean type is the usual boolean as we all knows. The type has two possible values: `true` or `false`. But the Packfile provides also, two synonyms: `on` and `off`.
 
 
 ##### Object
@@ -235,7 +236,6 @@ float   1_042.1_1
 
 ## Next steps
 
-* include files from directory specify in path section
 * automatic dependencies resolution by inspecting ELF binaries
 * automatically stripping the binary
 * support for `APK` packages
