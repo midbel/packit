@@ -136,6 +136,26 @@ Both macro types follow a syntax similar to option declarations: the macro name 
 ```
 
 ##### .include
+
+The .include macro allows you to insert the contents of an external file directly into the current file at the point where the macro is used. This provides a way to modularize and organize large configuration files by separating stable or reusable definitions from frequently modified content.
+
+Typical use cases include:
+
+* Splitting configuration across multiple files for readability.
+* Reusing common or version-controlled configuration blocks.
+* Keeping user-specific overrides separate from shared defaults.
+
+The usage of the macro is:
+
+* The macro must appear at the beginning of a line (preceded only by optional whitespace).
+* It accepts exactly one argument: a path to a single file.
+* The specified path is interpreted relative to the context directory provided via the packit command-line interface.
+
+Behavior:
+
+* The included file is parsed and evaluated as if its content appeared inline in place of the `.include`
+* Variables declared in the including file (i.e., the file that uses the macro) are accessible from within the included file.
+
 ##### .let
 ##### .env
 ##### .echo
