@@ -137,7 +137,7 @@ Both macro types follow a syntax similar to option declarations: the macro name 
 
 ##### .include
 
-The .include macro allows you to insert the contents of an external file directly into the current file at the point where the macro is used. This provides a way to modularize and organize large configuration files by separating stable or reusable definitions from frequently modified content.
+The `.include` macro allows you to insert the contents of an external file directly into the current file at the point where the macro is used. This provides a way to modularize and organize large configuration files by separating stable or reusable definitions from frequently modified content.
 
 Typical use cases include:
 
@@ -160,7 +160,12 @@ Behavior:
 ##### .env
 ##### .echo
 ##### .readfile
+
+The `.readfile` macro read the entire content of the specified file and returns its content as a string.
+
 ##### .exec
+
+The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string.
 
 #### Variables
 
