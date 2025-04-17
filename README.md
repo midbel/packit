@@ -157,7 +157,31 @@ Behavior:
 * Variables declared in the including file (i.e., the file that uses the macro) are accessible from within the included file.
 
 ##### .let
+
+The `.let` macro defines a new variable within the current Packfile's scope. Once defined, value of variable can be retrieved from its identifier with the syntax `$ident`
+
+Usage:
+
+* the macro must only appear at the beginning of a line (preceded) only by optional whitespace
+* it takes exactly two arguments:
+  1. the identifier of the variable and the second 
+  2. its value which may be of any supported "primitive" type
+
+Limitations:
+
+* variables defines with the `.let` macro are immutable. Once defined, their values can not be reassigned or modified
+
 ##### .env
+
+The `.env` macro similarly to the `.let` macro, but instead of defining a local variable scoped to the current Packfile, it declares an environment variable. Environment variables defined using .env are propagated to any subprocesses or commands executed during evaluation.
+
+Usage:
+
+* the macro must only appear at the beginning of a line (preceded) only by optional whitespace
+* it takes exactly two arguments:
+  1. the identifier of the variable and the second 
+  2. its value which may be of any supported "primitive" type
+
 ##### .echo
 ##### .readfile
 
@@ -174,6 +198,8 @@ Usage:
 ##### .exec
 
 The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string.
+
+Usage:
 
 * The macro can only be used where a value is expected. 
 * It can not be used as standalone as the `.include macro`

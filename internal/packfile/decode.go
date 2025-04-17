@@ -85,6 +85,8 @@ const (
 
 var errSkip = errors.New("skip")
 
+const maxIncluded = 255
+
 func defaultChecker(err error) error {
 	return err
 }
@@ -116,6 +118,8 @@ func (d DecoderConfig) getMatcher() (glob.Matcher, error) {
 type Decoder struct {
 	context string
 	file    string
+	nested  int
+	parent  *Decoder
 
 	ignore       glob.Matcher
 	errorChecker func(error) error
@@ -888,11 +892,33 @@ func (d *Decoder) executeInclude(pkg *Package) error {
 	defer r.Close()
 
 	sub := createDecoder(r, d.context, d.env)
+	sub.nested = d.nested+1
+	sub.parent = d
+	if sub.nested > maxIncluded {
+		return fmt.Errorf("too many level of included files")
+	}
+	if sub.isIncluded() {
+		return fmt.Errorf("file already included")
+	}
 	sub.file = r.Name()
 	sub.licenses = d.licenses
 	sub.next()
 	sub.next()
 	return sub.DecodeInto(pkg)
+}
+
+func (d *Decoder) isIncluded() bool {
+	curr := d.parent
+	for {
+		if curr == nil {
+			break
+		}
+		if curr.file == d.file {
+			return true
+		}
+		curr = curr.parent
+	}
+	return false
 }
 
 func (d *Decoder) getCurrentLiteral() string {
