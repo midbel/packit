@@ -183,6 +183,9 @@ Usage:
   2. its value which may be of any supported "primitive" type
 
 ##### .echo
+
+
+
 ##### .readfile
 
 The `.readfile` macro read the entire content of the specified file and returns its content as a string.
@@ -224,6 +227,9 @@ In a Packfile, value may be represented in multiple forms determined by its data
 The format supports also explicity an object type similar to object in JSON. The supports for an array type is implicit by using an option multiple times and/or using multiple values when defining it.
 
 ##### Literal
+
+
+
 ##### String
 
 Strings must be enclosed in either double quotes (`"`) or single quotes (`'`). Escape sequences are not supported; the content between the delimiters must consist solely of valid UTF-8 characters.

@@ -892,7 +892,7 @@ func (d *Decoder) executeInclude(pkg *Package) error {
 	defer r.Close()
 
 	sub := createDecoder(r, d.context, d.env)
-	sub.nested = d.nested+1
+	sub.nested = d.nested + 1
 	sub.parent = d
 	if sub.nested > maxIncluded {
 		return fmt.Errorf("too many level of included files")

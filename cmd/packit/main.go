@@ -23,6 +23,7 @@ var commands = map[string]func([]string) error{
 	"content":           runContent,
 	"show-files":        runFiles,
 	"show-dependencies": runDependencies,
+	"convert":           runConvert,
 }
 
 func main() {
@@ -68,6 +69,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func runConvert(args []string) error {
+	var (
+		set = flag.NewFlagSet("convert", flag.ExitOnError)
+	)
+	if err := set.Parse(args); err != nil {
+		return err
+	}
+	return nil
 }
 
 func runDependencies(args []string) error {
