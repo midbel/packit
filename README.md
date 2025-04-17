@@ -145,11 +145,11 @@ Typical use cases include:
 * Reusing common or version-controlled configuration blocks.
 * Keeping user-specific overrides separate from shared defaults.
 
-The usage of the macro is:
+Usage:
 
 * The macro must appear at the beginning of a line (preceded only by optional whitespace).
 * It accepts exactly one argument: a path to a single file.
-* The specified path is interpreted relative to the context directory provided via the packit command-line interface.
+* The specified path is interpreted relative to the context directory provided on the command line.
 
 Behavior:
 
@@ -163,9 +163,21 @@ Behavior:
 
 The `.readfile` macro read the entire content of the specified file and returns its content as a string.
 
+Usage:
+
+* The macro can only be used where a value is expected. 
+* It can not be used as standalone as the `.include macro`
+* The macro accepts exaclty one argument: the path to the file to be read
+* The specified path is interpreted relative to the context directory provided on the command line.
+
+
 ##### .exec
 
 The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string.
+
+* The macro can only be used where a value is expected. 
+* It can not be used as standalone as the `.include macro`
+* The macro accepts exaclty one argument: the command to execute
 
 #### Variables
 
