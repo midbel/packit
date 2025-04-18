@@ -119,6 +119,7 @@ type Decoder struct {
 	context string
 	file    string
 	nested  int
+	macros  *Environ
 	parent  *Decoder
 
 	ignore       glob.Matcher
@@ -172,6 +173,7 @@ func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 		ignore:       glob.Default(),
 		scan:         Scan(r),
 		env:          Enclosed(env),
+		macros: Empty(),
 	}
 
 	return &d
@@ -785,6 +787,8 @@ func (d *Decoder) decodeMainMacro(pkg *Package) error {
 		err = d.executeEnv()
 	case "echo":
 		err = d.executeEcho()
+	case "macro":
+		err = d.executeMacro()
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
@@ -796,6 +800,15 @@ func (d *Decoder) decodeMacro() (string, error) {
 		macro = d.getCurrentLiteral()
 		err   error
 	)
+
+	if cmd, err := d.macros.Resolve(macro); err == nil {
+		cmd, ok := cmd.(string)
+		if !ok {
+			fmt.Sprintf("%v", cmd)
+		}
+		err := d.executeCommand(cmd)
+		return d.getCurrentLiteral(), err
+	}
 	d.next()
 	switch macro {
 	case "readfile":
@@ -806,6 +819,20 @@ func (d *Decoder) decodeMacro() (string, error) {
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
 	return d.getCurrentLiteral(), err
+}
+
+func (d *Decoder) executeMacro() error {
+	if !d.is(Literal) {
+		return fmt.Errorf("macro name should be valid identifier")
+	}
+	ident := d.getCurrentLiteral()
+	d.next()
+
+	value, err := d.decodeString()
+	if err == nil {
+		return d.macros.Define(ident, value)
+	}
+	return err
 }
 
 func (d *Decoder) executeEnv() error {
@@ -851,9 +878,13 @@ func (d *Decoder) executeEcho() error {
 }
 
 func (d *Decoder) executeExec() error {
+	return d.executeCommand(d.getCurrentLiteral())
+}
+
+func (d *Decoder) executeCommand(command string) error {
 	args := []string{
 		"-c",
-		d.getCurrentLiteral(),
+		command,
 	}
 	cmd := exec.Command(DefaultShell, args...)
 	buf, err := cmd.Output()
@@ -865,6 +896,7 @@ func (d *Decoder) executeExec() error {
 	d.curr.Type = String
 	return nil
 }
+
 
 func (d *Decoder) executeReadFile() error {
 	buf, err := os.ReadFile(d.getCurrentLiteral())

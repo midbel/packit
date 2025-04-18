@@ -1,7 +1,10 @@
 .let package packit
+.macro pkgversion "git tag | tail -n 1 | cut -c 2-"
+.macro username "git config --get user.name"
+.macro goversion "go version | grep -oP '[0-9]\.[0-9]+\.[0-9]'"
 
 package $package
-version .exec "git tag | tail -n 1 | cut -c 2-"
+version .pkgversion
 arch    $archall
 
 file {
@@ -16,7 +19,7 @@ depends {
 }
 
 maintainer {
-	name .exec "git config --get user.name"
+	name .username
 }
 
 license mit

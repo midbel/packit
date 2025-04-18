@@ -156,6 +156,17 @@ Behavior:
 * The included file is parsed and evaluated as if its content appeared inline in place of the `.include`
 * Variables declared in the including file (i.e., the file that uses the macro) are accessible from within the included file.
 
+##### .macro
+
+The .macro directive allows you to define custom macros, serving as reusable shortcuts that can substitute calls to the .exec macro along with their arguments.
+
+Usage:
+
+* the macro must only appear at the beginning of a line (preceded) only by optional whitespace
+* it takes exactly two arguments:
+  1. the identifier of the customed macro that can be used later in the Packfile 
+  2. the command string that will be executed when calling the customed macro
+
 ##### .let
 
 The `.let` macro defines a new variable within the current Packfile's scope. Once defined, value of variable can be retrieved from its identifier with the syntax `$ident`
