@@ -436,9 +436,9 @@ The Depends options are used to declare package dependencies—other packages th
 Multiple Depends entries can be defined to specify a list of required packages.
 
 * **package**: The name of the required package.
-* **type**: The type of dependency (e.g., require, suggests, recommands). This helps distinguish between dependencies needed for building the package versus running it.
+* **type**: The type of dependency (e.g., require, suggests, recommands, conflicts). This helps distinguish between dependencies needed for building the package versus running it.
 * **arch**: Architecture-specific constraint for the dependency (e.g., x86_64, arm64). Useful when a dependency is only needed on certain platforms.
-* **version**: A version requirement or constraint for the dependency (e.g., >=1.2.0, =2.0.1). This defines the acceptable version range for the dependency to be considered valid.
+* **version**: A version requirement or constraint for the dependency. This defines the acceptable version range for the dependency to be considered valid. Contraints are given via `eq`, `lt`, `le`, `gt`, `ge`, `ne`
 
 ## Next steps
 
