@@ -234,6 +234,22 @@ Environment variables are identified by an at sign (`@`) followed by an identifi
 version .exec `curl -u @USER:@PASS https://@HOSTNAME:8080/version`
 ```
 
+##### Predefined Variables
+
+The Packfile defines a set of built-in variables that are always available. These variables include:
+
+* arch64: amd64
+* arch32: i386
+* noarch: noarch
+* archall: all
+* etcdir: etc
+* vardir: var
+* logdir: var/log
+* optdir: opt
+* bindir: bin
+* usrbindir: usr/bin
+* docdir: usr/share/doc
+
 #### Values and their type
 
 In a Packfile, value may be represented in multiple forms determined by its data type. The Packfile supports four primitive value types:
