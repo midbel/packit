@@ -247,7 +247,7 @@ The format supports also explicity an object type similar to object in JSON. The
 
 ##### Literal
 
-
+A Literal value is primarily a raw token composed of any combination of characters—letters, digits, punctuation—delimited by whitespace. The most common use case for literals is as option keys.
 
 ##### String
 
@@ -311,11 +311,82 @@ Boolean type is the usual boolean as we all knows. The type has two possible val
 
 ##### Object
 
+The object type ressembles a JSON object, enclosed in `{` and `}` sign. Within the object, the Packfile specific key/value pair is used as described above. For certains cases of object - see below - keys may appear multiple times.
+
 ### Package information
+
+At the top level of the file — outside of any object — options define general metadata and configuration for the package to be built by `packit`. These options influence how the package is described and how it behaves during installation, removal, or other package lifecycle stages.
+
+Below is a list of supported top-level options:
+
+* **package/name**: the name of the package.
+* **version**: the version string of the package.
+* **release** (rpm only): the release number of the package build.
+* **summary**: a short one-line summary describing the package.
+* **description/desc**: A longer, more detailed description of the package.
+* **distrib**: The target distribution for the package.
+* **vendor**: The name of the package vendor or author.
+* **section/group**: The software section or category under which the package should be listed.
+* **priority**: Indicates the priority or importance of the package (e.g., optional, required).
+* **home/url**: The homepage or project URL associated with the package.
+* **type** (deb only): The DEB package type (e.g., deb, udeb).
+* **os**: Target operating system.
+* **arch/architecture**: Target architecture(s) for the package (e.g., x86_64, arm64).
+* **compiler**: name and/or version of the compiler/tool used to build the binary included in the package
+* **maintainer**: Maintainer's name and/or email.
+* **pre-install**: Script or command to run before installation.
+* **post-install**: Script or command to run after installation.
+* **pre-remove**: Script or command to run before removal.
+* **post-remove**: Script or command to run after removal.
+* **check-package** (rpm only): A command or flag used to validate the package after it has been built.
+* **setup**: Custom setup script to be executed prior to build the package itself
+* **teardown**: Custom teardown script to be executed during cleanup or after package have been build.
+
+Depending on the type of package being built (RPM or DEB), certain options may be required, optional, or ignored. packit does not enforce the use of all available options, allowing flexibility based on the packaging format and specific needs.
+
+#### Note on compiler option
+
+The `compiler` option can be specified in two different forms as illustred below.
+
+The object syntax can be used:
+
+```
+compiler {
+  name    go
+  version 1.24.1
+}
+```
+
+But the key/value pair can also be used.
+
+```
+compiler go 1.24.1
+```
+
+#### Note on maintainer option
+
+The `maintainer` option can be specified in two different forms as illustrated.
+
+The object syntax can be used:
+
+```
+maintainer {
+  name    foobar
+  email   noreply@foobar.org
+}
+```
+
+But the key/value pair can also be used.
+
+```
+maintainer foobar noreply@foobar.org
+```
 
 ### Files
 
 #### Special case: License
+
+### Scripts
 
 ### Change
 

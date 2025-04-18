@@ -609,7 +609,6 @@ func (d *Decoder) decodeCompilerFromObject(pkg *Package) error {
 		}
 		return err
 	}, false)
-	return nil
 }
 
 func (d *Decoder) decodeOption(pkg *Package) error {
