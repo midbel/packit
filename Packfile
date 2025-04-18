@@ -29,4 +29,4 @@ Packit is a versatile packaging tool that simplifies the creation of DEB and RPM
 Ideal for developers and maintainers, it streamlines packaging without complex build scripts.
 DESC
 
-compiler go .exec "go version | grep -oP '[0-9]\.[0-9]+\.[0-9]'"
+compiler go @GOLANG_VERSION
