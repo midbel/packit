@@ -1,15 +1,19 @@
-package packit
+.let package packit
+
+package $package
+version .exec "git tag | tail -n 1"
 version '0.1.0'
 arch    amd64
 
 file {
-	source bin/packit
-	target usr/bin/packit
+	source `bin/$package`
+	target `usr/bin/$package`
 	perm 0o755
 }
 
 depends {
 	package libc6
+	type    depends
 }
 
 maintainer {
@@ -26,4 +30,5 @@ Packit is a versatile packaging tool that simplifies the creation of DEB and RPM
 Ideal for developers and maintainers, it streamlines packaging without complex build scripts.
 DESC
 
-compiler go "1.24.0"
+# compiler go .exec "go version | grep -oP '[0-9]\.[0-9]+\.[0-9]'"
+compiler go '1.24.1'

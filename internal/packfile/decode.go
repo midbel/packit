@@ -702,6 +702,9 @@ func (d *Decoder) decodeString() (string, error) {
 		d.next()
 	case d.is(Macro):
 		str, err = d.decodeMacro()
+		if err == nil {
+			d.next()
+		}
 	default:
 		err = fmt.Errorf("value can not be used as a string")
 	}
@@ -796,7 +799,6 @@ func (d *Decoder) decodeMacro() (string, error) {
 	var (
 		macro = d.getCurrentLiteral()
 		err   error
-		str   string
 	)
 	d.next()
 	switch macro {
@@ -807,7 +809,7 @@ func (d *Decoder) decodeMacro() (string, error) {
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
-	return str, err
+	return d.getCurrentLiteral(), err
 }
 
 func (d *Decoder) executeEnv() error {
