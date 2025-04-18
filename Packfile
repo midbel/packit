@@ -1,0 +1,29 @@
+package packit
+version '0.1.0'
+arch    amd64
+
+file {
+	source bin/packit
+	target usr/bin/packit
+	perm 0o755
+}
+
+depends {
+	package libc6
+}
+
+maintainer {
+	name midbel
+}
+
+license mit
+
+summary "user friendly tool to create deb/rpm packages"
+
+desc <<DESC
+Packit is a versatile packaging tool that simplifies the creation of DEB and RPM packages using easy-to-write configuration files. It also supports inspecting and verifying package builds for accuracy and completeness.
+
+Ideal for developers and maintainers, it streamlines packaging without complex build scripts.
+DESC
+
+compiler go "1.24.0"
