@@ -16,7 +16,7 @@ depends {
 }
 
 maintainer {
-	name midbel
+	name .exec "git config --get user.name"
 }
 
 license mit
