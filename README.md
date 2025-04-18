@@ -184,7 +184,12 @@ Usage:
 
 ##### .echo
 
+The .echo macro is a utility directive primarily intended for debugging purposes (eg: logging the content of variables) during packfile parsing by the decoder.
 
+Usage:
+
+* the macro must only appear at the beginning of a line (preceded) only by optional whitespace
+* it can take multiple arguments all are printed on stdout 
 
 ##### .readfile
 
@@ -210,10 +215,11 @@ Usage:
 
 #### Variables
 
-Packfile can use two kind of variables:
+Two kind of variables can be used inside a Packfile. 
 
-1. local variables
-2. environment variables
+Local variables are denoted by a dollar sign (`$`) followed by an identifier. They are defined using the .let macro within a Packfile. Local variables are scoped to the Packfile in which they are declared, as well as any Packfiles included by it.
+
+Environment variables are identified by an at sign (`@`) followed by an identifier. Environment variables are the one accessible to the `packit` command at runtime or defined within the Packfile using the `.env` macro. Like local variables, environment variables are visible within the defining Packfile and its included Packfiles, but they are also accessible to any subprocesses invoked through the `.exec` macro.
 
 #### Values and their type
 
@@ -289,7 +295,6 @@ float   1_042.1_1
 ##### Boolean
 
 Boolean type is the usual boolean as we all knows. The type has two possible values: `true` or `false`. But the Packfile provides also, two synonyms: `on` and `off`.
-
 
 ##### Object
 
