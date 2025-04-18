@@ -384,13 +384,61 @@ maintainer foobar noreply@foobar.org
 
 ### Files
 
-#### Special case: License
+File objects are defined using the top-level file option and specify which files should be included in the final package. These entries determine how files from the context directory are mapped, handled, and installed within the package.
 
-### Scripts
+Each file object supports the following options:
+
+* **source**: Specifies the path or glob pattern (relative to the context directory) that matches the source file(s) to include.
+* **target**: Defines the destination path within the package where the file(s) should be installed.
+* **ghost** (rpm only): Marks the file as a "ghost" file. Ghost files are not physically included in the package payload but are expected to be created or managed by scripts at runtime.
+* **doc** (rpm only): Identifies the file as documentation. These files are installed into the appropriate documentation directory (e.g., /usr/share/doc).
+* **license** (rpm only): Flags the file as a license file, which may be used by RPM tools to extract license metadata.
+* **readme** (rpm only): Tags the file as a README. Like doc, it may be placed in a standard documentation path and used for informational purposes.
+* **conf/config**: Marks the file as a configuration file. During package upgrades, configuration files are preserved if modified.
+* **perm**: Sets the file permissions for the installed file (e.g., 0644, 0755).
+
+Multiple file objects can be defined within a single Packfile.
+
+### License
+
+License can be specified in two different forms. First the object syntax can be used with the following options:
+
+* **text**: the literal text of the license
+* **file**: the file containing the license text relative to the context directory
+* **type**: the type of license (e.g.: mit, gpl)
+
+Both text and file can be used within the same object but only the last value will be used.
+
+Using the simple key/value syntax, the name of a pre-defined template can be used:
+
+```
+license mit
+```
+
+Typically, the license option is used only once in a Packfile. While specifying it multiple times does not produce an error, only the last occurrence will be used when embedding license information into the package.
 
 ### Change
 
+The Change options are used to define changelog entries that will be included in the final built package. Each entry documents updates made in a specific version of the package.
+
+Multiple Change entries can be defined to reflect the package's history across versions.
+
+* **summary**: A concise, one-line summary describing the key updates or purpose of the release.
+* **change**: A list of detailed changes, fixes, or improvements introduced in the version. Multiple values can be provided.
+* **version**: The package version associated with the listed changes.
+* **date**: The release date for the given version.
+* **maintainer**: The name (and optionally email) of the maintainer who built the package with these changes.
+
 ### Dependency
+
+The Depends options are used to declare package dependencies—other packages that must be installed for the current package to function correctly. These dependencies ensure that required libraries, tools, or components are available at install time or runtime.
+
+Multiple Depends entries can be defined to specify a list of required packages.
+
+* **package**: The name of the required package.
+* **type**: The type of dependency (e.g., require, suggests, recommands). This helps distinguish between dependencies needed for building the package versus running it.
+* **arch**: Architecture-specific constraint for the dependency (e.g., x86_64, arm64). Useful when a dependency is only needed on certain platforms.
+* **version**: A version requirement or constraint for the dependency (e.g., >=1.2.0, =2.0.1). This defines the acceptable version range for the dependency to be considered valid.
 
 ## Next steps
 
