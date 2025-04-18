@@ -2,7 +2,7 @@
 
 package $package
 version .exec "git tag | tail -n 1 | cut -c 2-"
-arch    amd64
+arch    $archall
 
 file {
 	source `bin/$package`
