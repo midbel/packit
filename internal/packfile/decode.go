@@ -584,15 +584,11 @@ func (d *Decoder) decodeCompiler(pkg *Package) error {
 func (d *Decoder) decodeCompilerFromString(pkg *Package) error {
 	pkg.BuildWith.Name = d.getCurrentLiteral()
 	d.next()
-	if !d.is(String) && !d.is(Literal) && !d.is(Number) {
-		return fmt.Errorf("compiler: missing version")
+	version, err := d.decodeString()
+	if err != nil {
+		return err
 	}
-	pkg.BuildWith.Version = d.getCurrentLiteral()
-	d.next()
-	if !d.isEOL() {
-		return fmt.Errorf("missing end of line after value")
-	}
-	d.skipEOL()
+	pkg.BuildWith.Version = version
 	return nil
 }
 
@@ -865,7 +861,7 @@ func (d *Decoder) executeExec() error {
 		d.curr.Type = Invalid
 		return err
 	}
-	d.curr.Literal = string(buf)
+	d.curr.Literal = strings.TrimSpace(string(buf))
 	d.curr.Type = String
 	return nil
 }
@@ -874,7 +870,7 @@ func (d *Decoder) executeReadFile() error {
 	buf, err := os.ReadFile(d.getCurrentLiteral())
 	if err == nil {
 		d.curr.Type = String
-		d.curr.Literal = string(buf)
+		d.curr.Literal = strings.TrimSpace(string(buf))
 	} else {
 		d.curr.Type = Invalid
 	}
