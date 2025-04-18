@@ -219,7 +219,20 @@ Two kind of variables can be used inside a Packfile.
 
 Local variables are denoted by a dollar sign (`$`) followed by an identifier. They are defined using the .let macro within a Packfile. Local variables are scoped to the Packfile in which they are declared, as well as any Packfiles included by it.
 
+```
+.let foo foobar
+.let answer 42
+
+package `$foo-$answer`
+```
+
 Environment variables are identified by an at sign (`@`) followed by an identifier. Environment variables are the one accessible to the `packit` command at runtime or defined within the Packfile using the `.env` macro. Like local variables, environment variables are visible within the defining Packfile and its included Packfiles, but they are also accessible to any subprocesses invoked through the `.exec` macro.
+
+```
+.env USER foobar
+.env PASS foobar
+version .exec `curl -u @USER:@PASS https://@HOSTNAME:8080/version`
+```
 
 #### Values and their type
 
