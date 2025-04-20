@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/midbel/packit/internal/glob"
+	"github.com/midbel/packit/internal/git"
+	"github.com/midbel/shlex"
 )
 
 //go:embed licenses/*
@@ -173,7 +175,7 @@ func createDecoder(r io.Reader, context string, env *Environ) *Decoder {
 		ignore:       glob.Default(),
 		scan:         Scan(r),
 		env:          Enclosed(env),
-		macros: Empty(),
+		macros:       Empty(),
 	}
 
 	return &d
@@ -806,7 +808,7 @@ func (d *Decoder) decodeMacro() (string, error) {
 		if !ok {
 			fmt.Sprintf("%v", cmd)
 		}
-		err := d.executeCommand(cmd)
+		err := d.executeCommand(cmd, false)
 		return d.getCurrentLiteral(), err
 	}
 	d.next()
@@ -815,6 +817,10 @@ func (d *Decoder) decodeMacro() (string, error) {
 		err = d.executeReadFile()
 	case "exec":
 		err = d.executeExec()
+	case "shell":
+		err = d.executeShell()
+	case "git":
+		err = d.executeGit()
 	default:
 		err = fmt.Errorf("%s is not a supported macro", macro)
 	}
@@ -877,16 +883,49 @@ func (d *Decoder) executeEcho() error {
 	return nil
 }
 
-func (d *Decoder) executeExec() error {
-	return d.executeCommand(d.getCurrentLiteral())
+func (d *Decoder) executeGit() error {
+	var res string
+	switch arg := d.getCurrentLiteral(); arg {
+	case "branch":
+		res = git.CurrentBranch()
+	case "user":
+		res = git.User()
+	case "email":
+		res = git.Email()
+	case "tag":
+		res = git.CurrentTag()
+	default:
+		d.curr.Literal = ""
+		d.curr.Type = Invalid
+		return fmt.Errorf("%s: invalid .git argument", arg)
+	}
+	d.curr.Literal = res
+	d.curr.Type = String
+	return nil
 }
 
-func (d *Decoder) executeCommand(command string) error {
-	args := []string{
-		"-c",
-		command,
+func (d *Decoder) executeShell() error {
+	return d.executeCommand(d.getCurrentLiteral(), true)
+}
+
+func (d *Decoder) executeExec() error {
+	return d.executeCommand(d.getCurrentLiteral(), false)
+}
+
+func (d *Decoder) executeCommand(command string, shell bool) error {
+	var args []string
+	if shell {
+		args = append(args, DefaultShell)
+		args = append(args, "-c")
+		args = append(args, command)
+	} else {
+		tmp, err := shlex.SplitString(command)
+		if err != nil {
+			return err
+		}
+		args = tmp
 	}
-	cmd := exec.Command(DefaultShell, args...)
+	cmd := exec.Command(args[0], args[1:]...)
 	buf, err := cmd.Output()
 	if err != nil {
 		d.curr.Type = Invalid
@@ -896,7 +935,6 @@ func (d *Decoder) executeCommand(command string) error {
 	d.curr.Type = String
 	return nil
 }
-
 
 func (d *Decoder) executeReadFile() error {
 	buf, err := os.ReadFile(d.getCurrentLiteral())

@@ -467,8 +467,12 @@ Multiple Depends entries can be defined to specify a list of required packages.
 * **arch**: Architecture-specific constraint for the dependency (e.g., x86_64, arm64). Useful when a dependency is only needed on certain platforms.
 * **version**: A version requirement or constraint for the dependency. This defines the acceptable version range for the dependency to be considered valid. Contraints are given via `eq`, `lt`, `le`, `gt`, `ge`, `ne`
 
-## Next steps
+## Next steps/TODOS
 
+* introduces `.git` macro to get list of tag and git settings
+* `.exec` macro runs directly the given command
+* `.shell` macro runs given command in a shell (sh as default)
+* build hooks (before/after archive, before/after metadata, ...)
 * automatic dependencies resolution by inspecting ELF binaries
 * automatically stripping the binary
 * support for `APK` packages
