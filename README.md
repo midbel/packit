@@ -469,9 +469,6 @@ Multiple Depends entries can be defined to specify a list of required packages.
 
 ## Next steps/TODOS
 
-* introduces `.git` macro to get list of tag and git settings
-* `.exec` macro runs directly the given command
-* `.shell` macro runs given command in a shell (sh as default)
 * build hooks (before/after archive, before/after metadata, ...)
 * automatic dependencies resolution by inspecting ELF binaries
 * automatically stripping the binary
@@ -479,3 +476,4 @@ Multiple Depends entries can be defined to specify a list of required packages.
 * linting Packfile and/or build packages
 * converting existing `.deb`/`.rpm` packages to other packages format
 * support for zstd compression
+* options to generate "documentation" package only and/or both package (binary, documentation) but splitted
