@@ -224,6 +224,8 @@ Usage:
 * It can not be used as standalone as the `.include macro`
 * The macro accepts exaclty one argument: the command to execute
 
+##### .git
+
 #### Variables
 
 Two kind of variables can be used inside a Packfile. 

@@ -17,8 +17,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/midbel/packit/internal/glob"
 	"github.com/midbel/packit/internal/git"
+	"github.com/midbel/packit/internal/glob"
 	"github.com/midbel/shlex"
 )
 
@@ -146,6 +146,10 @@ func NewDecoder(context string, config *DecoderConfig) (*Decoder, error) {
 		return nil, err
 	}
 	defer r.Close()
+
+	if err := git.Load(); err != nil {
+		return nil, err
+	}
 
 	d := createDecoder(r, context, defaultEnv())
 	d.file = r.Name()
