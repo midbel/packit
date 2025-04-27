@@ -478,4 +478,3 @@ Multiple Depends entries can be defined to specify a list of required packages.
 * linting Packfile and/or build packages
 * converting existing `.deb`/`.rpm` packages to other packages format
 * support for zstd compression
-* options to generate "documentation" package only and/or both package (binary, documentation) but splitted
