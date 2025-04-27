@@ -121,17 +121,25 @@ func CheckPackage(file string) error {
 	}
 }
 
-func BuildPackage(file, dist, kind, context string) error {
+type PackageBuilder struct {
+	File      string
+	Dist      string
+	Type      string
+	OnlyDocs  bool
+	SplitDocs bool
+}
+
+func (b *PackageBuilder) BuildPackage(context string) error {
 	if context == "" {
-		context = filepath.Dir(file)
+		context = filepath.Dir(b.File)
 	}
-	pkg, err := packfile.Load(file, context)
+	pkg, err := packfile.Load(b.File, context)
 	if err != nil {
 		return err
 	}
 
-	name := fmt.Sprintf("%s.%s", pkg.PackageName(), kind)
-	name = filepath.Join(dist, name)
+	name := fmt.Sprintf("%s.%s", pkg.PackageName(), b.Type)
+	name = filepath.Join(b.Dist, name)
 	if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
 		return err
 	}
@@ -141,7 +149,7 @@ func BuildPackage(file, dist, kind, context string) error {
 	}
 	defer w.Close()
 
-	builder, err := Build(kind, w)
+	builder, err := Build(b.Type, w)
 	if err != nil {
 		return err
 	}

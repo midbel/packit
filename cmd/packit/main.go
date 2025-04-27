@@ -144,13 +144,15 @@ func runFiles(args []string) error {
 
 func runBuild(args []string) error {
 	var (
-		set      = flag.NewFlagSet("build", flag.ExitOnError)
-		kind     = set.String("k", "", "package type")
-		file     = set.String("f", "Packfile", "package file")
-		dist     = set.String("d", "", "directory where package will be written")
-		onlyDoc  = set.Bool("only-docs", false, "build documentation package only")
-		splitDoc = set.Bool("split-docs", false, "build binary and documentation package separately")
+		set   = flag.NewFlagSet("build", flag.ExitOnError)
+		build build.PackageBuilder
 	)
+	set.StringVar(&build.Type, "k", "", "package type")
+	set.StringVar(&build.File, "f", "Packfile", "package file")
+	set.StringVar(&build.Dist, "d", "", "directory where package will be written")
+	set.BoolVar(&build.OnlyDocs, "only-docs", false, "build documentation package only")
+	set.BoolVar(&build.SplitDocs, "split-docs", false, "build binary and documentation package separately")
+
 	set.Usage = func() {
 		fmt.Fprintln(os.Stderr, "build a new package")
 		fmt.Fprintln(os.Stderr)
@@ -175,7 +177,7 @@ func runBuild(args []string) error {
 		return fmt.Errorf("missing context")
 	}
 
-	return build.BuildPackage(*file, *dist, *kind, set.Arg(0))
+	return build.BuildPackage(set.Arg(0))
 }
 
 func runInspect(args []string) error {
