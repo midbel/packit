@@ -117,6 +117,34 @@ func Load(file, context string) (*Package, error) {
 	return d.Decode()
 }
 
+func (p *Package) Split() []*Package {
+	k := *p
+	k.Files = nil
+	for _, f := range p.Files {
+		flag := f.Flags & (FileFlagDoc | FileFlagReadme)
+		if flag == 0 {
+			k.Files = append(k.Files, f)
+		}
+	}
+	return []*Package{&k, p.OnlyDocs()}
+}
+
+func (p *Package) OnlyDocs() *Package {
+	k := *p
+	k.Name = fmt.Sprintf("%s-doc", k.Name)
+	k.Files = nil
+	k.Depends = nil
+	k.Changes = nil
+
+	for _, f := range p.Files {
+		flag := f.Flags & (FileFlagDoc | FileFlagReadme)
+		if flag != 0 {
+			k.Files = append(k.Files, f)
+		}
+	}
+	return &k
+}
+
 func (p *Package) GetDirDoc(file string) string {
 	return filepath.Join(DirDoc, p.Name, file)
 }

@@ -138,6 +138,24 @@ func (b *PackageBuilder) BuildPackage(context string) error {
 		return err
 	}
 
+	var all []*packfile.Package
+	if b.OnlyDocs {
+		all = append(all, pkg.OnlyDocs())
+	} else if b.SplitDocs {
+		all = pkg.Split()
+	} else {
+		all = append(all, pkg)
+	}
+
+	for _, pkg := range all {
+		if err := b.buildPackage(pkg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *PackageBuilder) buildPackage(pkg *packfile.Package) error {
 	name := fmt.Sprintf("%s.%s", pkg.PackageName(), b.Type)
 	name = filepath.Join(b.Dist, name)
 	if err := os.MkdirAll(filepath.Dir(name), 0755); err != nil {
