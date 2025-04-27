@@ -214,9 +214,9 @@ Usage:
 * The specified path is interpreted relative to the context directory provided on the command line.
 
 
-##### .exec
+##### .exec/.shell
 
-The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string.
+The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string. Similar to the `.exec` macro, the `.shell` macro does the same thing except that it run the new process in a sub shell instead of directly as a subprocess.
 
 Usage:
 
