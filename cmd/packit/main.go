@@ -144,10 +144,12 @@ func runFiles(args []string) error {
 
 func runBuild(args []string) error {
 	var (
-		set  = flag.NewFlagSet("build", flag.ExitOnError)
-		kind = set.String("k", "", "package type")
-		file = set.String("f", "Packfile", "package file")
-		dist = set.String("d", "", "directory where package will be written")
+		set      = flag.NewFlagSet("build", flag.ExitOnError)
+		kind     = set.String("k", "", "package type")
+		file     = set.String("f", "Packfile", "package file")
+		dist     = set.String("d", "", "directory where package will be written")
+		onlyDoc  = set.Bool("only-docs", false, "build documentation package only")
+		splitDoc = set.Bool("split-docs", false, "build binary and documentation package separately")
 	)
 	set.Usage = func() {
 		fmt.Fprintln(os.Stderr, "build a new package")
@@ -160,6 +162,8 @@ func runBuild(args []string) error {
 		fmt.Fprintln(os.Stderr, "  -f                 the Packfile used to build the package")
 		fmt.Fprintln(os.Stderr, "  -d                 folder where the final package will be saved")
 		fmt.Fprintln(os.Stderr, "  -i, --ignore-file  file with patterns to be excluded from final package")
+		fmt.Fprintln(os.Stderr, "  --split-docs       split packages in binary and documentation package")
+		fmt.Fprintln(os.Stderr, "  --only-docs        build documentation package only")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Usage: packit build [OPTIONS] <CONTEXT>")
 		os.Exit(2)
