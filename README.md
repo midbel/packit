@@ -30,6 +30,14 @@ $ packit build -k rpm -f Packfile -d dist .
 * **-d** specifies where the final package will be saved once build
 * the final argument specifies the context directory. All the paths given in the configuration file are supposed to be relative to this directory
 
+There are two additional options to control how the package is built. You can choose between:
+
+1. Building the full package (binary and documentation) together.
+2. Building only the documentation package via the **--only-docs** option.
+3. Building the binary and documentation packages separately thanks to the **--split-docs** option.
+
+The default behaviour is to build the full package binary and documentation included.
+
 ### Reading Packages - show metadata
 
 To show the metadata of an existing package, you can use the command
