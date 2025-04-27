@@ -898,6 +898,8 @@ func (d *Decoder) executeGit() error {
 		res = git.Email()
 	case "tag":
 		res = git.CurrentTag()
+	case "url":
+		res = git.Origin()
 	default:
 		d.curr.Literal = ""
 		d.curr.Type = Invalid

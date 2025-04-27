@@ -224,7 +224,7 @@ Usage:
 
 ##### .exec/.shell
 
-The .exec macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string. Similar to the `.exec` macro, the `.shell` macro does the same thing except that it run the new process in a sub shell instead of directly as a subprocess.
+The `.exec` macro executes the specified command in a subprocess, passing along all currently defined environment variables. It captures and returns the command’s standard output as a string. Similar to the `.exec` macro, the `.shell` macro does the same thing except that it run the new process in a sub shell instead of directly as a subprocess.
 
 Usage:
 
@@ -233,6 +233,14 @@ Usage:
 * The macro accepts exaclty one argument: the command to execute
 
 ##### .git
+
+The .git macro lets you access basic information from the Git repository where the Packit command is run, including:
+
+* user
+* email
+* latest tag
+* current branch
+* `origin` remote URL
 
 #### Variables
 

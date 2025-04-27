@@ -5,6 +5,8 @@ package $package
 version .git tag
 arch    $archall
 
+home .git url
+
 file {
 	source `bin/$package`
 	target `usr/bin/$package`
